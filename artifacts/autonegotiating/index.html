@@ -3,7 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AutoNegotiating.com — Find Your Deal</title>
+
+<title>AutoNegotiating.com | Find Car Deals Near You &amp; Negotiate Better Prices</title>
+<meta name="description" content="Search live dealer inventory, find the best new and used car deals near you, and submit competitive offers directly to dealers. AI-powered deal analysis and professional negotiation tools.">
+<meta name="keywords" content="car deals near me, auto negotiation, new car deals, used car deals, car buying service, negotiate car price, dealer inventory, car price analysis">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://www.autonegotiating.com/">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.autonegotiating.com/">
+<meta property="og:title" content="AutoNegotiating.com | Find Car Deals &amp; Negotiate Better Prices">
+<meta property="og:description" content="Search live dealer inventory, find the best car deals near you, and submit competitive offers directly to dealers. We negotiate for you.">
+<meta property="og:site_name" content="AutoNegotiating.com">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AutoNegotiating.com | Find Car Deals &amp; Negotiate Better Prices">
+<meta name="twitter:description" content="Search live dealer inventory, find the best car deals near you, and submit competitive offers directly to dealers. We negotiate for you.">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "AutoNegotiating.com",
+  "url": "https://www.autonegotiating.com",
+  "description": "Find the best new and used car deals near you. AI-powered deal analysis and professional negotiation tools.",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://www.autonegotiating.com/?make={make}&model={model}",
+    "query-input": "required name=make"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "AutoNegotiating.com",
+  "url": "https://www.autonegotiating.com",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+15038939408",
+    "email": "offers@autonegotiating.com",
+    "contactType": "customer service"
+  }
+}
+</script>
+
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -120,6 +165,7 @@ main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 .pb-val{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--ink)}
 .pb-val.orange{color:var(--orange)}
 .pb-val.green{color:var(--success)}
+.pb-basis{font-size:9px;color:var(--ink3);margin-top:2px;letter-spacing:0.3px}
 .offer-tabs{display:flex;gap:6px;margin-bottom:1.25rem}
 .offer-tab{flex:1;background:transparent;border:1px solid var(--border2);color:var(--ink3);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:9px 6px;border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;text-align:center}
 .offer-tab:hover{border-color:var(--orange);color:var(--orange)}
@@ -243,19 +289,55 @@ footer a{color:var(--orange);text-decoration:none}
 .days-badge.warm{background:#f0c060;color:#5a3b00}
 .card-history-links{display:flex;align-items:center;gap:6px;padding:6px 0 2px;border-top:1px solid var(--border);margin-top:6px}
 .history-link{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;text-decoration:none;padding:3px 8px;border-radius:5px;transition:all 0.15s}
-.carfax-link{color:#c0392b;background:#fdecea}
-.carfax-link:hover{background:#c0392b;color:#fff}
-.autocheck-link{color:#1a5fa8;background:#e8f0fb}
-.autocheck-link:hover{background:#1a5fa8;color:#fff}
+.carfax-link{background:#fff;border:1px solid #e0e0e0;padding:4px 8px}
+.carfax-link:hover{background:#f5f5f5;border-color:#bbb}
 .history-link-sep{color:var(--ink3);font-size:11px;line-height:1}
 .history-report-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:6px 12px;border-radius:6px;text-decoration:none;transition:all 0.15s}
-.carfax-btn{color:#c0392b;background:#fdecea;border:1px solid rgba(192,57,43,0.2)}
-.carfax-btn:hover{background:#c0392b;color:#fff}
-.autocheck-btn{color:#1a5fa8;background:#e8f0fb;border:1px solid rgba(26,95,168,0.2)}
-.autocheck-btn:hover{background:#1a5fa8;color:#fff}
+.carfax-btn{background:#fff;border:1px solid #ddd;padding:6px 14px}
+.carfax-btn:hover{background:#f5f5f5;border-color:#aaa}
+
+
+/* Offer modal intel CTA */
+.modal-intel-cta{display:block;background:linear-gradient(135deg,#1A1A18 0%,#2d2d2a 100%);color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:1.1rem;text-decoration:none;transition:opacity 0.15s;cursor:pointer}
+.modal-intel-cta:hover{opacity:0.88}
+.mic-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.mic-title{font-size:13px;font-weight:700;color:#fff;letter-spacing:0.1px;line-height:1.35}
+.mic-header svg{flex-shrink:0;color:#C95E1A}
+.mic-arrow{color:rgba(255,255,255,0.35)!important}
+.mic-features{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.mic-features li{font-size:10px;color:rgba(255,255,255,0.72);display:flex;align-items:flex-start;gap:5px;line-height:1.4}
+.mic-features li::before{content:'✓';color:#C95E1A;font-weight:700;font-size:10px;flex-shrink:0;margin-top:0px}
+
+/* Buyer Verify Modal */
+.verify-modal{background:var(--white);border:1px solid var(--border);border-radius:18px;width:100%;max-width:420px;padding:2rem;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.12)}
+.verify-icon{width:48px;height:48px;background:var(--orange-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:1rem}
+.verify-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.verify-sub{font-size:13px;color:var(--ink3);margin-bottom:1.5rem;line-height:1.6}
+.verify-badge{display:inline-flex;align-items:center;gap:5px;background:var(--success-light);color:var(--success);font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:0.3px;margin-bottom:1.25rem}
+.verify-privacy{font-size:11px;color:var(--ink3);text-align:center;margin-top:1rem;line-height:1.5}
+
+/* Card carousel */
+.card-carousel{position:relative;width:100%;height:100%}
+.cc-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:5;background:rgba(26,26,24,0.55);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;padding:0;backdrop-filter:blur(2px)}
+.cc-prev{left:6px}
+.cc-next{right:6px}
+.car-card:hover .cc-arrow{opacity:1}
+.cc-dots{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:5}
+.cc-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.5);cursor:pointer;transition:background 0.15s;border:none;padding:0}
+.cc-dot.active{background:#fff}
 
 /* Price Drop Badge */
 .price-drop-badge{position:absolute;bottom:8px;left:8px;background:#1D9E75;color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:0.4px;text-transform:uppercase;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,0.15);z-index:2}
+
+/* Deal Rating Badge */
+.deal-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:0.3px;text-transform:uppercase;margin-bottom:6px}
+.deal-badge.great{background:#e1f5ee;color:#1D9E75;border:1px solid rgba(29,158,117,0.25)}
+.deal-badge.good{background:#e8f0fb;color:#1a5fa8;border:1px solid rgba(26,95,168,0.2)}
+.deal-badge.fair{background:var(--cream);color:var(--ink3);border:1px solid var(--border)}
+.deal-badge.high{background:#faeeda;color:#BA7517;border:1px solid rgba(186,117,23,0.25)}
+
+/* Monthly Payment */
+.monthly-pay{font-size:10px;color:var(--ink3);margin-top:1px;font-weight:500}
 
 /* Gallery Nav */
 .gallery-nav-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(26,26,24,0.55);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;z-index:5;backdrop-filter:blur(2px)}
@@ -319,6 +401,30 @@ footer a{color:var(--orange);text-decoration:none}
       <option value="">Any Body</option><option value="Sedan">Sedan</option><option value="SUV">SUV</option>
       <option value="Truck">Truck</option><option value="Coupe">Coupe</option><option value="Hatchback">Hatchback</option>
       <option value="Wagon">Wagon</option><option value="Convertible">Convertible</option><option value="Minivan">Minivan</option>
+    </select>
+    <select class="s-select" id="search-fuel">
+      <option value="">Any Fuel</option>
+      <option value="gasoline">Gas</option>
+      <option value="hybrid">Hybrid</option>
+      <option value="electric">Electric</option>
+      <option value="diesel">Diesel</option>
+      <option value="plug_in_hybrid">Plug-in Hybrid</option>
+    </select>
+    <select class="s-select" id="search-drive">
+      <option value="">Any Drive</option>
+      <option value="awd">AWD</option>
+      <option value="fwd">FWD</option>
+      <option value="rwd">RWD</option>
+      <option value="4wd">4WD / 4x4</option>
+    </select>
+    <select class="s-select" id="search-max-mileage">
+      <option value="">Any Miles</option>
+      <option value="15000">15k mi</option>
+      <option value="30000">30k mi</option>
+      <option value="50000">50k mi</option>
+      <option value="75000">75k mi</option>
+      <option value="100000">100k mi</option>
+      <option value="150000">150k mi</option>
     </select>
     <select class="s-select" id="search-min-year">
       <option value="">Min Year</option>
@@ -469,11 +575,28 @@ footer a{color:var(--orange);text-decoration:none}
     <button class="modal-close" onclick="closeModal('offer-overlay')">×</button>
     <div class="m-car-name" id="modal-car-name">—</div>
     <div class="m-dealer" id="modal-dealer-info">—</div>
-    <div class="modal-prices">
-      <div class="price-box"><div class="pb-lbl">MSRP</div><div class="pb-val" id="modal-msrp">—</div></div>
-      <div class="price-box"><div class="pb-lbl">Incentives</div><div class="pb-val green" id="modal-inc-total">—</div></div>
-      <div class="price-box"><div class="pb-lbl">Target Price</div><div class="pb-val orange" id="modal-target">—</div></div>
+    <div class="modal-prices" style="grid-template-columns:repeat(3,1fr)">
+      <div class="price-box"><div class="pb-lbl">Listed Price</div><div class="pb-val" id="modal-msrp">—</div></div>
+      <div class="price-box"><div class="pb-lbl">Market Avg</div><div class="pb-val orange" id="modal-mktavg">—</div><div class="pb-basis" id="modal-mktavg-basis"></div></div>
+      <div class="price-box"><div class="pb-lbl">Dealer Invoice</div><div class="pb-val green" id="modal-floor">—</div></div>
     </div>
+    <a class="modal-intel-cta" id="modal-intel-link" href="/deal-intelligence.html" target="_blank">
+      <div class="mic-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C95E1A" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+          <div class="mic-title">Get your Deal Intelligence Report</div>
+        </div>
+        <svg class="mic-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <ul class="mic-features">
+        <li>AI-recommended offer strategy (Aggressive, Recommended, Safe)</li>
+        <li>Fair market value from KBB, CarGurus &amp; Edmunds</li>
+        <li>Real Deal Reports from Forums &amp; what others paid</li>
+        <li>Nationwide comparable listings near you</li>
+        <li>Negotiation tips specific to this vehicle</li>
+        <li>Downloadable PDF report to take to the dealer</li>
+      </ul>
+    </a>
     <div class="offer-tabs">
       <button class="offer-tab active" onclick="switchTab('cash',this)">💵 Cash</button>
       <button class="offer-tab" onclick="switchTab('finance',this)">📋 Finance</button>
@@ -515,6 +638,39 @@ footer a{color:var(--orange);text-decoration:none}
   </div>
 </div>
 
+<!-- BUYER VERIFY MODAL -->
+<div class="modal-overlay hidden" id="verify-overlay" onclick="handleOverlayClick(event,'verify-overlay')">
+  <div class="verify-modal">
+    <button class="modal-close" onclick="closeModal('verify-overlay')">×</button>
+    <div class="verify-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C95E1A" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </div>
+    <div class="verify-title">Before we submit your offer</div>
+    <div class="verify-sub">We'll send a copy of the offer to your inbox so you have a record, and the dealer can reach you directly.</div>
+    <span class="verify-badge">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Your info is never shared with third parties
+    </span>
+    <div class="form-group">
+      <label class="form-label" for="buyer-name">Full Name</label>
+      <input class="s-input" id="buyer-name" type="text" placeholder="Jane Smith" autocomplete="name" style="width:100%;height:42px;font-size:14px">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="buyer-email">Email Address</label>
+      <input class="s-input" id="buyer-email" type="email" placeholder="jane@example.com" autocomplete="email" style="width:100%;height:42px;font-size:14px">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="buyer-phone">Phone <span style="color:var(--ink3);font-weight:400;text-transform:none">(optional)</span></label>
+      <input class="s-input" id="buyer-phone" type="tel" placeholder="(503) 555-0100" autocomplete="tel" style="width:100%;height:42px;font-size:14px">
+    </div>
+    <div id="verify-error" style="color:var(--danger);font-size:12px;margin-bottom:0.75rem;display:none"></div>
+    <button class="submit-btn" onclick="saveBuyerProfile()">
+      Continue to Offer &rarr;
+    </button>
+    <p class="verify-privacy">🔒 Encrypted &nbsp;·&nbsp; Not shared &nbsp;·&nbsp; Used only to send your offer copy</p>
+  </div>
+</div>
+
 <!-- EMAIL MODAL -->
 <div class="modal-overlay hidden" id="email-overlay" onclick="handleOverlayClick(event,'email-overlay')">
   <div class="email-modal">
@@ -525,17 +681,17 @@ footer a{color:var(--orange);text-decoration:none}
     <div class="e-field"><div class="e-lbl">Subject</div><div class="e-val" id="email-subject">—</div></div>
     <div class="e-body" id="email-body" contenteditable="true"></div>
     <div class="e-actions">
-      <button class="btn-copy" onclick="copyEmail()">📋 Copy Email</button>
-      <a class="btn-mail" id="email-mailto-btn" href="#">
+      <button class="btn-copy" onclick="copyEmail()">📋 Copy</button>
+      <button class="btn-mail" id="email-send-btn" onclick="sendOfferEmail()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
-        Open in Mail App
-      </a>
+        <span id="email-send-label">Send Offer</span>
+      </button>
     </div>
   </div>
 </div>
 
-<footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:info@autonegotiating.com">info@autonegotiating.com</a></p></footer>
+<footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
-<script src="/app.js"></script>
+<script src="/app.js?v=20260513n"></script>
 </body>
 </html>

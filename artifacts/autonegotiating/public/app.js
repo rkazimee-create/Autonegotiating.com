@@ -92,7 +92,6 @@ function normalizeListing(l, idx) {
     fuel:        l.fuelType || '',
     bodyStyle:   l.bodyStyle || l.bodyType || '',
     carfaxUrl:      l.vin ? `https://www.carfax.com/VehicleHistory/p/Report.cfx?partner=DEY_0&vin=${l.vin}` : (l.carfaxUrl || null),
-    autoCheckUrl:   l.vin ? `https://www.autocheck.com/vehiclehistory/?vin=${l.vin}` : null,
     history:        l.history   || null,
     recentPriceDrop: l.recentPriceDrop === true,
     pricePlusFees:  l.pricePlusFees || null,
@@ -584,7 +583,10 @@ async function runSearch(page = 1, forceParams = {}) {
     return;
   }
 
-  const trim     = document.getElementById('search-trim') ? document.getElementById('search-trim').value.trim() : '';
+  const trim       = document.getElementById('search-trim') ? document.getElementById('search-trim').value.trim() : '';
+  const fuel       = document.getElementById('search-fuel') ? document.getElementById('search-fuel').value : '';
+  const drive      = document.getElementById('search-drive') ? document.getElementById('search-drive').value : '';
+  const maxMileage = document.getElementById('search-max-mileage') ? document.getElementById('search-max-mileage').value : '';
   const params = { zip, distance: radius };
   if (make)      params['make']      = make;
   if (model)     params['model']     = model;
@@ -595,6 +597,8 @@ async function runSearch(page = 1, forceParams = {}) {
   if (bodyStyle) params['bodyStyle'] = bodyStyle;
   if (minYear)   params['minYear']   = minYear;
   if (maxYear)   params['maxYear']   = maxYear;
+  if (fuel)      params['fuelType']  = fuel;
+  if (drive)     params['driveType'] = drive;
 
   setLoading(true);
   clearError();
@@ -643,6 +647,29 @@ async function runSearch(page = 1, forceParams = {}) {
       if (minYearInt) normalized = normalized.filter(function(c) { return c.year >= minYearInt; });
       if (maxYearInt < 9999) normalized = normalized.filter(function(c) { return c.year <= maxYearInt; });
 
+      // Client-side mileage filtering
+      const maxMileageInt = parseInt(maxMileage) || 0;
+      if (maxMileageInt) normalized = normalized.filter(function(c) { return !c.mileageRaw || c.mileageRaw <= maxMileageInt; });
+
+      // Client-side fuel type filtering (fallback)
+      if (fuel) {
+        const fl = fuel.toLowerCase();
+        normalized = normalized.filter(function(c) {
+          return (c.fuel || '').toLowerCase().includes(fl) || (fl === 'electric' && (c.type === 'ev' || (c.fuel||'').toLowerCase().includes('bev')));
+        });
+      }
+
+      // Client-side drivetrain filtering (fallback)
+      if (drive) {
+        const dl = drive.toLowerCase();
+        normalized = normalized.filter(function(c) {
+          return (c.drivetrain || '').toLowerCase().includes(dl);
+        });
+      }
+
+      // Compute deal ratings based on price vs avg for same make/model/year
+      computeDealRatings(normalized);
+
       allCars = normalized;
       isLiveData = true;
       populateYearFilters(allCars);
@@ -666,6 +693,69 @@ async function runSearch(page = 1, forceParams = {}) {
 }
 
 function changePage(dir) { runSearch(currentPage + dir); }
+
+// Deal rating: compare each car's price to avg for same make+model+year in result set
+function normTrim(t) { return (t || '').trim().toUpperCase().replace(/\s+/g, ' '); }
+function groupAvg(map, key) {
+  const g = map[key];
+  return (g && g.length >= 2) ? g.reduce(function(s, p) { return s + p; }, 0) / g.length : null;
+}
+
+function computeDealRatings(cars) {
+  const byTrim  = {}; // name|year|trim|condition
+  const byModel = {}; // name|year|condition (no trim)
+
+  cars.forEach(function(c) {
+    if (!c.msrp) return;
+    const cond = c.condition === 'new' ? 'new' : 'used';
+    const kt = c.name + '|' + c.year + '|' + normTrim(c.trim) + '|' + cond;
+    const km = c.name + '|' + c.year + '|' + cond;
+    if (!byTrim[kt])  byTrim[kt]  = [];
+    if (!byModel[km]) byModel[km] = [];
+    byTrim[kt].push(c.msrp);
+    byModel[km].push(c.msrp);
+  });
+
+  // Condition-wide fallback pools
+  const newPrices  = cars.filter(function(c) { return c.msrp > 0 && c.condition === 'new'; }).map(function(c) { return c.msrp; });
+  const usedPrices = cars.filter(function(c) { return c.msrp > 0 && c.condition !== 'new'; }).map(function(c) { return c.msrp; });
+  const newAvg  = newPrices.length  ? newPrices.reduce(function(s, p)  { return s + p; }, 0) / newPrices.length  : 0;
+  const usedAvg = usedPrices.length ? usedPrices.reduce(function(s, p) { return s + p; }, 0) / usedPrices.length : 0;
+
+  cars.forEach(function(c) {
+    if (!c.msrp) { c.dealRating = null; c.marketAvg = null; c.marketAvgBasis = null; return; }
+    const cond = c.condition === 'new' ? 'new' : 'used';
+    const kt = c.name + '|' + c.year + '|' + normTrim(c.trim) + '|' + cond;
+    const km = c.name + '|' + c.year + '|' + cond;
+    const condFallback = cond === 'new' ? newAvg : usedAvg;
+
+    let avg, basis;
+    const trimAvg  = groupAvg(byTrim,  kt);
+    const modelAvg = groupAvg(byModel, km);
+
+    if (trimAvg !== null)        { avg = trimAvg;   basis = 'trim'; }
+    else if (modelAvg !== null)  { avg = modelAvg;  basis = 'model'; }
+    else if (condFallback)       { avg = condFallback; basis = 'condition'; }
+    else                         { c.dealRating = null; c.marketAvg = null; c.marketAvgBasis = null; return; }
+
+    c.marketAvg      = Math.round(avg);
+    c.marketAvgBasis = basis;
+    const pct = (c.msrp - avg) / avg;
+    if (pct <= -0.10)      c.dealRating = 'great';
+    else if (pct <= -0.04) c.dealRating = 'good';
+    else if (pct <= 0.05)  c.dealRating = 'fair';
+    else                   c.dealRating = 'high';
+  });
+}
+
+// Monthly payment: 10% down, 7% APR, 60-month term
+function monthlyPayment(price) {
+  if (!price || price <= 0) return null;
+  const principal = price * 0.90;
+  const r = 0.07 / 12;
+  const n = 60;
+  return Math.round(principal * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1));
+}
 
 //  FILTER & RENDER 
 function populateYearFilters(cars) {
@@ -762,24 +852,39 @@ function renderGrid() {
     return;
   }
 
-  grid.innerHTML = filteredCars.map(car => {
-    const imgHtml = car.img
-      ? `<img src="${escHtml(car.img)}" alt="${escHtml(car.name)}" loading="lazy" onerror="this.style.display='none'">`
-      : `<div class="car-emoji-ph">${car.emoji}</div>`;
+  grid.innerHTML = filteredCars.map((car, carIdx) => {
+    const photos = (car.allPhotos && car.allPhotos.length ? car.allPhotos : (car.img ? [car.img] : [])).slice(0, 5);
+    const cid = escHtml(JSON.stringify(String(car.id)));
+    let carouselHtml;
+    if (photos.length === 0) {
+      carouselHtml = `<div class="car-emoji-ph">${car.emoji}</div>`;
+    } else {
+      const imgs = photos.map((url, i) =>
+        `<img src="${escHtml(url)}" alt="${escHtml(car.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:${i===0?1:0};transition:opacity 0.25s" onerror="this.style.display='none'">`
+      ).join('');
+      const dots = photos.length > 1 ? `<div class="cc-dots">${photos.map((_,i)=>`<span class="cc-dot${i===0?' active':''}" onclick="cardCarouselGo(event,${carIdx},0,${i})"></span>`).join('')}</div>` : '';
+      const arrows = photos.length > 1 ? `
+        <button class="cc-arrow cc-prev" onclick="cardCarouselGo(event,${carIdx},-1)" aria-label="Previous photo">&#8249;</button>
+        <button class="cc-arrow cc-next" onclick="cardCarouselGo(event,${carIdx},1)" aria-label="Next photo">&#8250;</button>` : '';
+      carouselHtml = `<div class="card-carousel" data-idx="0" data-cc="${carIdx}" style="position:relative;width:100%;height:100%">${imgs}${arrows}${dots}</div>`;
+    }
     const dropBadge = car.recentPriceDrop
       ? `<span class="price-drop-badge">↓ Price Dropped</span>`
-      : '';
-    const photoCount = car.allPhotos && car.allPhotos.length > 1
-      ? `<span style="position:absolute;top:8px;right:8px;background:rgba(26,26,24,0.55);color:#fff;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;backdrop-filter:blur(2px);z-index:2">${car.allPhotos.length} photos</span>`
       : '';
     const daysBadge = car.daysOnLot !== null && car.daysOnLot >= 30
       ? `<span class="days-badge ${car.daysOnLot >= 60 ? 'hot' : 'warm'}">${car.daysOnLot >= 60 ? '⏰' : '🕐'} ${car.daysOnLot}d on lot</span>`
       : '';
+    const dealBadgeMap = { great: ['★ Great Deal', 'great'], good: ['✓ Good Deal', 'good'], fair: ['Fair Price', 'fair'], high: ['↑ High Price', 'high'] };
+    const dealBadgeData = car.dealRating && dealBadgeMap[car.dealRating];
+    const dealBadgeHtml = dealBadgeData ? `<span class="deal-badge ${dealBadgeData[1]}">${dealBadgeData[0]}</span>` : '';
+    const pmt = monthlyPayment(car.msrp);
+    const pmtHtml = pmt ? `<div class="monthly-pay">~${fmt(pmt)}/mo est.</div>` : '';
     return `
-    <div class="car-card" onclick="openDetail(${escHtml(JSON.stringify(String(car.id)))})">
-      <div class="car-img">${imgHtml}${daysBadge}${dropBadge}${photoCount}</div>
+    <div class="car-card" onclick="openDetail(${cid})">
+      <div class="car-img" style="overflow:hidden">${carouselHtml}${daysBadge}${dropBadge}</div>
       <div class="car-body">
         <span class="src-tag ${car.isLive?'live':'demo'}">${car.isLive?' LIVE':' DEMO'}</span>
+        ${dealBadgeHtml}
         <div class="car-meta">
           <div>
             <div class="car-name">${escHtml(car.year+' '+car.name)}</div>
@@ -788,6 +893,7 @@ function renderGrid() {
           <div class="msrp-b">
             <div class="msrp-lbl">PRICE</div>
             <div class="msrp-val">${car.priceLabel ? `<span style="font-size:12px;font-family:Inter,sans-serif;color:var(--ink3)">${car.priceLabel}</span>` : fmt(car.msrp)}</div>
+            ${pmtHtml}
           </div>
         </div>
         <div class="car-specs">${car.specs.map(s=>`<span class="spec-tag">${escHtml(s)}</span>`).join('')}</div>
@@ -801,13 +907,7 @@ function renderGrid() {
         </div>
         ${car.vin ? `<div class="card-history-links" onclick="event.stopPropagation()">
           <a href="${car.carfaxUrl}" target="_blank" rel="noopener" class="history-link carfax-link">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Carfax
-          </a>
-          <span class="history-link-sep">·</span>
-          <a href="${car.autoCheckUrl}" target="_blank" rel="noopener" class="history-link autocheck-link">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            AutoCheck
+            <img src="https://static.carfax.com/global-header/imgs/logo.svg" alt="Carfax" height="11" style="display:block;filter:none" onerror="this.outerHTML='Carfax'">
           </a>
         </div>` : ''}
       </div>
@@ -893,12 +993,7 @@ async function openDetail(carId) {
   const historyBtns = detailCar.vin ? `
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <a href="${escHtml(detailCar.carfaxUrl)}" target="_blank" rel="noopener" class="history-report-btn carfax-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Carfax Report
-      </a>
-      <a href="${escHtml(detailCar.autoCheckUrl)}" target="_blank" rel="noopener" class="history-report-btn autocheck-btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        AutoCheck
+        <img src="https://static.carfax.com/global-header/imgs/logo.svg" alt="Carfax" height="14" style="display:block" onerror="this.outerHTML='Carfax Report'">
       </a>
     </div>` : '';
   document.getElementById('detail-dealer-rows').innerHTML = dealerRows + historyBtns;
@@ -1102,6 +1197,23 @@ function renderIntelligence(data, vinData) {
   const stats = data.stats || {};
   const comps  = data.comparables || [];
 
+  // Cache the API-sourced market avg on the car object so the offer modal can use it
+  if (stats.avgPrice && detailCar) {
+    detailCar.apiMarketAvg = Math.round(stats.avgPrice);
+    // Also update the matching entry in allCars so the offer modal picks it up
+    const inAll = allCars.find(c => String(c.id) === String(detailCar.id));
+    if (inAll) inAll.apiMarketAvg = detailCar.apiMarketAvg;
+  }
+
+  // Cache real VIN invoice on car so the offer modal can use it
+  const vinInvoice = vinData?.price?.baseInvoice || null;
+  if (vinInvoice && detailCar) {
+    detailCar.apiInvoice     = vinInvoice;
+    detailCar.apiInvoiceType = detailCar.condition === 'new' ? 'Dealer Invoice' : 'Orig. Invoice (new)';
+    const inAll2 = allCars.find(c => String(c.id) === String(detailCar.id));
+    if (inAll2) { inAll2.apiInvoice = vinInvoice; inAll2.apiInvoiceType = detailCar.apiInvoiceType; }
+  }
+
   const carPrice = detailCar.msrp || 0;
   const avg      = stats.avgPrice  || 0;
   const lo       = stats.minPrice  || 0;
@@ -1130,31 +1242,27 @@ function renderIntelligence(data, vinData) {
   // Invoice / TMV / pricing section
   const isNew = detailCar?.condition === 'new';
 
-  if (isNew) {
-    // New cars: auto.dev VIN data doesn't include invoice. Show an estimate from MSRP.
-    if (carPrice) {
-      const estInvoice = Math.round(carPrice * 0.955);
-      const spread = carPrice - estInvoice;
-      html += `<div class="detail-row"><span class="detail-row-label">Est. Dealer Invoice</span><span class="detail-row-val invoice">${fmt(estInvoice)} <span style="font-size:10px;opacity:0.6">(est.)</span></span></div>`;
-      html += `<div class="detail-row"><span class="detail-row-label">MSRP vs Invoice</span><span class="detail-row-val">+${fmt(spread)} above invoice</span></div>`;
-      html += `<div class="invoice-note">Estimated invoice is ~4–5% below MSRP (typical holdback). Aim for 2–5% above this as your opening offer. Run AI Analysis for exact dealer cost and current manufacturer incentives.</div>`;
+  // Invoice — show real VIN data only; no estimates
+  if (invoice) {
+    const aboveInvoice = carPrice && invoice ? carPrice - invoice : null;
+    const invoiceLabel = isNew ? 'Dealer Invoice' : 'Original Dealer Invoice';
+    html += `<div class="detail-row"><span class="detail-row-label">${invoiceLabel}</span><span class="detail-row-val invoice">${fmt(invoice)}</span></div>`;
+    if (aboveInvoice !== null) {
+      const aboveLabel = aboveInvoice >= 0 ? `+${fmt(aboveInvoice)} above invoice` : `${fmt(Math.abs(aboveInvoice))} below invoice`;
+      html += `<div class="detail-row"><span class="detail-row-label">Listed vs Invoice</span><span class="detail-row-val ${aboveInvoice > 0 ? '' : 'green'}">${aboveLabel}</span></div>`;
     }
-  } else if (invoice || tmvRetail || privParty) {
-    // Used / CPO: show actual VIN pricing data from auto.dev
-    if (invoice) {
-      const aboveInvoice = carPrice && invoice ? carPrice - invoice : null;
-      html += `<div class="detail-row"><span class="detail-row-label">Original Dealer Invoice</span><span class="detail-row-val invoice">${fmt(invoice)}</span></div>`;
-      if (aboveInvoice !== null) {
-        const aboveLabel = aboveInvoice >= 0 ? `+${fmt(aboveInvoice)} above invoice` : `${fmt(Math.abs(aboveInvoice))} below invoice`;
-        html += `<div class="detail-row"><span class="detail-row-label">Current vs Invoice</span><span class="detail-row-val ${aboveInvoice > 0 ? '' : 'green'}">${aboveLabel}</span></div>`;
-      }
-    }
-    if (tmvRetail)  html += `<div class="detail-row"><span class="detail-row-label">Edmunds TMV Retail</span><span class="detail-row-val">${fmt(tmvRetail)}</span></div>`;
-    if (privParty)  html += `<div class="detail-row"><span class="detail-row-label">Private Party Value</span><span class="detail-row-val">${fmt(privParty)}</span></div>`;
-    if (tradeIn)    html += `<div class="detail-row"><span class="detail-row-label">Trade-In Value</span><span class="detail-row-val">${fmt(tradeIn)}</span></div>`;
-    if (invoice) {
+    if (!isNew) {
       html += `<div class="invoice-note">Original factory invoice (what the dealer paid when new). A useful anchor — most used cars sell above original invoice.</div>`;
     }
+  } else {
+    html += `<div class="detail-row"><span class="detail-row-label">${isNew ? 'Dealer Invoice' : 'Original Dealer Invoice'}</span><span class="detail-row-val" style="color:var(--ink3)">N/A</span></div>`;
+  }
+
+  // Used / CPO additional VIN pricing
+  if (!isNew) {
+    if (tmvRetail) html += `<div class="detail-row"><span class="detail-row-label">Edmunds TMV Retail</span><span class="detail-row-val">${fmt(tmvRetail)}</span></div>`;
+    if (privParty) html += `<div class="detail-row"><span class="detail-row-label">Private Party Value</span><span class="detail-row-val">${fmt(privParty)}</span></div>`;
+    if (tradeIn)   html += `<div class="detail-row"><span class="detail-row-label">Trade-In Value</span><span class="detail-row-val">${fmt(tradeIn)}</span></div>`;
   }
 
   if (!stats.count || stats.count === 0) {
@@ -1204,19 +1312,99 @@ function openOfferFromDetail() {
 }
 
 //  OFFER MODAL 
+// Buyer profile helpers
+let _pendingOfferCarId = null;
+
+function getBuyerProfile() {
+  try { return JSON.parse(localStorage.getItem('buyerProfile') || 'null'); } catch(e) { return null; }
+}
+
 function openOffer(carId) {
+  const profile = getBuyerProfile();
+  if (!profile) {
+    _pendingOfferCarId = carId;
+    // Pre-fill fields if partially saved before
+    document.getElementById('buyer-name').value = '';
+    document.getElementById('buyer-email').value = '';
+    document.getElementById('buyer-phone').value = '';
+    const errEl = document.getElementById('verify-error');
+    if (errEl) errEl.style.display = 'none';
+    document.getElementById('verify-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('buyer-name').focus(), 100);
+    return;
+  }
+  openOfferModal(carId);
+}
+
+function saveBuyerProfile() {
+  const name  = document.getElementById('buyer-name').value.trim();
+  const email = document.getElementById('buyer-email').value.trim();
+  const phone = document.getElementById('buyer-phone').value.trim();
+  const errEl = document.getElementById('verify-error');
+
+  if (!name) { errEl.textContent = 'Please enter your full name.'; errEl.style.display='block'; return; }
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailOk) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display='block'; return; }
+  errEl.style.display = 'none';
+
+  localStorage.setItem('buyerProfile', JSON.stringify({ name, email, phone }));
+  closeModal('verify-overlay');
+  if (_pendingOfferCarId) {
+    const id = _pendingOfferCarId;
+    _pendingOfferCarId = null;
+    openOfferModal(id);
+  }
+}
+
+function openOfferModal(carId) {
   currentCar = allCars.find(c => String(c.id) === String(carId));
   if (!currentCar) return;
   activeTab = 'cash'; offerValid = false;
 
-  const eff = currentCar.msrp;
+  const eff = currentCar.msrp || null;
 
   document.getElementById('modal-car-name').textContent = `${currentCar.year} ${currentCar.name}`;
   document.getElementById('modal-dealer-info').textContent =
     `${currentCar.dealer}${currentCar.dealerCity?'  '+currentCar.dealerCity:''}  Stock: ${currentCar.stock}`;
-  document.getElementById('modal-msrp').textContent = fmt(currentCar.msrp);
-  document.getElementById('modal-inc-total').textContent = 'None';
-  document.getElementById('modal-target').textContent = fmt(Math.round(eff*0.97));
+  document.getElementById('modal-msrp').textContent = eff ? fmt(eff) : 'N/A';
+  const mktAvgEl = document.getElementById('modal-mktavg');
+  const basisEl  = document.getElementById('modal-mktavg-basis');
+  if (currentCar.apiMarketAvg) {
+    // Prefer the broader API-sourced avg from the comparables endpoint
+    if (mktAvgEl) mktAvgEl.textContent = fmt(currentCar.apiMarketAvg);
+    if (basisEl)  basisEl.textContent  = 'market data';
+  } else if (currentCar.marketAvg) {
+    // Fall back to local search-result avg
+    if (mktAvgEl) mktAvgEl.textContent = fmt(currentCar.marketAvg);
+    if (basisEl) {
+      const labels = { trim: 'same trim', model: 'same model', condition: 'new avg' };
+      basisEl.textContent = labels[currentCar.marketAvgBasis] || '';
+    }
+  } else {
+    if (mktAvgEl) mktAvgEl.textContent = 'N/A';
+    if (basisEl)  basisEl.textContent  = '';
+  }
+  const floorEl = document.getElementById('modal-floor');
+  const floorLbl = document.querySelector('#offer-overlay .price-box:last-child .pb-lbl');
+  if (floorLbl) floorLbl.textContent = 'Dealer Invoice';
+  if (floorEl) floorEl.textContent = currentCar.apiInvoice ? fmt(currentCar.apiInvoice) : 'N/A';
+
+  // Wire up the Deal Intelligence CTA link with this car's params
+  const intelLink = document.getElementById('modal-intel-link');
+  if (intelLink && currentCar) {
+    const p = new URLSearchParams({
+      vin:       currentCar.vin       || '',
+      year:      currentCar.year      || '',
+      make:      currentCar.name?.split(' ')[0] || '',
+      model:     currentCar.name?.split(' ').slice(1).join(' ') || '',
+      trim:      currentCar.trim      || '',
+      price:     currentCar.msrp      || 0,
+      mileage:   currentCar.mileageRaw|| 0,
+      condition: currentCar.condition === 'certified' ? 'cpo' : (currentCar.condition || 'used'),
+    });
+    intelLink.href = `/deal-intelligence.html?${p.toString()}`;
+  }
 
   ['cash-offer','fin-down','fin-monthly','lease-down','lease-monthly'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['cash-feedback','fin-feedback','lease-feedback'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='';el.className='offer-feedback';}});
@@ -1226,6 +1414,24 @@ function openOffer(carId) {
   switchTab('cash',null);
   document.getElementById('offer-overlay').classList.remove('hidden');
   document.body.style.overflow='hidden';
+}
+
+function cardCarouselGo(e, carIdx, dir, toIdx) {
+  e.stopPropagation();
+  const carousel = document.querySelector(`.card-carousel[data-cc="${carIdx}"]`);
+  if (!carousel) return;
+  const imgs = carousel.querySelectorAll('img');
+  const dots = carousel.querySelectorAll('.cc-dot');
+  if (!imgs.length) return;
+  let idx = parseInt(carousel.dataset.idx) || 0;
+  if (toIdx !== undefined) {
+    idx = toIdx;
+  } else {
+    idx = (idx + dir + imgs.length) % imgs.length;
+  }
+  imgs.forEach((img, i) => { img.style.opacity = i === idx ? '1' : '0'; });
+  dots.forEach((d, i) => { d.classList.toggle('active', i === idx); });
+  carousel.dataset.idx = idx;
 }
 
 function switchTab(tab, btn) {
@@ -1296,25 +1502,25 @@ function submitOffer() { if(!currentCar||!offerValid) return; closeModal('offer-
 //  EMAIL DRAFT 
 function buildEmailDraft() {
   const car=currentCar;
-  const eff=car.msrp;
+  const eff=car.msrp||null;
   let offerBlock='';
   if(activeTab==='cash'){const v=parseFloat(document.getElementById('cash-offer').value);offerBlock=`Purchase Type:    Cash Purchase\nOffer Amount:     ${fmt(v)}`;}
   else if(activeTab==='finance'){const down=parseFloat(document.getElementById('fin-down').value)||0,monthly=parseFloat(document.getElementById('fin-monthly').value)||0,term=document.getElementById('fin-term').value,apr=document.getElementById('fin-apr').value;offerBlock=`Purchase Type:    Financed Purchase\nMonthly Payment:  ${fmt(monthly)}/month\nLoan Term:        ${term} months\nAPR:              ${apr}%\nDown Payment:     ${fmt(down)}`;}
   else{const down=parseFloat(document.getElementById('lease-down').value)||0,monthly=parseFloat(document.getElementById('lease-monthly').value)||0,term=document.getElementById('lease-term').value,miles=parseInt(document.getElementById('lease-miles').value);offerBlock=`Purchase Type:    Lease\nMonthly Payment:  ${fmt(monthly)}/month\nLease Term:       ${term} months\nAnnual Mileage:   ${miles.toLocaleString()} miles/year\nCap Cost Red.:    ${fmt(down)}`;}
+  const profile = getBuyerProfile();
+  const buyerName = profile?.name || 'Our Client';
   const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const subj=`Buyer Offer  ${car.year} ${car.name} | Stock ${car.stock} | AutoNegotiating.com`;
   const body=`Dear ${car.dealer} Internet Sales Team,
 
-I am writing on behalf of a verified, pre-qualified buyer registered through AutoNegotiating.com. Our client has submitted a formal offer on the following vehicle currently in your inventory:
+I am writing on behalf of ${buyerName}, a verified buyer registered through AutoNegotiating.com. Our client has submitted a formal offer on the following vehicle currently in your inventory:
 
 VEHICLE DETAILS
 
 Year / Make / Model:   ${car.year} ${car.name}
 Trim Level:            ${car.trim}
 Stock Number:          ${car.stock}${car.vin?'\nVIN:                   '+car.vin:''}
-MSRP:                  ${fmt(car.msrp)}
-Applied Incentives:    None
-After-Incentive Price: ${fmt(eff)}
+Listed Price:          ${eff ? fmt(eff) : 'Call for Price'}
 
 CLIENT OFFER
 
@@ -1322,24 +1528,69 @@ ${offerBlock}
 
 Our client is a serious buyer ready to proceed immediately. This offer reflects current market pricing and all applicable incentives validated through AutoNegotiating.com.
 
-Please respond within 2448 business hours to accept, counter, or confirm availability:
+Please respond within 24-48 business hours to accept, counter, or confirm availability:
 
   Email:  offers@autonegotiating.com
-  Phone:  (800) 555-AUTO
+  Phone:  (503) 893-9408
   Web:    www.AutoNegotiating.com
 
 Submitted: ${today} via AutoNegotiating.com verified buyer platform.
 
 Best regards,
 AutoNegotiating.com  Client Services
-offers@autonegotiating.com | (800) 555-AUTO`;
+offers@autonegotiating.com | (503) 893-9408`;
 
-  document.getElementById('email-to').textContent=`${car.dealer} Internet Sales <${car.dealerEmail}>`;
+  document.getElementById('email-to').textContent=`${car.dealer} — Internet Sales Division (Routed via AutoNegotiating.com)`;
   document.getElementById('email-subject').textContent=subj;
   document.getElementById('email-body').textContent=body;
-  document.getElementById('email-mailto-btn').href=`mailto:${car.dealerEmail}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  // Store for sendOfferEmail()
+  document.getElementById('email-send-btn').dataset.to = car.dealerEmail;
+  document.getElementById('email-send-btn').dataset.dealer = car.dealer;
+  const sendLabel = document.getElementById('email-send-label');
+  if (sendLabel) sendLabel.textContent = 'Send Offer';
+  document.getElementById('email-send-btn').disabled = false;
   document.getElementById('email-overlay').classList.remove('hidden');
   document.body.style.overflow='hidden';
+}
+
+async function sendOfferEmail() {
+  const btn = document.getElementById('email-send-btn');
+  const label = document.getElementById('email-send-label');
+  const to = btn.dataset.to;
+  const dealerName = btn.dataset.dealer;
+  const subject = document.getElementById('email-subject').textContent;
+  const body = document.getElementById('email-body').textContent || document.getElementById('email-body').innerText;
+  const profile = getBuyerProfile();
+
+  if (!to || !subject || !body) { showToast('Missing email details'); return; }
+
+  btn.disabled = true;
+  label.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('/api/send-offer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to,
+        dealerName,
+        subject,
+        body,
+        buyerEmail: profile?.email || null,
+        buyerName:  profile?.name  || null,
+        buyerPhone: profile?.phone || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Send failed');
+    label.textContent = 'Sent ✓';
+    showToast('Offer sent! Check your inbox for a copy.');
+    setTimeout(() => closeModal('email-overlay'), 2000);
+  } catch (err) {
+    btn.disabled = false;
+    label.textContent = 'Send Offer';
+    showToast('Failed to send: ' + err.message);
+  }
 }
 
 //  MODAL / TOAST 
@@ -1351,7 +1602,7 @@ function copyEmail(){
 }
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeModal('email-overlay');closeModal('offer-overlay');closeModal('detail-overlay');}
+  if(e.key==='Escape'){closeModal('email-overlay');closeModal('offer-overlay');closeModal('detail-overlay');closeModal('verify-overlay');}
   const detailOpen = !document.getElementById('detail-overlay').classList.contains('hidden');
   if(detailOpen && galleryPhotos.length > 1){
     if(e.key==='ArrowLeft')  galleryGo(-1);
