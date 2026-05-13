@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://js.stripe.com/v3/"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -421,7 +422,32 @@ footer a{color:var(--orange);text-decoration:none}
   </div>
 </div>
 
-<footer><p> 2025 <a href="/">AutoNegotiating.com</a>  Buyer's Agent Platform  <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
+<footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:info@autonegotiating.com">info@autonegotiating.com</a></p></footer>
+
+<!-- STRIPE EMBEDDED CHECKOUT MODAL -->
+<div class="modal-backdrop" id="stripe-checkout-modal" style="display:none;z-index:10000">
+  <div class="modal" style="max-width:520px;width:100%;padding:0;overflow:hidden;border-radius:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--white)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <span style="font-size:14px;font-weight:600;color:var(--ink)">Deal Intelligence Report — $9.99</span>
+      </div>
+      <button onclick="closeStripeModal()" style="background:none;border:none;cursor:pointer;color:var(--ink3);padding:4px;line-height:1;border-radius:4px" title="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="stripe-checkout-container" style="padding:20px;min-height:200px">
+      <div id="stripe-checkout-loading" style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;color:var(--ink3);font-size:14px">
+        <svg style="animation:spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+        Loading secure checkout...
+      </div>
+    </div>
+    <div style="padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;gap:6px">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span style="font-size:11px;color:var(--ink3)">Secured by Stripe &middot; No subscription &middot; Instant access</span>
+    </div>
+  </div>
+</div>
 
 <!-- PAYWALL MODAL -->
 <div class="modal-backdrop" id="paywall-modal" onclick="closePaywallModal(event)">
@@ -541,11 +567,109 @@ function closePaywallModal(e) {
   setTimeout(() => { modal.style.display = 'none'; }, 200);
 }
 
-function handlePayment() {
-  // TODO: replace with your Stripe payment link once set up
-  // window.location.href = 'https://buy.stripe.com/your-link-here';
-  closePaywallModal({ target: null });
-  showError('Stripe payment is coming soon. Use a promo code to access Deal Intelligence for free in the meantime.');
+let _stripeCheckout = null;
+
+function buildVehicleParams() {
+  const formParams = new URLSearchParams();
+  const year      = document.getElementById('car-year').value.trim();
+  const condition = document.getElementById('car-condition').value;
+  const make      = document.getElementById('car-make').value.trim();
+  const model     = document.getElementById('car-model').value.trim();
+  const trim      = document.getElementById('car-trim').value.trim();
+  const msrp      = document.getElementById('car-msrp').value.trim();
+  const mileage   = document.getElementById('car-mileage').value.trim();
+  const purchType = document.getElementById('purchase-type').value;
+  const vin       = document.getElementById('vin-input').value.trim();
+  if (year)      formParams.set('year', year);
+  if (condition) formParams.set('condition', condition);
+  if (make)      formParams.set('make', make);
+  if (model)     formParams.set('model', model);
+  if (trim)      formParams.set('trim', trim);
+  if (msrp)      formParams.set('price', msrp);
+  if (mileage)   formParams.set('mileage', mileage);
+  if (purchType) formParams.set('purchaseType', purchType);
+  if (vin)       formParams.set('vin', vin);
+  const hist = window._listingHistory || {};
+  if (hist.accidentCount !== undefined) formParams.set('accidents', hist.accidentCount);
+  if (hist.oneOwner !== undefined)      formParams.set('oneOwner', hist.oneOwner ? '1' : '0');
+  if (hist.ownerCount)                  formParams.set('ownerCount', hist.ownerCount);
+  if (hist.personalUse !== undefined)   formParams.set('personalUse', hist.personalUse ? '1' : '0');
+  if (hist.usageType)                   formParams.set('usageType', hist.usageType);
+  return formParams;
+}
+
+function closeStripeModal() {
+  const modal = document.getElementById('stripe-checkout-modal');
+  modal.classList.remove('visible');
+  setTimeout(() => {
+    modal.style.display = 'none';
+    if (_stripeCheckout) { _stripeCheckout.destroy(); _stripeCheckout = null; }
+    // Reset container for next open
+    document.getElementById('stripe-checkout-container').innerHTML =
+      '<div id="stripe-checkout-loading" style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;color:var(--ink3);font-size:14px">' +
+      '<svg style="animation:spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>' +
+      'Loading secure checkout...</div>';
+  }, 200);
+}
+
+async function handlePayment() {
+  const btn = document.querySelector('.modal-pay-btn');
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<svg style="animation:spin 1s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg> Opening checkout...';
+
+  try {
+    // Build return URL with all vehicle data so it's restored after payment
+    const formParams = buildVehicleParams();
+    const base = window.location.origin + window.location.pathname;
+    const returnUrl = `${base}?payment=success&session_id={CHECKOUT_SESSION_ID}&${formParams.toString()}`;
+
+    // Fetch publishable key and create embedded checkout session in parallel
+    const [configRes, sessionRes] = await Promise.all([
+      fetch('/api/stripe/config'),
+      fetch('/api/stripe/embedded-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceId: 'price_1TWPaV4bJUKIq93A8r5P1Y6h', returnUrl })
+      })
+    ]);
+    const [configData, sessionData] = await Promise.all([configRes.json(), sessionRes.json()]);
+
+    if (!configData.publishableKey || !sessionData.clientSecret) {
+      throw new Error(sessionData.error || 'Failed to initialize checkout');
+    }
+
+    // Close paywall modal, open stripe modal
+    const paywallModal = document.getElementById('paywall-modal');
+    paywallModal.classList.remove('visible');
+    paywallModal.style.display = 'none';
+
+    const stripeModal = document.getElementById('stripe-checkout-modal');
+    stripeModal.style.display = 'flex';
+    requestAnimationFrame(() => stripeModal.classList.add('visible'));
+
+    // Init Stripe embedded checkout
+    const stripe = Stripe(configData.publishableKey);
+    _stripeCheckout = await stripe.initEmbeddedCheckout({
+      fetchClientSecret: () => Promise.resolve(sessionData.clientSecret),
+    });
+
+    // Hide loading spinner and mount
+    const container = document.getElementById('stripe-checkout-container');
+    const mountDiv = document.createElement('div');
+    mountDiv.id = 'stripe-checkout-mount';
+    container.innerHTML = '';
+    container.appendChild(mountDiv);
+    _stripeCheckout.mount('#stripe-checkout-mount');
+
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+    const msgEl = document.getElementById('promo-msg');
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Checkout failed to load. Please try again.';
+  }
 }
 
 async function applyPromoCode() {
@@ -906,8 +1030,8 @@ function renderResults(data, vehicleLabel, msrp, purchaseType) {
   document.getElementById('nego-tips').innerHTML = (data.negotiationTips||[]).map((tip,i) => `
     <li class="tip-item"><span class="tip-num">${i+1}</span><span>${escHtml(tip)}</span></li>`).join('');
 
-  document.getElementById('sources-list').innerHTML = (data.sources||[]).map((s,i) => `
-    <span class="source-chip ${i<2?'active':''}">${escHtml(s)}</span>`).join('');
+  document.getElementById('sources-list').innerHTML = (data.sources||[]).map(s => `
+    <span class="source-chip active">${escHtml(s)}</span>`).join('');
 }
 
 function renderFallback(vehicleLabel, msrp, purchaseType) {
@@ -2185,19 +2309,44 @@ async function generatePDF() {
   }
 }
 
-// Auto-fill and auto-run from URL params (when arriving via Intel button)
-(function() {
+// Auto-fill and auto-run from URL params (when arriving via Intel button or after Stripe payment)
+(async function() {
   const p = new URLSearchParams(window.location.search);
-  const vin       = p.get('vin')       || '';
-  const year      = p.get('year')      || '';
-  const make      = p.get('make')      || '';
-  const model     = p.get('model')     || '';
-  const trim      = p.get('trim')      || '';
-  const price     = p.get('price')     || '';
-  const mileage   = p.get('mileage')   || '';
-  const condition = p.get('condition') || '';
 
-  // Carfax/history data passed from listing
+  const payment   = p.get('payment');
+  const sessionId = p.get('session_id');
+  const isPaymentReturn = payment === 'success' && !!sessionId;
+
+  // Start payment verification immediately (runs in parallel with form restore below)
+  let verifyPromise = Promise.resolve(false);
+  if (isPaymentReturn) {
+    verifyPromise = fetch('/api/stripe/verify-session?session_id=' + encodeURIComponent(sessionId))
+      .then(r => r.json())
+      .then(d => !!d.paid)
+      .catch(() => true); // fail open — don't block user if network glitch
+  }
+
+  if (payment === 'cancelled') {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('payment');
+    window.history.replaceState({}, '', clean.toString());
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#555;color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2)';
+    toast.textContent = 'Payment cancelled — use a promo code to access for free.';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+  }
+
+  const vin          = p.get('vin')          || '';
+  const year         = p.get('year')         || '';
+  const make         = p.get('make')         || '';
+  const model        = p.get('model')        || '';
+  const trim         = p.get('trim')         || '';
+  const price        = p.get('price')        || '';
+  const mileage      = p.get('mileage')      || '';
+  const condition    = p.get('condition')    || '';
+  const purchaseType = p.get('purchaseType') || '';
+
   const hAccidents  = p.get('accidents');
   const hOneOwner   = p.get('oneOwner');
   const hOwnerCount = p.get('ownerCount');
@@ -2225,6 +2374,13 @@ async function generatePDF() {
     const condEl = document.getElementById('car-condition');
     for (let i = 0; i < condEl.options.length; i++) {
       if (condEl.options[i].value === condition) { condEl.selectedIndex = i; break; }
+    }
+  }
+
+  if (purchaseType) {
+    const ptEl = document.getElementById('purchase-type');
+    for (let i = 0; i < ptEl.options.length; i++) {
+      if (ptEl.options[i].value === purchaseType) { ptEl.selectedIndex = i; break; }
     }
   }
 
@@ -2260,25 +2416,50 @@ async function generatePDF() {
     }
   }
 
-  populateTrims().then(function() {
-    if (trim) {
-      const trimEl = document.getElementById('car-trim');
-      let found = false;
-      for (let i = 0; i < trimEl.options.length; i++) {
-        if (trimEl.options[i].value === trim ||
-            trimEl.options[i].value.toLowerCase().includes(trim.toLowerCase())) {
-          trimEl.selectedIndex = i; found = true; break;
+  // Wait for both form restore (trims) AND payment verification to finish
+  const [, paid] = await Promise.all([
+    populateTrims().then(function() {
+      if (trim) {
+        const trimEl = document.getElementById('car-trim');
+        let found = false;
+        for (let i = 0; i < trimEl.options.length; i++) {
+          if (trimEl.options[i].value === trim ||
+              trimEl.options[i].value.toLowerCase().includes(trim.toLowerCase())) {
+            trimEl.selectedIndex = i; found = true; break;
+          }
+        }
+        if (!found && trim) {
+          const opt = document.createElement('option');
+          opt.value = trim; opt.textContent = trim; opt.selected = true;
+          trimEl.appendChild(opt);
+          trimEl.disabled = false;
         }
       }
-      if (!found && trim) {
-        const opt = document.createElement('option');
-        opt.value = trim; opt.textContent = trim; opt.selected = true;
-        trimEl.appendChild(opt);
-        trimEl.disabled = false;
-      }
+    }),
+    verifyPromise,
+  ]);
+
+  if (isPaymentReturn) {
+    if (paid) {
+      unlock();
+      // Clean the payment params from the URL
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete('payment');
+      clean.searchParams.delete('session_id');
+      window.history.replaceState({}, '', clean.toString());
+      // Show success toast
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#1d9e75;color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2)';
+      toast.textContent = '✓ Payment successful — running your report!';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+      runAnalysis();
+    } else {
+      showError('Payment could not be verified. Please contact support if you were charged.');
     }
+  } else {
     runAnalysis();
-  });
+  }
 })();
 </script>
 </body>
