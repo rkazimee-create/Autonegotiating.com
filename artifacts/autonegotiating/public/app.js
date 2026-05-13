@@ -13,18 +13,6 @@ let totalResultCount = 0;
 let isLiveData = false;
 const PAGE_SIZE = 12;
 
-//  DEMO FALLBACK DATA 
-const DEMO_CARS = [
-  {id:1,emoji:'',type:'sedan',name:'Toyota Camry XSE',year:2024,trim:'V6  Midnight Black',dealer:'Pacific Toyota',dealerEmail:'internet@pacifictoyota.com',dealerCity:'Portland, OR',msrp:35420,floor:31500,specs:['V6 301hp','AWD','Sunroof','JBL Audio'],stock:'PCT-8821',img:null,isLive:false},
-  {id:2,emoji:'',type:'suv',name:'Honda CR-V Touring',year:2024,trim:'Hybrid  Sonic Gray',dealer:'Sunset Honda',dealerEmail:'inet@sunsethonda.com',dealerCity:'Beaverton, OR',msrp:42800,floor:38000,specs:['Hybrid 204hp','AWD','HUD','Honda Sensing'],stock:'SH-44219',img:null,isLive:false},
-  {id:3,emoji:'',type:'ev',name:'Tesla Model Y LR',year:2024,trim:'AWD  Pearl White',dealer:'Tesla Portland',dealerEmail:'pdx@tesla.com',dealerCity:'Portland, OR',msrp:52990,floor:47500,specs:['358mi Range','AWD','Autopilot','20" Wheels'],stock:'TP-EV-9012',img:null,isLive:false},
-  {id:4,emoji:'',type:'truck',name:'Ford F-150 XLT Sport',year:2024,trim:'5.0L V8  Carbonized Gray',dealer:'Columbia Ford',dealerEmail:'sales@columbiaford.com',dealerCity:'Vancouver, WA',msrp:51200,floor:45000,specs:['V8 400hp','4x4','Bed Liner','FordPass'],stock:'CF-F150-3391',img:null,isLive:false},
-  {id:5,emoji:'',type:'luxury',name:'BMW 5 Series 530i',year:2024,trim:'xDrive  Alpine White',dealer:'Northwest BMW',dealerEmail:'internet@nwbmw.com',dealerCity:'Portland, OR',msrp:62800,floor:56000,specs:['255hp Turbo','xDrive','Gesture Ctrl','Ambient Light'],stock:'NWB-530-5518',img:null,isLive:false},
-  {id:6,emoji:'',type:'suv',name:'Kia Telluride EX',year:2024,trim:'3.8L V6  Ebony Bamboo',dealer:'Kia Northwest',dealerEmail:'internet@kianw.com',dealerCity:'Hillsboro, OR',msrp:45990,floor:41000,specs:['291hp V6','AWD','3-Row','Harman Kardon'],stock:'KNW-TELL-6612',img:null,isLive:false},
-  {id:7,emoji:'',type:'ev',name:'Hyundai IONIQ 6 SE',year:2024,trim:'AWD  Atlas White',dealer:'Hyundai of Portland',dealerEmail:'imanager@hyundaioregon.com',dealerCity:'Portland, OR',msrp:46400,floor:40500,specs:['320mi Range','AWD','V2L','800V Charging'],stock:'HOP-I6-0182',img:null,isLive:false},
-  {id:8,emoji:'',type:'truck',name:'Chevy Silverado 1500 LTZ',year:2024,trim:'6.2L  Black',dealer:'Rose City Chevy',dealerEmail:'fleet@rosecitychevy.com',dealerCity:'Portland, OR',msrp:58900,floor:52000,specs:['420hp V8','4WD','MultiPro Bed','Bose Audio'],stock:'RCC-SIL-7751',img:null,isLive:false},
-];
-
 //  HELPERS 
 const fmt = n => '$' + Math.round(n).toLocaleString();
 const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -618,8 +606,11 @@ async function runSearch(page = 1, forceParams = {}) {
     totalResultCount = data.totalCount || records.length;
 
     if (!Array.isArray(records) || records.length === 0) {
+      allCars = [];
+      totalResultCount = 0;
+      document.getElementById('api-status-badge').style.display = 'none';
+      document.getElementById('grid-label').textContent = 'No results';
       showError('No listings found. Try a wider radius, different make, or adjust your filters.');
-      useDemoData();
     } else {
       let normalized = records.map(normalizeListing);
 
@@ -655,15 +646,19 @@ async function runSearch(page = 1, forceParams = {}) {
       allCars = normalized;
       isLiveData = true;
       populateYearFilters(allCars);
-      document.getElementById('api-status-badge').textContent = 'LIVE';
-      document.getElementById('api-status-badge').className = 'live-badge live';
+      const badge = document.getElementById('api-status-badge');
+      badge.textContent = 'LIVE';
+      badge.className = 'live-badge live';
+      badge.style.display = '';
       document.getElementById('grid-label').textContent =
         `Live Inventory  ${zip} ${parseInt(radius) >= 5000 ? '  Nationwide' : 'within ' + radius + ' miles'}`;
     }
   } catch (e) {
-    console.error('Inventory fetch error:', e);
-    showError(`Could not load live inventory: ${e.message}. Showing demo data.`);
-    useDemoData();
+    allCars = [];
+    totalResultCount = 0;
+    document.getElementById('api-status-badge').style.display = 'none';
+    document.getElementById('grid-label').textContent = 'No results';
+    showError(`Could not load inventory: ${e.message}. Please try again.`);
   } finally {
     setLoading(false);
     applyFilter(currentFilter);
@@ -843,15 +838,6 @@ function showError(msg) {
     `<div class="error-box"> ${escHtml(msg)}</div>`;
 }
 function clearError() { document.getElementById('error-area').innerHTML = ''; }
-
-function useDemoData() {
-  allCars = DEMO_CARS;
-  totalResultCount = DEMO_CARS.length;
-  isLiveData = false;
-  document.getElementById('api-status-badge').textContent = 'DEMO MODE';
-  document.getElementById('api-status-badge').className = 'api-status demo';
-  document.getElementById('grid-label').textContent = 'Demo Inventory';
-}
 
 //  DETAIL MODAL 
 let detailCar = null;

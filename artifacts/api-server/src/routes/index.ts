@@ -7,6 +7,7 @@ import vinRouter from "./vin";
 import dealIntelligenceRouter from "./deal-intelligence";
 import priceHistoryRouter from "./price-history";
 import promoRouter from "./promo";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(vinRouter);
 router.use(dealIntelligenceRouter);
 router.use(priceHistoryRouter);
 router.use(promoRouter);
+router.use(stripeRouter);
 
 export default router;
