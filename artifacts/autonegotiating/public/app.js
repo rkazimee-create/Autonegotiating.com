@@ -113,6 +113,7 @@ function normalizeListing(l, idx) {
     fuel:        l.fuelType || '',
     bodyStyle:   l.bodyStyle || l.bodyType || '',
     carfaxUrl:      l.vin ? `https://www.carfax.com/VehicleHistory/p/Report.cfx?partner=DEY_0&vin=${l.vin}` : (l.carfaxUrl || null),
+    dealerListingUrl: l.clickoffUrl || l.vdpUrl || null,
     history:        l.history   || null,
     recentPriceDrop: l.recentPriceDrop === true,
     pricePlusFees:  l.pricePlusFees || null,
@@ -1044,11 +1045,17 @@ async function openDetail(carId) {
   ].filter(([,v]) => v).map(([l,v]) =>
     `<div class="detail-row"><span class="detail-row-label">${l}</span><span class="detail-row-val">${escHtml(String(v))}</span></div>`
   ).join('');
-  const historyBtns = detailCar.vin ? `
+  const dealerBtn = detailCar.dealerListingUrl
+    ? `<a href="${escHtml(detailCar.dealerListingUrl)}" target="_blank" rel="noopener" class="history-report-btn" style="background:var(--copper);color:#fff;border-color:var(--copper);font-weight:600;display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        View at Dealer
+      </a>` : '';
+  const historyBtns = (detailCar.vin || detailCar.dealerListingUrl) ? `
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <a href="${escHtml(detailCar.carfaxUrl)}" target="_blank" rel="noopener" class="history-report-btn carfax-btn">
+      ${dealerBtn}
+      ${detailCar.vin ? `<a href="${escHtml(detailCar.carfaxUrl)}" target="_blank" rel="noopener" class="history-report-btn carfax-btn">
         <img src="https://static.carfax.com/global-header/imgs/logo.svg" alt="Carfax" height="14" style="display:block" onerror="this.outerHTML='Carfax Report'">
-      </a>
+      </a>` : ''}
     </div>` : '';
   document.getElementById('detail-dealer-rows').innerHTML = dealerRows + historyBtns;
 
