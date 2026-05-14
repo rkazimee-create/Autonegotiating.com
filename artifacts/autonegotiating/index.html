@@ -561,6 +561,20 @@ footer a{color:var(--orange);text-decoration:none}
       <button class="sort-btn" onclick="setSort('year-asc',this)">Oldest</button>
       <button class="sort-btn" onclick="setSort('mileage-asc',this)">Lowest Miles</button>
       <button class="sort-btn" onclick="setSort('distance-asc',this)">Nearest</button>
+      <select class="s-select" id="color-filter" onchange="applyColorFilter()" style="height:30px;font-size:12px;padding:4px 24px 4px 8px;border-radius:6px">
+        <option value="">All Colors</option>
+        <option value="White">White</option>
+        <option value="Black">Black</option>
+        <option value="Gray/Silver">Gray / Silver</option>
+        <option value="Red">Red</option>
+        <option value="Blue">Blue</option>
+        <option value="Green">Green</option>
+        <option value="Brown/Tan">Brown / Tan</option>
+        <option value="Orange">Orange</option>
+        <option value="Yellow">Yellow</option>
+        <option value="Purple">Purple</option>
+        <option value="Other">Other</option>
+      </select>
     </div>
   </div>
   <div class="inventory-grid" id="inventory-grid" style="display:none"></div>
@@ -745,6 +759,6 @@ footer a{color:var(--orange);text-decoration:none}
 
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
-<script src="/app.js?v=20260513o"></script>
+<script src="/app.js?v=20260514a"></script>
 </body>
 </html>
