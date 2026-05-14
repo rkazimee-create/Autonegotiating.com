@@ -1081,6 +1081,17 @@ async function openDetail(carId) {
     }, historyParams)).toString();
   }
 
+  // Wire up View at Dealer button
+  const dealerLinkBtn = document.getElementById('btn-detail-dealer');
+  if (dealerLinkBtn) {
+    if (detailCar.dealerListingUrl) {
+      dealerLinkBtn.href = detailCar.dealerListingUrl;
+      dealerLinkBtn.style.display = 'flex';
+    } else {
+      dealerLinkBtn.style.display = 'none';
+    }
+  }
+
   // Photo gallery
   if (detailCar.allPhotos && detailCar.allPhotos.length > 0) {
     renderGallery(detailCar.allPhotos);
