@@ -600,6 +600,8 @@ async function runSearch(page = 1, forceParams = {}) {
   if (fuel)      params['fuelType']  = fuel;
   if (drive)     params['driveType'] = drive;
 
+  saveRecentSearch(make, model, condition, zip, bodyStyle);
+
   setLoading(true);
   clearError();
 
@@ -1416,6 +1418,119 @@ function openOfferModal(carId) {
   document.body.style.overflow='hidden';
 }
 
+// ── Landing page UI controls ──────────────────────────────────────────────────
+
+function setCondTab(btn, val) {
+  document.querySelectorAll('.cond-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('search-condition').value = val;
+}
+
+function setBodyPill(btn, val) {
+  document.querySelectorAll('.bs-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  // Electric maps to fuel, not body style
+  if (val === 'electric') {
+    document.getElementById('search-body').value = '';
+    document.getElementById('search-fuel').value = 'electric';
+  } else {
+    document.getElementById('search-body').value = val;
+    if (document.getElementById('search-fuel').value === 'electric') {
+      document.getElementById('search-fuel').value = '';
+    }
+  }
+}
+
+function toggleMoreFilters() {
+  const panel = document.getElementById('mf-panel');
+  const toggle = document.getElementById('mf-toggle');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  toggle.classList.toggle('open', !isOpen);
+}
+
+// ── Recent searches (localStorage) ───────────────────────────────────────────
+
+const RS_KEY = 'recentSearches';
+const RS_MAX = 6;
+
+function saveRecentSearch(make, model, condition, zip, body) {
+  if (!make && !model && !body) return; // don't save blank searches
+  const label = [
+    make || 'Any Make',
+    model || '',
+    condition ? ({new:'New',used:'Used',certified:'CPO'}[condition] || condition) : '',
+    body || ''
+  ].filter(Boolean).join(' ');
+  const entry = { make, model, condition, zip, body, label, ts: Date.now() };
+  let list = loadRecentSearches();
+  list = list.filter(r => r.label !== label); // dedupe
+  list.unshift(entry);
+  list = list.slice(0, RS_MAX);
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentSearches();
+}
+
+function loadRecentSearches() {
+  try { return JSON.parse(localStorage.getItem(RS_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function removeRecentSearch(e, idx) {
+  e.stopPropagation();
+  let list = loadRecentSearches();
+  list.splice(idx, 1);
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentSearches();
+}
+
+function applyRecentSearch(idx) {
+  const list = loadRecentSearches();
+  const r = list[idx];
+  if (!r) return;
+  const makeEl = document.getElementById('search-make');
+  const condEl = document.getElementById('search-condition');
+  const zipEl  = document.getElementById('search-zip');
+  if (r.zip) zipEl.value = r.zip;
+  if (condEl) condEl.value = r.condition || '';
+  // sync cond tab
+  document.querySelectorAll('.cond-tab').forEach(t => {
+    const v = t.getAttribute('onclick')?.match(/setCondTab\(this,'([^']*)'\)/)?.[1] ?? '';
+    t.classList.toggle('active', v === (r.condition || ''));
+  });
+  if (makeEl) {
+    makeEl.value = r.make || '';
+    makeEl.dispatchEvent(new Event('change'));
+  }
+  setTimeout(() => {
+    const modelEl = document.getElementById('search-model');
+    if (modelEl && r.model) modelEl.value = r.model;
+    if (r.body) {
+      document.getElementById('search-body').value = r.body;
+      document.querySelectorAll('.bs-pill').forEach(p => {
+        const v = p.getAttribute('onclick')?.match(/setBodyPill\(this,'([^']*)'\)/)?.[1] ?? '';
+        p.classList.toggle('active', v === r.body);
+      });
+    }
+    runSearch();
+  }, 150);
+}
+
+function renderRecentSearches() {
+  const bar = document.getElementById('recent-bar');
+  const chips = document.getElementById('rs-chips');
+  if (!bar || !chips) return;
+  const list = loadRecentSearches();
+  if (!list.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  chips.innerHTML = list.map((r, i) => `
+    <button class="rs-chip" onclick="applyRecentSearch(${i})">
+      ${escHtml(r.label)}
+      <span class="rs-chip-x" onclick="removeRecentSearch(event,${i})" title="Remove">×</span>
+    </button>`).join('');
+}
+
+// ── Card carousel ─────────────────────────────────────────────────────────────
+
 function cardCarouselGo(e, carIdx, dir, toIdx) {
   e.stopPropagation();
   const carousel = document.querySelector(`.card-carousel[data-cc="${carIdx}"]`);
@@ -1625,6 +1740,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   if (makeEl) makeEl.addEventListener('change', populateModels);
   const modelEl = document.getElementById('search-model');
   if (modelEl) modelEl.addEventListener('change', populateTrims);
+
+  renderRecentSearches();
 
   // Auto-search if ?make= param is present (e.g. arriving from PDF comparable link)
   const urlParams = new URLSearchParams(window.location.search);
