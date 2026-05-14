@@ -1048,7 +1048,7 @@ async function openDetail(carId) {
     `<div class="detail-row"><span class="detail-row-label">${l}</span><span class="detail-row-val">${escHtml(String(v))}</span></div>`
   ).join('');
   const dealerBtn = detailCar.dealerListingUrl
-    ? `<a href="${escHtml(detailCar.dealerListingUrl)}" target="_blank" rel="noopener" class="history-report-btn" style="background:var(--copper);color:#fff;border-color:var(--copper);font-weight:600;display:flex;align-items:center;gap:6px">
+    ? `<a href="${escHtml(detailCar.dealerListingUrl)}" target="_blank" rel="noopener" class="history-report-btn" style="color:var(--ink);font-weight:600;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         View at Dealer
       </a>` : '';
