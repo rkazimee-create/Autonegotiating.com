@@ -37,6 +37,24 @@ function guessEmail(name) {
 }
 
 //  NORMALIZE AUTO.DEV V1 LISTING 
+function colorFamily(colorStr) {
+  const c = (colorStr || '').toLowerCase();
+  if (!c) return '';
+  if (/black|midnight|obsidian|phantom|jet/.test(c))                         return 'Black';
+  if (/red|ruby|crimson|scarlet|carmine|barcelona|supersonic|maroon/.test(c)) return 'Red';
+  if (/blue|navy|sky|aqua|teal|cyan|cobalt|sapphire|aegean|abyss/.test(c))   return 'Blue';
+  if (/green|olive|forest|malachite/.test(c))                                return 'Green';
+  if (/orange/.test(c))  return 'Orange';
+  if (/yellow/.test(c))  return 'Yellow';
+  if (/purple|violet|plum/.test(c)) return 'Purple';
+  if (/brown|tan|beige|bronze|copper|mocha|sandy|cinnamon|nutmeg/.test(c))   return 'Brown/Tan';
+  if (/gold/.test(c))    return 'Brown/Tan';
+  if (/gray|grey|silver|graphite|slate|magnetic|titanium|quartz/.test(c))    return 'Gray/Silver';
+  if (/metallic|lunar/.test(c))                                              return 'Gray/Silver';
+  if (/white|pearl|ivory|cream|alpine/.test(c))                              return 'White';
+  return 'Other';
+}
+
 function normalizeListing(l, idx) {
   // Price can be a number, a formatted string like "$32,000", or "accepting_offers"
   const rawPrice = l.priceUnformatted > 0 ? l.priceUnformatted
@@ -51,6 +69,7 @@ function normalizeListing(l, idx) {
   const year  = l.year || 2024;
   const color = l.displayColor || l.color || '';
   const body  = l.bodyStyle || l.bodyType || '';
+
   const fuel  = l.fuelType || '';
   const type  = guessType(make, body);
   const dealer     = l.dealerName || l.trackingParams?.dealerName || 'Local Dealer';
@@ -86,6 +105,8 @@ function normalizeListing(l, idx) {
     distanceMi:  l.distanceFromOrigin ? Math.round(l.distanceFromOrigin / 1609) : null,
     img:         l.primaryPhotoUrl || (Array.isArray(l.photoUrls) && l.photoUrls.length ? l.photoUrls[0] : null),
     allPhotos:   Array.isArray(l.photoUrls) && l.photoUrls.length ? l.photoUrls.filter(u => u != null).map(u => u.split('?')[0]) : (l.primaryPhotoUrl ? [l.primaryPhotoUrl] : []),
+    color:       color,
+    colorFamily: colorFamily(color),
     engine:      l.engine || '',
     transmission: l.transmission || '',
     drivetrain:  l.drivetrain || '',
@@ -600,14 +621,38 @@ async function runSearch(page = 1, forceParams = {}) {
   if (fuel)      params['fuelType']  = fuel;
   if (drive)     params['driveType'] = drive;
 
+  saveRecentSearch(make, model, condition, zip, bodyStyle);
+
   setLoading(true);
   clearError();
 
   try {
-    const fetchLimit = (condition || minYear || maxYear || trim) ? 100 : PAGE_SIZE;
-    const data = await fetchInventory(params, page, fetchLimit);
-    const records = data.data || data.listings || data.records || [];
-    totalResultCount = data.totalCount || records.length;
+    const fetchLimit = 100;
+    let records, totalResultCount_raw;
+
+    if (!condition) {
+      // "All Cars" — auto.dev only returns one condition type per request,
+      // so fire new + used in parallel and merge by VIN.
+      const [newData, usedData] = await Promise.all([
+        fetchInventory({ ...params, condition: 'new' },  page, fetchLimit).catch(() => ({})),
+        fetchInventory({ ...params, condition: 'used' }, page, fetchLimit).catch(() => ({})),
+      ]);
+      const newRecs  = newData.records  || newData.listings  || newData.data  || [];
+      const usedRecs = usedData.records || usedData.listings || usedData.data || [];
+      const seen = new Set();
+      records = [];
+      for (const r of [...newRecs, ...usedRecs]) {
+        const key = r.vin || (r.year + '|' + r.make + '|' + r.model + '|' + r.trim + '|' + (r.price || r.priceUnformatted));
+        if (!seen.has(key)) { seen.add(key); records.push(r); }
+      }
+      totalResultCount_raw = (newData.totalCount || 0) + (usedData.totalCount || 0);
+    } else {
+      const data = await fetchInventory(params, page, fetchLimit);
+      records = data.data || data.listings || data.records || [];
+      totalResultCount_raw = data.totalCount || records.length;
+    }
+
+    totalResultCount = totalResultCount_raw || records.length;
 
     if (!Array.isArray(records) || records.length === 0) {
       allCars = [];
@@ -810,12 +855,18 @@ function filterLocal(type, btn) {
   applyFilter(type);
 }
 
+function applyColorFilter() {
+  applyFilter(currentFilter || 'all');
+}
+
 function applyFilter(type) {
   const minYear = parseInt(document.getElementById('search-min-year')?.value) || 0;
   const maxYear = parseInt(document.getElementById('search-max-year')?.value) || 9999;
+  const colorSel = (document.getElementById('color-filter')?.value || '').trim();
   let base = type === 'all' ? allCars : allCars.filter(c => c.type === type);
   if (minYear) base = base.filter(c => c.year >= minYear);
   if (maxYear < 9999) base = base.filter(c => c.year <= maxYear);
+  if (colorSel) base = base.filter(c => c.colorFamily === colorSel);
   filteredCars = sortCars(base);
   renderGrid();
 }
@@ -962,20 +1013,23 @@ async function openDetail(carId) {
   // Vehicle detail rows
   const mileageStr = detailCar.mileageRaw > 0 ? Math.round(detailCar.mileageRaw).toLocaleString() + ' mi' : '';
   document.getElementById('detail-vehicle-rows').innerHTML = [
-    ['Year',        detailCar.year],
-    ['Make',        detailCar.name.split(' ')[0]],
-    ['Model',       detailCar.name.split(' ').slice(1).join(' ')],
-    ['Trim',        detailCar.trimRaw || detailCar.trim?.split('  ')[0] || ''],
-    ['Body Style',  detailCar.bodyStyle || ''],
-    ['Condition',   detailCar.condition ? detailCar.condition.charAt(0).toUpperCase()+detailCar.condition.slice(1) : ''],
-    ['Mileage',     mileageStr],
-    ['Engine',      detailCar.engine || ''],
-    ['Transmission',detailCar.transmission || ''],
-    ['Drivetrain',  detailCar.drivetrain || ''],
-    ['Fuel Type',   detailCar.fuel || ''],
-    ['VIN',         detailCar.vin || ''],
+    ['Year',           detailCar.year],
+    ['Make',           detailCar.name.split(' ')[0]],
+    ['Model',          detailCar.name.split(' ').slice(1).join(' ')],
+    ['Trim',           detailCar.trimRaw || detailCar.trim?.split('  ')[0] || ''],
+    ['Body Style',     detailCar.bodyStyle || ''],
+    ['Condition',      detailCar.condition ? detailCar.condition.charAt(0).toUpperCase()+detailCar.condition.slice(1) : ''],
+    ['Mileage',        mileageStr],
+    ['Exterior Color', detailCar.color || ''],
+    ['Engine',         detailCar.engine || ''],
+    ['Horsepower',     ''],  // filled in by renderIntelligence
+    ['Transmission',   detailCar.transmission || ''],
+    ['Drivetrain',     detailCar.drivetrain || ''],
+    ['Fuel Type',      detailCar.fuel || ''],
+    ['MPG',            ''],  // filled in by renderIntelligence
+    ['VIN',            detailCar.vin || ''],
   ].filter(([,v]) => v).map(([l,v]) =>
-    `<div class="detail-row"><span class="detail-row-label">${l}</span><span class="detail-row-val">${escHtml(String(v))}</span></div>`
+    `<div class="detail-row" id="dvr-${l.replace(/\s+/g,'-').toLowerCase()}"><span class="detail-row-label">${l}</span><span class="detail-row-val">${escHtml(String(v))}</span></div>`
   ).join('');
 
   // Dealer rows
@@ -1189,9 +1243,53 @@ async function fetchVehicleIntelligence(vin) {
   }
 }
 
+function updateDetailVehicleRow(labelId, value) {
+  const el = document.getElementById('dvr-' + labelId);
+  if (!value) return;
+  if (el) {
+    el.querySelector('.detail-row-val').textContent = value;
+  } else {
+    // Row wasn't rendered (value was empty) — insert before the VIN row
+    const vinRow = document.getElementById('dvr-vin');
+    if (vinRow) {
+      const label = labelId.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+      const div = document.createElement('div');
+      div.className = 'detail-row';
+      div.id = 'dvr-' + labelId;
+      div.innerHTML = `<span class="detail-row-label">${label}</span><span class="detail-row-val">${escHtml(String(value))}</span>`;
+      vinRow.parentNode.insertBefore(div, vinRow);
+    }
+  }
+}
+
 function renderIntelligence(data, vinData) {
   document.getElementById('detail-intel-loading').style.display = 'none';
   const rows = document.getElementById('detail-intel-rows');
+
+  // ── Inject VIN-decoded vehicle details ──────────────────────────────────────
+  if (vinData) {
+    // MPG
+    if (vinData.mpg?.city || vinData.mpg?.highway) {
+      const city = vinData.mpg.city || '?';
+      const hwy  = vinData.mpg.highway || '?';
+      updateDetailVehicleRow('mpg', `${city} city / ${hwy} hwy`);
+    }
+
+    // Horsepower
+    if (vinData.engine?.horsepower) {
+      updateDetailVehicleRow('horsepower', `${vinData.engine.horsepower} hp`);
+    }
+
+    // Enrich engine string if currently empty
+    if (!detailCar.engine && vinData.engine?.name) {
+      updateDetailVehicleRow('engine', vinData.engine.name);
+    }
+
+    // Number of doors
+    if (vinData.numOfDoors) {
+      updateDetailVehicleRow('doors', vinData.numOfDoors + '-door');
+    }
+  }
 
   // data is now from the comparables API: { comparables, stats }
   const stats = data.stats || {};
@@ -1416,6 +1514,119 @@ function openOfferModal(carId) {
   document.body.style.overflow='hidden';
 }
 
+// ── Landing page UI controls ──────────────────────────────────────────────────
+
+function setCondTab(btn, val) {
+  document.querySelectorAll('.cond-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('search-condition').value = val;
+}
+
+function setBodyPill(btn, val) {
+  document.querySelectorAll('.bs-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  // Electric maps to fuel, not body style
+  if (val === 'electric') {
+    document.getElementById('search-body').value = '';
+    document.getElementById('search-fuel').value = 'electric';
+  } else {
+    document.getElementById('search-body').value = val;
+    if (document.getElementById('search-fuel').value === 'electric') {
+      document.getElementById('search-fuel').value = '';
+    }
+  }
+}
+
+function toggleMoreFilters() {
+  const panel = document.getElementById('mf-panel');
+  const toggle = document.getElementById('mf-toggle');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  toggle.classList.toggle('open', !isOpen);
+}
+
+// ── Recent searches (localStorage) ───────────────────────────────────────────
+
+const RS_KEY = 'recentSearches';
+const RS_MAX = 6;
+
+function saveRecentSearch(make, model, condition, zip, body) {
+  if (!make && !model && !body) return; // don't save blank searches
+  const label = [
+    make || 'Any Make',
+    model || '',
+    condition ? ({new:'New',used:'Used',certified:'CPO'}[condition] || condition) : '',
+    body || ''
+  ].filter(Boolean).join(' ');
+  const entry = { make, model, condition, zip, body, label, ts: Date.now() };
+  let list = loadRecentSearches();
+  list = list.filter(r => r.label !== label); // dedupe
+  list.unshift(entry);
+  list = list.slice(0, RS_MAX);
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentSearches();
+}
+
+function loadRecentSearches() {
+  try { return JSON.parse(localStorage.getItem(RS_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function removeRecentSearch(e, idx) {
+  e.stopPropagation();
+  let list = loadRecentSearches();
+  list.splice(idx, 1);
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentSearches();
+}
+
+function applyRecentSearch(idx) {
+  const list = loadRecentSearches();
+  const r = list[idx];
+  if (!r) return;
+  const makeEl = document.getElementById('search-make');
+  const condEl = document.getElementById('search-condition');
+  const zipEl  = document.getElementById('search-zip');
+  if (r.zip) zipEl.value = r.zip;
+  if (condEl) condEl.value = r.condition || '';
+  // sync cond tab
+  document.querySelectorAll('.cond-tab').forEach(t => {
+    const v = t.getAttribute('onclick')?.match(/setCondTab\(this,'([^']*)'\)/)?.[1] ?? '';
+    t.classList.toggle('active', v === (r.condition || ''));
+  });
+  if (makeEl) {
+    makeEl.value = r.make || '';
+    makeEl.dispatchEvent(new Event('change'));
+  }
+  setTimeout(() => {
+    const modelEl = document.getElementById('search-model');
+    if (modelEl && r.model) modelEl.value = r.model;
+    if (r.body) {
+      document.getElementById('search-body').value = r.body;
+      document.querySelectorAll('.bs-pill').forEach(p => {
+        const v = p.getAttribute('onclick')?.match(/setBodyPill\(this,'([^']*)'\)/)?.[1] ?? '';
+        p.classList.toggle('active', v === r.body);
+      });
+    }
+    runSearch();
+  }, 150);
+}
+
+function renderRecentSearches() {
+  const bar = document.getElementById('recent-bar');
+  const chips = document.getElementById('rs-chips');
+  if (!bar || !chips) return;
+  const list = loadRecentSearches();
+  if (!list.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  chips.innerHTML = list.map((r, i) => `
+    <button class="rs-chip" onclick="applyRecentSearch(${i})">
+      ${escHtml(r.label)}
+      <span class="rs-chip-x" onclick="removeRecentSearch(event,${i})" title="Remove">×</span>
+    </button>`).join('');
+}
+
+// ── Card carousel ─────────────────────────────────────────────────────────────
+
 function cardCarouselGo(e, carIdx, dir, toIdx) {
   e.stopPropagation();
   const carousel = document.querySelector(`.card-carousel[data-cc="${carIdx}"]`);
@@ -1625,6 +1836,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   if (makeEl) makeEl.addEventListener('change', populateModels);
   const modelEl = document.getElementById('search-model');
   if (modelEl) modelEl.addEventListener('change', populateTrims);
+
+  renderRecentSearches();
 
   // Auto-search if ?make= param is present (e.g. arriving from PDF comparable link)
   const urlParams = new URLSearchParams(window.location.search);

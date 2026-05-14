@@ -460,9 +460,10 @@ footer a{color:var(--orange);text-decoration:none}
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 
 <!-- STRIPE EMBEDDED CHECKOUT MODAL -->
-<div class="modal-backdrop" id="stripe-checkout-modal" style="display:none;z-index:10000">
-  <div class="modal" style="max-width:520px;width:100%;padding:0;overflow:hidden;border-radius:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--white)">
+<div class="modal-backdrop" id="stripe-checkout-modal" style="display:none;z-index:10000;overflow:hidden">
+  <div class="modal" style="max-width:520px;width:100%;padding:0;border-radius:12px;transform:none;display:flex;flex-direction:column;max-height:calc(100vh - 4rem);overflow:hidden">
+    <!-- Fixed header -->
+    <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--white)">
       <div style="display:flex;align-items:center;gap:10px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         <span style="font-size:14px;font-weight:600;color:var(--ink)">Deal Intelligence Report — $9.99</span>
@@ -471,13 +472,15 @@ footer a{color:var(--orange);text-decoration:none}
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div id="stripe-checkout-container" style="padding:20px;min-height:200px">
+    <!-- Scrollable content -->
+    <div id="stripe-checkout-container" style="flex:1;overflow-y:auto;padding:20px;min-height:200px;-webkit-overflow-scrolling:touch">
       <div id="stripe-checkout-loading" style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;color:var(--ink3);font-size:14px">
         <svg style="animation:spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
         Loading secure checkout...
       </div>
     </div>
-    <div style="padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;gap:6px">
+    <!-- Fixed footer -->
+    <div style="flex-shrink:0;padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;gap:6px">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       <span style="font-size:11px;color:var(--ink3)">Secured by Stripe &middot; No subscription &middot; Instant access</span>
     </div>
