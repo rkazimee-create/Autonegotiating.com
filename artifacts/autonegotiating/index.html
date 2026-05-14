@@ -257,6 +257,13 @@ main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 footer{border-top:1px solid var(--border);padding:1.5rem 2rem;text-align:center;color:var(--ink3);font-size:12px;background:var(--white)}
 footer a{color:var(--orange);text-decoration:none}
 @media(max-width:1024px){.stats-bar{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){
+  .search-row-bottom{flex-wrap:wrap}
+  .sp-field.sp-radius{flex:1}
+  .search-btn-main{flex:1 1 100%;justify-content:center;margin-top:2px}
+  .search-row-top .sp-field{flex:1 1 calc(33% - 6px);min-width:0}
+  .search-row-top .sp-field .sp-select{font-size:13px}
+}
 
 /* DETAIL MODAL */
 .detail-modal{background:var(--white);border:1px solid var(--border);border-radius:18px;width:100%;max-width:860px;max-height:94vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
@@ -631,10 +638,6 @@ footer a{color:var(--orange);text-decoration:none}
       <div class="detail-actions">
         <button class="btn-detail-offer" id="btn-detail-offer" onclick="openOfferFromDetail()">Make an Offer →</button>
         <a class="btn-detail-intel" href="/deal-intelligence.html" id="btn-detail-intel"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M12 2a5 5 0 0 1 5 5c0 2.4-1.7 4.4-4 4.9V13h2v2h-2v2h2v2h-2v1a1 1 0 0 1-2 0v-1h-2v-2h2v-2h-2v-2h2v-1.1C9.7 11.4 8 9.4 8 7a5 5 0 0 1 4-4.9V2z"/></svg> Deal Intelligence</a>
-        <a class="btn-detail-intel btn-dealer-listing" id="btn-detail-dealer" href="#" target="_blank" rel="noopener" style="display:none">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          View at Dealer
-        </a>
       </div>
     </div>
   </div>
@@ -763,6 +766,6 @@ footer a{color:var(--orange);text-decoration:none}
 
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
-<script src="/app.js?v=20260514f"></script>
+<script src="/app.js?v=20260514g"></script>
 </body>
 </html>
