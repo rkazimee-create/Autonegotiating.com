@@ -627,10 +627,32 @@ async function runSearch(page = 1, forceParams = {}) {
   clearError();
 
   try {
-    const fetchLimit = (condition || minYear || maxYear || trim) ? 100 : PAGE_SIZE;
-    const data = await fetchInventory(params, page, fetchLimit);
-    const records = data.data || data.listings || data.records || [];
-    totalResultCount = data.totalCount || records.length;
+    const fetchLimit = 100;
+    let records, totalResultCount_raw;
+
+    if (!condition) {
+      // "All Cars" — auto.dev only returns one condition type per request,
+      // so fire new + used in parallel and merge by VIN.
+      const [newData, usedData] = await Promise.all([
+        fetchInventory({ ...params, condition: 'new' },  page, fetchLimit).catch(() => ({})),
+        fetchInventory({ ...params, condition: 'used' }, page, fetchLimit).catch(() => ({})),
+      ]);
+      const newRecs  = newData.records  || newData.listings  || newData.data  || [];
+      const usedRecs = usedData.records || usedData.listings || usedData.data || [];
+      const seen = new Set();
+      records = [];
+      for (const r of [...newRecs, ...usedRecs]) {
+        const key = r.vin || (r.year + '|' + r.make + '|' + r.model + '|' + r.trim + '|' + (r.price || r.priceUnformatted));
+        if (!seen.has(key)) { seen.add(key); records.push(r); }
+      }
+      totalResultCount_raw = (newData.totalCount || 0) + (usedData.totalCount || 0);
+    } else {
+      const data = await fetchInventory(params, page, fetchLimit);
+      records = data.data || data.listings || data.records || [];
+      totalResultCount_raw = data.totalCount || records.length;
+    }
+
+    totalResultCount = totalResultCount_raw || records.length;
 
     if (!Array.isArray(records) || records.length === 0) {
       allCars = [];
