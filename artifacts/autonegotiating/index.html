@@ -72,21 +72,69 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .live-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:0.3px}
 .live-badge.live{background:var(--orange-light);color:var(--orange)}
 .live-badge.demo{background:var(--warning-light);color:var(--warning)}
-.hero{background:var(--white);border-bottom:1px solid var(--border);padding:2.5rem 2rem 2rem}
-.hero h1{font-family:'Playfair Display',serif;font-size:clamp(24px,4vw,40px);font-weight:700;line-height:1.1;letter-spacing:-0.5px;margin-bottom:0.35rem;color:var(--ink)}
-.hero h1 em{color:var(--orange);font-style:normal}
-.hero p{color:var(--ink2);font-size:14px;max-width:480px;margin-bottom:1.5rem;line-height:1.7}
-.search-wrap{background:var(--cream);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
-.s-input{background:var(--white);border:1px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:13px;padding:8px 12px;border-radius:var(--radius-sm);outline:none;height:36px;transition:border-color 0.15s}
-.s-input:focus{border-color:var(--orange)}
-.s-input::placeholder{color:var(--ink3)}
+/* ── Landing hero ── */
+.hero-landing{background:linear-gradient(160deg,#f5f4f1 0%,#edeae4 100%);padding:3rem 2rem 2.5rem;position:relative;overflow:hidden;border-bottom:1px solid var(--border)}
+.hero-landing::before{display:none}
+.hero-inner{max-width:860px;margin:0 auto;position:relative}
+.hero-text{text-align:center;margin-bottom:2rem}
+.hero-text h1{font-family:'Playfair Display',serif;font-size:clamp(28px,4.5vw,48px);font-weight:700;line-height:1.1;letter-spacing:-0.5px;color:var(--ink);margin-bottom:0.5rem}
+.hero-text h1 em{color:var(--orange);font-style:normal}
+.hero-text p{color:var(--ink3);font-size:14px;letter-spacing:0.2px}
+
+/* Search card */
+.search-card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.10),0 1px 4px rgba(0,0,0,0.06);overflow:hidden;border:1px solid var(--border)}
+.cond-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--cream)}
+.cond-tab{flex:1;padding:12px 8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--ink3);background:none;border:none;cursor:pointer;transition:all 0.15s;border-bottom:2px solid transparent;margin-bottom:-1px}
+.cond-tab:hover{color:var(--ink);background:rgba(0,0,0,0.02)}
+.cond-tab.active{color:var(--orange);font-weight:600;border-bottom-color:var(--orange);background:#fff}
+.search-row{display:flex;gap:8px;padding:16px 16px 0;align-items:flex-end}
+.search-row-top{padding-bottom:10px}
+.search-row-bottom{padding-top:0;padding-bottom:16px}
+.sp-field{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.sp-field.sp-zip{flex:0 0 90px}
+.sp-field.sp-radius{flex:0 0 120px}
+.sp-lbl{font-size:10px;font-weight:600;color:var(--ink3);letter-spacing:0.5px;text-transform:uppercase;padding-left:2px}
+.sp-input,.sp-select{background:var(--white);border:1.5px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:14px;padding:9px 12px;border-radius:var(--radius-sm);outline:none;height:42px;width:100%;transition:border-color 0.15s}
+.sp-select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238A8A84' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.sp-input:focus,.sp-select:focus{border-color:var(--orange)}
+.sp-input::placeholder{color:var(--ink3)}
+.search-btn-main{background:var(--orange);color:#fff;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;border:none;padding:0 22px;border-radius:var(--radius-sm);cursor:pointer;height:42px;display:flex;align-items:center;gap:7px;white-space:nowrap;transition:background 0.15s;flex-shrink:0;align-self:flex-end}
+.search-btn-main:hover{background:var(--orange-dark)}
+.search-btn-main:disabled{opacity:0.5;cursor:not-allowed}
+
+/* Body style bar */
+.body-style-bar{display:flex;align-items:center;gap:8px;padding:0 16px 12px;flex-wrap:wrap}
+.bs-label{font-size:10px;font-weight:600;color:var(--ink3);letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap}
+.bs-pills{display:flex;gap:6px;flex-wrap:wrap}
+.bs-pill{background:none;border:1.5px solid var(--border2);color:var(--ink2);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:5px 11px;border-radius:20px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:4px}
+.bs-pill:hover{border-color:var(--orange);color:var(--orange)}
+.bs-pill.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+
+/* More filters */
+.mf-row{border-top:1px solid var(--border);padding:0 16px}
+.mf-toggle{background:none;border:none;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;color:var(--ink3);cursor:pointer;padding:9px 0;display:flex;align-items:center;gap:5px;width:100%;transition:color 0.15s}
+.mf-toggle:hover{color:var(--ink)}
+.mf-toggle svg{transition:transform 0.2s}
+.mf-toggle.open svg{transform:rotate(180deg)}
+.mf-panel{padding:8px 0 14px;display:flex;gap:8px;flex-wrap:wrap}
 .s-select{background:var(--white);border:1px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:13px;padding:8px 12px;border-radius:var(--radius-sm);outline:none;height:36px;cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238A8A84' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;transition:border-color 0.15s}
 .s-select:focus{border-color:var(--orange)}
 .s-select option{background:var(--white)}
+.s-input{background:var(--white);border:1px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:13px;padding:8px 12px;border-radius:var(--radius-sm);outline:none;height:36px;transition:border-color 0.15s}
+.s-input:focus{border-color:var(--orange)}
+.s-input::placeholder{color:var(--ink3)}
 .search-btn{background:var(--orange);color:white;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border:none;padding:0 20px;border-radius:var(--radius-sm);cursor:pointer;height:36px;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.15s}
 .search-btn:hover:not(:disabled){background:var(--orange-dark)}
 .search-btn:disabled{opacity:0.5;cursor:not-allowed}
-.filters{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Recent searches */
+.recent-bar{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.rs-lbl{font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:0.3px;white-space:nowrap}
+.rs-chips{display:flex;gap:6px;flex-wrap:wrap}
+.rs-chip{background:rgba(0,0,0,0.04);border:1px solid var(--border2);color:var(--ink2);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:5px}
+.rs-chip:hover{background:var(--orange-light);color:var(--orange);border-color:var(--orange)}
+.rs-chip-x{opacity:0.5;font-size:13px;line-height:1;margin-left:2px}
+.rs-chip-x:hover{opacity:1}
 .filter-pill{background:transparent;border:1px solid var(--border2);color:var(--ink2);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:5px 14px;border-radius:20px;cursor:pointer;transition:all 0.15s}
 .filter-pill:hover,.filter-pill.active{background:var(--orange);color:white;border-color:var(--orange)}
 main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
@@ -357,129 +405,134 @@ footer a{color:var(--orange);text-decoration:none}
   <a class="logo" href="/">Auto<em>Negotiating</em>.com</a>
   <div class="nav-links">
     <a class="nav-intel" href="/deal-intelligence.html">
-      <span style="font-size:15px">🧠</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
       <span>Deal Intelligence</span>
     </a>
     <span class="live-badge" id="api-status-badge" style="display:none"></span>
   </div>
 </nav>
 
-<div class="hero">
-  <h1>Find your deal.<br><em>Make your offer.</em></h1>
-  <p>Live dealer inventory with real pricing and incentives. Submit competitive offers directly to the dealer's internet sales division — we negotiate for you.</p>
-  <div class="search-wrap">
-    <input type="text" class="s-input" id="search-zip" placeholder="ZIP Code" value="97005" maxlength="5" style="width:95px">
-    <select class="s-select" id="search-radius">
-      <option value="50">50 miles</option>
-      <option value="100">100 miles</option>
-      <option value="150">150 miles</option>
-      <option value="250">250 miles</option>
-      <option value="500">500 miles</option>
-      <option value="1000">1000 miles</option>
-      <option value="5000">Nationwide</option>
-    </select>
-    <select class="s-select" id="search-condition">
-      <option value="">Any Condition</option><option value="new">New</option><option value="used">Used</option><option value="certified">CPO</option>
-    </select>
-    <select class="s-select" id="search-make">
-      <option value="">Any Make</option>
-      <option>Toyota</option><option>Honda</option><option>Ford</option><option>Chevrolet</option>
-      <option>BMW</option><option>Tesla</option><option>Hyundai</option><option>Kia</option>
-      <option>Subaru</option><option>Lexus</option><option>Nissan</option><option>Mazda</option>
-      <option>Volkswagen</option><option>RAM</option><option>GMC</option><option>Jeep</option>
-      <option>Rivian</option><option>Mercedes-Benz</option><option>Audi</option><option>Porsche</option>
-      <option>Cadillac</option><option>Lincoln</option><option>Genesis</option><option>Acura</option>
-      <option>Infiniti</option><option>Volvo</option><option>Land Rover</option><option>Dodge</option><option>Buick</option>
-    </select>
-    <select class="s-select" id="search-model" style="min-width:140px" disabled>
-      <option value="">Select Make First</option>
-    </select>
-    <select class="s-select" id="search-trim" style="min-width:140px" disabled>
-      <option value="">Any Trim</option>
-    </select>
-    <select class="s-select" id="search-body">
-      <option value="">Any Body</option><option value="Sedan">Sedan</option><option value="SUV">SUV</option>
-      <option value="Truck">Truck</option><option value="Coupe">Coupe</option><option value="Hatchback">Hatchback</option>
-      <option value="Wagon">Wagon</option><option value="Convertible">Convertible</option><option value="Minivan">Minivan</option>
-    </select>
-    <select class="s-select" id="search-fuel">
-      <option value="">Any Fuel</option>
-      <option value="gasoline">Gas</option>
-      <option value="hybrid">Hybrid</option>
-      <option value="electric">Electric</option>
-      <option value="diesel">Diesel</option>
-      <option value="plug_in_hybrid">Plug-in Hybrid</option>
-    </select>
-    <select class="s-select" id="search-drive">
-      <option value="">Any Drive</option>
-      <option value="awd">AWD</option>
-      <option value="fwd">FWD</option>
-      <option value="rwd">RWD</option>
-      <option value="4wd">4WD / 4x4</option>
-    </select>
-    <select class="s-select" id="search-max-mileage">
-      <option value="">Any Miles</option>
-      <option value="15000">15k mi</option>
-      <option value="30000">30k mi</option>
-      <option value="50000">50k mi</option>
-      <option value="75000">75k mi</option>
-      <option value="100000">100k mi</option>
-      <option value="150000">150k mi</option>
-    </select>
-    <select class="s-select" id="search-min-year">
-      <option value="">Min Year</option>
-      <option value="2026">2026</option>
-      <option value="2025">2025</option>
-      <option value="2024">2024</option>
-      <option value="2023">2023</option>
-      <option value="2022">2022</option>
-      <option value="2021">2021</option>
-      <option value="2020">2020</option>
-      <option value="2019">2019</option>
-      <option value="2018">2018</option>
-      <option value="2017">2017</option>
-      <option value="2016">2016</option>
-      <option value="2015">2015</option>
-    </select>
-    <select class="s-select" id="search-max-year">
-      <option value="">Max Year</option>
-      <option value="2026">2026</option>
-      <option value="2025">2025</option>
-      <option value="2024">2024</option>
-      <option value="2023">2023</option>
-      <option value="2022">2022</option>
-      <option value="2021">2021</option>
-      <option value="2020">2020</option>
-      <option value="2019">2019</option>
-      <option value="2018">2018</option>
-      <option value="2017">2017</option>
-      <option value="2016">2016</option>
-      <option value="2015">2015</option>
-    </select>
-    <select class="s-select" id="search-min-price">
-      <option value="">Min $</option><option value="10000">$10k</option><option value="15000">$15k</option>
-      <option value="20000">$20k</option><option value="25000">$25k</option><option value="30000">$30k</option>
-      <option value="40000">$40k</option><option value="50000">$50k</option><option value="75000">$75k</option>
-    </select>
-    <select class="s-select" id="search-max-price">
-      <option value="">Max $</option><option value="15000">$15k</option><option value="20000">$20k</option>
-      <option value="25000">$25k</option><option value="30000">$30k</option><option value="40000">$40k</option>
-      <option value="50000">$50k</option><option value="60000">$60k</option><option value="75000">$75k</option>
-      <option value="100000">$100k</option><option value="150000">$150k</option>
-    </select>
-    <input type="text" class="s-input" id="search-vin" placeholder="VIN (optional)" maxlength="17" style="width:160px;font-family:monospace;letter-spacing:0.5px">
-    <button class="search-btn" id="search-btn" onclick="runSearch()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      Search
-    </button>
-  </div>
-  <div class="filters">
-    <button class="filter-pill active" onclick="filterLocal('all',this)">All</button>
-    <button class="filter-pill" onclick="filterLocal('sedan',this)">Sedans</button>
-    <button class="filter-pill" onclick="filterLocal('suv',this)">SUVs</button>
-    <button class="filter-pill" onclick="filterLocal('truck',this)">Trucks</button>
-    <button class="filter-pill" onclick="filterLocal('ev',this)">Electric</button>
-    <button class="filter-pill" onclick="filterLocal('luxury',this)">Luxury</button>
+<div class="hero-landing">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <h1>Find your deal. <em>Make your offer.</em></h1>
+      <p>Live dealer inventory · Market intelligence · Click-to-offer</p>
+    </div>
+
+    <div class="search-card">
+      <!-- Hidden selects kept for JS compatibility -->
+      <select id="search-condition" style="display:none"><option value="">Any Condition</option><option value="new">New</option><option value="used">Used</option><option value="certified">CPO</option></select>
+      <select id="search-body" style="display:none"><option value="">Any Body</option><option value="Sedan">Sedan</option><option value="SUV">SUV</option><option value="Truck">Truck</option><option value="Coupe">Coupe</option><option value="Hatchback">Hatchback</option><option value="Wagon">Wagon</option><option value="Convertible">Convertible</option><option value="Minivan">Minivan</option></select>
+
+      <div class="cond-tabs">
+        <button class="cond-tab active" onclick="setCondTab(this,'')">All Cars</button>
+        <button class="cond-tab" onclick="setCondTab(this,'new')">New</button>
+        <button class="cond-tab" onclick="setCondTab(this,'used')">Used</button>
+        <button class="cond-tab" onclick="setCondTab(this,'certified')">CPO</button>
+      </div>
+
+      <div class="search-row search-row-top">
+        <div class="sp-field sp-make">
+          <label class="sp-lbl">Make</label>
+          <select class="sp-select" id="search-make">
+            <option value="">Any Make</option>
+            <option>Toyota</option><option>Honda</option><option>Ford</option><option>Chevrolet</option>
+            <option>BMW</option><option>Tesla</option><option>Hyundai</option><option>Kia</option>
+            <option>Subaru</option><option>Lexus</option><option>Nissan</option><option>Mazda</option>
+            <option>Volkswagen</option><option>RAM</option><option>GMC</option><option>Jeep</option>
+            <option>Rivian</option><option>Mercedes-Benz</option><option>Audi</option><option>Porsche</option>
+            <option>Cadillac</option><option>Lincoln</option><option>Genesis</option><option>Acura</option>
+            <option>Infiniti</option><option>Volvo</option><option>Land Rover</option><option>Dodge</option><option>Buick</option>
+          </select>
+        </div>
+        <div class="sp-field sp-model">
+          <label class="sp-lbl">Model</label>
+          <select class="sp-select" id="search-model" disabled><option value="">Select Make First</option></select>
+        </div>
+        <div class="sp-field sp-trim">
+          <label class="sp-lbl">Trim</label>
+          <select class="sp-select" id="search-trim" disabled><option value="">Any Trim</option></select>
+        </div>
+      </div>
+      <div class="search-row search-row-bottom">
+        <div class="sp-field sp-zip">
+          <label class="sp-lbl">ZIP Code</label>
+          <input type="text" class="sp-input" id="search-zip" placeholder="97005" value="97005" maxlength="5">
+        </div>
+        <div class="sp-field sp-radius">
+          <label class="sp-lbl">Radius</label>
+          <select class="sp-select" id="search-radius">
+            <option value="50">50 miles</option><option value="100">100 miles</option><option value="150">150 miles</option>
+            <option value="250">250 miles</option><option value="500">500 miles</option><option value="5000">Nationwide</option>
+          </select>
+        </div>
+        <button class="search-btn-main" id="search-btn" onclick="runSearch()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Search
+        </button>
+      </div>
+
+      <div class="body-style-bar">
+        <span class="bs-label">Body Style</span>
+        <div class="bs-pills">
+          <button class="bs-pill active" onclick="setBodyPill(this,'')">Any</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'SUV')">SUV</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'Sedan')">Sedan</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'Truck')">Truck</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'electric')">Electric</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'Hatchback')">Hatch</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'Coupe')">Coupe</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'Minivan')">Minivan</button>
+          <button class="bs-pill" onclick="setBodyPill(this,'Convertible')">Conv.</button>
+        </div>
+      </div>
+
+      <div class="mf-row">
+        <button class="mf-toggle" id="mf-toggle" onclick="toggleMoreFilters()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          More Filters
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:auto"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div id="mf-panel" class="mf-panel" style="display:none">
+          <select class="s-select" id="search-fuel">
+            <option value="">Any Fuel</option><option value="gasoline">Gas</option><option value="hybrid">Hybrid</option>
+            <option value="electric">Electric</option><option value="diesel">Diesel</option><option value="plug_in_hybrid">Plug-in Hybrid</option>
+          </select>
+          <select class="s-select" id="search-drive">
+            <option value="">Any Drive</option><option value="awd">AWD</option><option value="fwd">FWD</option><option value="rwd">RWD</option><option value="4wd">4WD</option>
+          </select>
+          <select class="s-select" id="search-max-mileage">
+            <option value="">Any Miles</option><option value="15000">15k mi</option><option value="30000">30k mi</option>
+            <option value="50000">50k mi</option><option value="75000">75k mi</option><option value="100000">100k mi</option><option value="150000">150k mi</option>
+          </select>
+          <select class="s-select" id="search-min-year">
+            <option value="">Min Year</option><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+            <option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option><option value="2020">2020</option>
+            <option value="2019">2019</option><option value="2018">2018</option><option value="2017">2017</option><option value="2016">2016</option><option value="2015">2015</option>
+          </select>
+          <select class="s-select" id="search-max-year">
+            <option value="">Max Year</option><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+            <option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option><option value="2020">2020</option>
+            <option value="2019">2019</option><option value="2018">2018</option><option value="2017">2017</option><option value="2016">2016</option><option value="2015">2015</option>
+          </select>
+          <select class="s-select" id="search-min-price">
+            <option value="">Min $</option><option value="10000">$10k</option><option value="15000">$15k</option><option value="20000">$20k</option>
+            <option value="25000">$25k</option><option value="30000">$30k</option><option value="40000">$40k</option><option value="50000">$50k</option><option value="75000">$75k</option>
+          </select>
+          <select class="s-select" id="search-max-price">
+            <option value="">Max $</option><option value="15000">$15k</option><option value="20000">$20k</option><option value="25000">$25k</option>
+            <option value="30000">$30k</option><option value="40000">$40k</option><option value="50000">$50k</option><option value="60000">$60k</option>
+            <option value="75000">$75k</option><option value="100000">$100k</option><option value="150000">$150k</option>
+          </select>
+          <input type="text" class="s-input" id="search-vin" placeholder="VIN (optional)" maxlength="17" style="width:180px;font-family:monospace;letter-spacing:0.5px">
+        </div>
+      </div>
+    </div>
+
+    <div class="recent-bar" id="recent-bar" style="display:none">
+      <span class="rs-lbl">Recent:</span>
+      <div class="rs-chips" id="rs-chips"></div>
+    </div>
   </div>
 </div>
 
@@ -563,7 +616,7 @@ footer a{color:var(--orange);text-decoration:none}
       </div>
       <div class="detail-actions">
         <button class="btn-detail-offer" id="btn-detail-offer" onclick="openOfferFromDetail()">Make an Offer →</button>
-        <a class="btn-detail-intel" href="/deal-intelligence.html" id="btn-detail-intel">🧠 Deal Intelligence</a>
+        <a class="btn-detail-intel" href="/deal-intelligence.html" id="btn-detail-intel"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M12 2a5 5 0 0 1 5 5c0 2.4-1.7 4.4-4 4.9V13h2v2h-2v2h2v2h-2v1a1 1 0 0 1-2 0v-1h-2v-2h2v-2h-2v-2h2v-1.1C9.7 11.4 8 9.4 8 7a5 5 0 0 1 4-4.9V2z"/></svg> Deal Intelligence</a>
       </div>
     </div>
   </div>
@@ -692,6 +745,6 @@ footer a{color:var(--orange);text-decoration:none}
 
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
-<script src="/app.js?v=20260513n"></script>
+<script src="/app.js?v=20260513o"></script>
 </body>
 </html>
