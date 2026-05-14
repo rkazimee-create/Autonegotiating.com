@@ -114,6 +114,7 @@ function normalizeListing(l, idx) {
     bodyStyle:   l.bodyStyle || l.bodyType || '',
     carfaxUrl:      l.vin ? `https://www.carfax.com/VehicleHistory/p/Report.cfx?partner=DEY_0&vin=${l.vin}` : (l.carfaxUrl || null),
     dealerListingUrl: (l.clickoffUrl && l.clickoffUrl.startsWith('http') ? l.clickoffUrl
+                      : l.hrefTarget ? 'https://auto.dev' + l.hrefTarget
                       : l.vdpUrl ? 'https://auto.dev' + l.vdpUrl
                       : null),
     history:        l.history   || null,
