@@ -999,7 +999,6 @@ async function openDetail(carId) {
     ['Condition',      detailCar.condition ? detailCar.condition.charAt(0).toUpperCase()+detailCar.condition.slice(1) : ''],
     ['Mileage',        mileageStr],
     ['Exterior Color', detailCar.color || ''],
-    ['Interior Color', ''],  // filled in by renderIntelligence after VIN decode
     ['Engine',         detailCar.engine || ''],
     ['Horsepower',     ''],  // filled in by renderIntelligence
     ['Transmission',   detailCar.transmission || ''],
@@ -1247,12 +1246,6 @@ function renderIntelligence(data, vinData) {
 
   // ── Inject VIN-decoded vehicle details ──────────────────────────────────────
   if (vinData) {
-    // Interior color
-    const intColorArr = vinData.colors?.find(c => c.category === 'Interior')?.options;
-    if (intColorArr?.length) {
-      updateDetailVehicleRow('interior-color', intColorArr.map(o => o.name).join(' / '));
-    }
-
     // MPG
     if (vinData.mpg?.city || vinData.mpg?.highway) {
       const city = vinData.mpg.city || '?';
@@ -1260,16 +1253,14 @@ function renderIntelligence(data, vinData) {
       updateDetailVehicleRow('mpg', `${city} city / ${hwy} hwy`);
     }
 
-    // Horsepower & engine details
-    if (vinData.engine) {
-      const eng = vinData.engine;
-      if (eng.horsepower) {
-        updateDetailVehicleRow('horsepower', `${eng.horsepower} hp`);
-      }
-      // Enrich engine string if currently empty
-      if (!detailCar.engine && eng.name) {
-        updateDetailVehicleRow('engine', eng.name);
-      }
+    // Horsepower
+    if (vinData.engine?.horsepower) {
+      updateDetailVehicleRow('horsepower', `${vinData.engine.horsepower} hp`);
+    }
+
+    // Enrich engine string if currently empty
+    if (!detailCar.engine && vinData.engine?.name) {
+      updateDetailVehicleRow('engine', vinData.engine.name);
     }
 
     // Number of doors
