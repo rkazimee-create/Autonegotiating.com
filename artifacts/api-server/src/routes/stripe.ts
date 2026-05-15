@@ -4,10 +4,61 @@ import { getUncachableStripeClient, getStripePublishableKey } from "../lib/strip
 
 const router: IRouter = Router();
 
+const DEAL_INTEL_METADATA_KEY = "autonegotiating_product";
+const DEAL_INTEL_METADATA_VAL = "deal-intelligence";
+
+let cachedDealIntelPriceId: string | null = null;
+
+async function ensureDealIntelPrice(): Promise<string> {
+  if (cachedDealIntelPriceId) return cachedDealIntelPriceId;
+
+  const stripe = await getUncachableStripeClient();
+
+  // Search for existing product by metadata
+  const products = await stripe.products.search({
+    query: `metadata["${DEAL_INTEL_METADATA_KEY}"]:"${DEAL_INTEL_METADATA_VAL}"`,
+  });
+
+  let productId: string;
+  let priceId: string | null = null;
+
+  if (products.data.length > 0) {
+    productId = products.data[0].id;
+    // Find existing active price
+    const prices = await stripe.prices.list({ product: productId, active: true, limit: 10 });
+    const existing = prices.data.find(p => p.unit_amount === 999 && p.currency === "usd" && p.type === "one_time");
+    if (existing) priceId = existing.id;
+  } else {
+    // Create product
+    const product = await stripe.products.create({
+      name: "Deal Intelligence Report",
+      description: "AI-powered deal analysis: fair market value, negotiation leverage, and a ready-to-send offer email.",
+      metadata: { [DEAL_INTEL_METADATA_KEY]: DEAL_INTEL_METADATA_VAL },
+    });
+    productId = product.id;
+  }
+
+  if (!priceId) {
+    // Create $9.99 one-time price
+    const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: 999,
+      currency: "usd",
+    });
+    priceId = price.id;
+  }
+
+  cachedDealIntelPriceId = priceId;
+  return priceId;
+}
+
 router.get("/stripe/config", async (req, res) => {
   try {
-    const publishableKey = await getStripePublishableKey();
-    res.json({ publishableKey });
+    const [publishableKey, priceId] = await Promise.all([
+      getStripePublishableKey(),
+      ensureDealIntelPrice(),
+    ]);
+    res.json({ publishableKey, priceId });
   } catch (err: any) {
     req.log.error({ err }, "Failed to get Stripe config");
     res.status(500).json({ error: "Stripe not configured" });
