@@ -662,16 +662,18 @@ async function handlePayment() {
     const base = window.location.origin + window.location.pathname;
     const returnUrl = `${base}?payment=success&session_id={CHECKOUT_SESSION_ID}&${formParams.toString()}`;
 
-    // Fetch publishable key and create embedded checkout session in parallel
-    const [configRes, sessionRes] = await Promise.all([
-      fetch('/api/stripe/config'),
-      fetch('/api/stripe/embedded-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceId: 'price_1TWPaV4bJUKIq93A8r5P1Y6h', returnUrl })
-      })
-    ]);
-    const [configData, sessionData] = await Promise.all([configRes.json(), sessionRes.json()]);
+    // Fetch config first to get the environment-correct priceId, then open session
+    const configRes = await fetch('/api/stripe/config');
+    const configData = await configRes.json();
+    if (!configData.publishableKey || !configData.priceId) {
+      throw new Error(configData.error || 'Stripe not configured');
+    }
+    const sessionRes = await fetch('/api/stripe/embedded-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId: configData.priceId, returnUrl })
+    });
+    const sessionData = await sessionRes.json();
 
     if (!configData.publishableKey || !sessionData.clientSecret) {
       throw new Error(sessionData.error || 'Failed to initialize checkout');
