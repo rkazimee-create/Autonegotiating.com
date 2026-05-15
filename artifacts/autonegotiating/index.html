@@ -257,6 +257,13 @@ main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 footer{border-top:1px solid var(--border);padding:1.5rem 2rem;text-align:center;color:var(--ink3);font-size:12px;background:var(--white)}
 footer a{color:var(--orange);text-decoration:none}
 @media(max-width:1024px){.stats-bar{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){
+  .search-row-bottom{flex-wrap:wrap}
+  .sp-field.sp-radius{flex:1}
+  .search-btn-main{flex:1 1 100%;justify-content:center;margin-top:2px}
+  .search-row-top .sp-field{flex:1 1 calc(33% - 6px);min-width:0}
+  .search-row-top .sp-field .sp-select{font-size:13px}
+}
 
 /* DETAIL MODAL */
 .detail-modal{background:var(--white);border:1px solid var(--border);border-radius:18px;width:100%;max-width:860px;max-height:94vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
@@ -759,6 +766,6 @@ footer a{color:var(--orange);text-decoration:none}
 
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
-<script src="/app.js?v=20260514c"></script>
+<script src="/app.js?v=20260514l"></script>
 </body>
 </html>
