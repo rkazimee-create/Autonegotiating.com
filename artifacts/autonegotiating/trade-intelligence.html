@@ -235,8 +235,9 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
       <label style="font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:5px">VIN <span style="font-weight:400;text-transform:none;letter-spacing:0">(auto-fills form)</span></label>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="text" class="f-input" id="vin-input" style="flex:1;min-width:0" placeholder="e.g. 1HGBH41JXMN109186" maxlength="17" oninput="onVinInput(this)">
-        <button id="vin-lookup-btn" class="vin-lookup-btn" style="display:none" onclick="lookupVin()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Look up
+        <button id="vin-lookup-btn" class="analyze-btn" style="width:auto;padding:0 20px;display:none;flex-shrink:0" onclick="lookupVin()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Look up
         </button>
       </div>
       <div id="vin-status" class="vin-status"></div>
@@ -544,7 +545,7 @@ async function lookupVin() {
     status.className = 'vin-status err';
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Look up';
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Look up';
   }
 }
 
