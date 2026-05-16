@@ -1509,6 +1509,7 @@ function openOfferModal(carId) {
   document.getElementById('cash-meter').style.width='0%';
   document.getElementById('submit-btn').disabled=true;
   document.querySelectorAll('.offer-tab').forEach((t,i)=>t.className='offer-tab'+(i===0?' active':''));
+  resetTradeIn();
   switchTab('cash',null);
   document.getElementById('offer-overlay').classList.remove('hidden');
   document.body.style.overflow='hidden';
@@ -1708,6 +1709,34 @@ function evaluateLease() {
   document.getElementById('submit-btn').disabled=!offerValid;
 }
 
+function toggleTradeIn() {
+  const track  = document.getElementById('trade-toggle-track');
+  const fields = document.getElementById('tradein-fields');
+  const label  = document.getElementById('trade-toggle-label');
+  const isOn   = track.classList.contains('on');
+  track.classList.toggle('on', !isOn);
+  fields.style.display = isOn ? 'none' : 'block';
+  label.style.borderColor = isOn ? '' : 'var(--orange)';
+  label.style.borderRadius = isOn ? 'var(--radius-sm)' : 'var(--radius-sm) var(--radius-sm) 0 0';
+}
+
+function resetTradeIn() {
+  const track  = document.getElementById('trade-toggle-track');
+  const fields = document.getElementById('tradein-fields');
+  const label  = document.getElementById('trade-toggle-label');
+  if (!track) return;
+  track.classList.remove('on');
+  fields.style.display = 'none';
+  label.style.borderColor = '';
+  label.style.borderRadius = 'var(--radius-sm)';
+  ['ti-vin','ti-year','ti-make','ti-model','ti-trim','ti-miles','ti-color','ti-payoff'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ['ti-condition','ti-accidents'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
 function submitOffer() { if(!currentCar||!offerValid) return; closeModal('offer-overlay'); buildEmailDraft(); }
 
 //  EMAIL DRAFT 
@@ -1718,6 +1747,33 @@ function buildEmailDraft() {
   if(activeTab==='cash'){const v=parseFloat(document.getElementById('cash-offer').value);offerBlock=`Purchase Type:    Cash Purchase\nOffer Amount:     ${fmt(v)}`;}
   else if(activeTab==='finance'){const down=parseFloat(document.getElementById('fin-down').value)||0,monthly=parseFloat(document.getElementById('fin-monthly').value)||0,term=document.getElementById('fin-term').value,apr=document.getElementById('fin-apr').value;offerBlock=`Purchase Type:    Financed Purchase\nMonthly Payment:  ${fmt(monthly)}/month\nLoan Term:        ${term} months\nAPR:              ${apr}%\nDown Payment:     ${fmt(down)}`;}
   else{const down=parseFloat(document.getElementById('lease-down').value)||0,monthly=parseFloat(document.getElementById('lease-monthly').value)||0,term=document.getElementById('lease-term').value,miles=parseInt(document.getElementById('lease-miles').value);offerBlock=`Purchase Type:    Lease\nMonthly Payment:  ${fmt(monthly)}/month\nLease Term:       ${term} months\nAnnual Mileage:   ${miles.toLocaleString()} miles/year\nCap Cost Red.:    ${fmt(down)}`;}
+  // Build trade-in block if toggled on
+  let tradeBlock = '';
+  const tradeTrack = document.getElementById('trade-toggle-track');
+  if (tradeTrack && tradeTrack.classList.contains('on')) {
+    const tiVin      = document.getElementById('ti-vin').value.trim().toUpperCase();
+    const tiYear     = document.getElementById('ti-year').value.trim();
+    const tiMake     = document.getElementById('ti-make').value.trim();
+    const tiModel    = document.getElementById('ti-model').value.trim();
+    const tiTrim     = document.getElementById('ti-trim').value.trim();
+    const tiMiles    = parseInt(document.getElementById('ti-miles').value) || 0;
+    const tiCond     = document.getElementById('ti-condition').value;
+    const tiPayoff   = parseFloat(document.getElementById('ti-payoff').value) || 0;
+    const tiColor    = document.getElementById('ti-color').value.trim();
+    const tiAccident = document.getElementById('ti-accidents').value;
+    const lines = ['\n\nTRADE-IN VEHICLE\n'];
+    if (tiYear || tiMake || tiModel) lines.push(`Year / Make / Model:   ${[tiYear,tiMake,tiModel].filter(Boolean).join(' ')}`);
+    if (tiTrim)     lines.push(`Trim Level:            ${tiTrim}`);
+    if (tiVin)      lines.push(`VIN:                   ${tiVin}`);
+    if (tiMiles)    lines.push(`Mileage:               ${tiMiles.toLocaleString()} miles`);
+    if (tiCond)     lines.push(`Condition:             ${tiCond}`);
+    if (tiColor)    lines.push(`Exterior Color:        ${tiColor}`);
+    if (tiAccident) lines.push(`Accident History:      ${tiAccident}`);
+    lines.push(`Payoff Balance:        ${tiPayoff > 0 ? fmt(tiPayoff) : 'Owned Outright – No Payoff'}`);
+    lines.push('\nOur client is open to applying this trade-in toward the purchase price.');
+    tradeBlock = lines.join('\n');
+  }
+
   const profile = getBuyerProfile();
   const buyerName = profile?.name || 'Our Client';
   const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
@@ -1735,7 +1791,7 @@ Listed Price:          ${eff ? fmt(eff) : 'Call for Price'}
 
 CLIENT OFFER
 
-${offerBlock}
+${offerBlock}${tradeBlock}
 
 Our client is a serious buyer ready to proceed immediately. This offer reflects current market pricing and all applicable incentives validated through AutoNegotiating.com.
 
