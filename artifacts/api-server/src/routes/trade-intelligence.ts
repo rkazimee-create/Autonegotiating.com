@@ -6,8 +6,8 @@ const router: IRouter = Router();
 router.post("/trade-intelligence", async (req, res): Promise<void> => {
   const {
     year, make, model, trim, condition,
-    mileage, color, accidents, owners, zip, vin,
-  } = req.body as Record<string, string | number>;
+    mileage, color, accidents, owners, zip, vin, extras,
+  } = req.body as Record<string, string | number | { keys?: string; features?: string[]; other?: string }>;
 
   if (!make || !model) {
     res.status(400).json({ error: "make and model are required" });
@@ -30,6 +30,13 @@ router.post("/trade-intelligence", async (req, res): Promise<void> => {
     .filter(Boolean)
     .join(" · ");
 
+  const extrasObj = (extras as { keys?: string; features?: string[]; other?: string } | undefined) ?? {};
+  const extrasLines: string[] = [];
+  if (extrasObj.keys) extrasLines.push(`Keys: ${extrasObj.keys === "1" ? "1 key only (missing second key — reduces value)" : extrasObj.keys === "2" ? "2 keys (standard)" : "3+ keys"}`);
+  if (extrasObj.features?.length) extrasLines.push(`Features/upgrades present: ${extrasObj.features.join(", ")}`);
+  if (extrasObj.other) extrasLines.push(`Additional extras: ${extrasObj.other}`);
+  const extrasStr = extrasLines.length ? extrasLines.join("\n") : "";
+
   const now = new Date();
   const currentQtr = Math.ceil((now.getMonth() + 1) / 3);
   const currentYear = now.getFullYear();
@@ -51,7 +58,7 @@ Condition: ${conditionStr}
 Mileage: ${mileageStr}
 History: ${historyStr || "Unknown"}
 VIN: ${vin || "not provided"}
-Location: ${zip ? `ZIP ${zip}` : "unspecified — use national averages"}
+Location: ${zip ? `ZIP ${zip}` : "unspecified — use national averages"}${extrasStr ? `\nFeatures & Extras:\n${extrasStr}` : ""}
 Today: ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
 ${isEv ? `
 ⚠️  THIS IS AN ELECTRIC VEHICLE — APPLY EV DEPRECIATION RULES:
@@ -166,6 +173,14 @@ Provide your full analysis in this EXACT JSON structure. No markdown, no code fe
     "insight": "<1-2 sentences: does high supply hurt your selling price, or is demand strong enough to sustain value?>"
   },
   "taxSavingsTip": "<1-2 sentences: most states apply sales tax only to the net purchase price after trade-in. Mention the typical dollar savings of trading in vs selling private party for THIS vehicle's value, and whether that changes the overall recommendation.>",
+  "extrasImpact": [
+    {
+      "feature": "<exact feature name as provided, e.g. 'Sunroof / Moonroof' or '1 key only'>",
+      "direction": "<exactly one of: + | - | ~>",
+      "dollarImpact": <integer — realistic dollar amount this feature adds (+) or subtracts (-) from private party value; 0 if negligible>,
+      "note": "<1 sentence: why this feature affects value for THIS specific vehicle — be specific about the market>"
+    }
+  ],
   "sources": ["KBB Instant Cash Offer", "Carvana", "CarMax", "Vroom", "Reddit r/askcarsales", "Edmunds Forums"],
   "tradeScore": <integer 1-10 — current market demand and sellability for this vehicle>,
   "verdict": "<exactly one of: Hot Market — Sell Now | Good Time to Sell | Neutral Market | Depreciation Risk — Act Fast>"
@@ -182,7 +197,8 @@ CRITICAL PRICING CALIBRATION — follow these rules exactly or the report will b
 8. If the vehicle is an EV (electric vehicle), use Carvana/CarMax actual transaction data as the anchor — NOT KBB (which over-values used EVs). EV instant offers are the best floor reference. Dealer trade-ins for older EVs run especially low.
 9. Include exactly 4 platforms in instantOffers (KBB ICO, Carvana, CarMax, Vroom) in that order.
 10. Include 3-5 community deal reports. ONLY use reports from ${currentQuarter} (highest priority) or ${lastQuarter}. Do NOT include anything older. If no data exists for these periods, say so explicitly rather than substituting older data.
-11. Tips must be specific to this vehicle and condition — not generic advice.`;
+11. Tips must be specific to this vehicle and condition — not generic advice.
+12. ${extrasStr ? `Extras provided — evaluate each one honestly for THIS vehicle's market segment. A missing second key typically costs $200–$500 (dealers charge to replace). Sunroof, AWD, premium audio, leather, third-row, and tow packages add real value on most vehicles. Only list extras that were actually provided — do not invent features not mentioned.` : `No extras provided — return extrasImpact as an empty array.`}`;
 
   try {
     const response = await ai.models.generateContent({
