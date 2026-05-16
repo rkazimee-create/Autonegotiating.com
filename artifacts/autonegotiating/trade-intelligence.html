@@ -178,6 +178,43 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .sources-list{display:flex;flex-wrap:wrap;gap:6px}
 .source-chip{background:var(--cream);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--ink2);font-weight:500}
 
+/* VEHICLE SPEC STRIP */
+.spec-strip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.spec-pill{display:inline-flex;align-items:center;gap:5px;background:var(--cream);border:1px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--ink2);font-weight:500;white-space:nowrap}
+.spec-pill svg{color:var(--ink3);flex-shrink:0}
+.spec-pill strong{color:var(--ink);font-weight:600}
+
+/* DEPRECIATION CARD */
+.depr-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.depr-row:last-child{border-bottom:none;padding-bottom:0}
+.depr-row:first-child{padding-top:0}
+.depr-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.depr-content{flex:1;min-width:0}
+.depr-label{font-size:10px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}
+.depr-val{font-size:13px;color:var(--ink);line-height:1.5}
+
+/* NEGOTIATION SCRIPT */
+.neg-opener{background:var(--orange-light);border:1px solid var(--orange-border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;font-size:13px;font-style:italic;color:var(--ink);line-height:1.6;position:relative}
+.neg-opener::before{content:'"';position:absolute;top:-4px;left:10px;font-family:'Playfair Display',serif;font-size:32px;color:var(--orange);line-height:1;opacity:0.5}
+.neg-opener-text{padding-left:8px}
+.neg-points{list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.neg-points li{font-size:12px;color:var(--ink2);line-height:1.6;padding-left:20px;position:relative}
+.neg-points li::before{content:'✓';position:absolute;left:0;color:var(--success);font-weight:700}
+.neg-redflag{background:var(--danger-light);border:1px solid rgba(192,57,43,0.18);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--danger);line-height:1.5;display:flex;gap:8px;align-items:flex-start}
+.neg-redflag svg{flex-shrink:0;margin-top:1px}
+
+/* MARKET RESEARCH LINKS */
+.mrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mrl-btn{display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--cream);border:1px solid var(--border2);border-radius:var(--radius-sm);text-decoration:none;transition:all 0.15s;color:var(--ink)}
+.mrl-btn:hover{border-color:var(--orange);background:var(--orange-light);color:var(--orange)}
+.mrl-btn-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.mrl-btn-body{flex:1;min-width:0}
+.mrl-btn-name{font-size:12px;font-weight:600;color:inherit;display:block}
+.mrl-btn-desc{font-size:10px;color:var(--ink3);display:block;margin-top:1px}
+.mrl-btn:hover .mrl-btn-desc{color:var(--orange-mid)}
+.mrl-btn svg.external{flex-shrink:0;color:var(--ink3);transition:color 0.15s}
+.mrl-btn:hover svg.external{color:var(--orange)}
+
 /* MODAL */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:1000;padding:1rem;opacity:0;transition:opacity 0.2s}
 .modal-backdrop.visible{opacity:1}
@@ -328,6 +365,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
     <div class="value-hero">
       <div class="value-hero-label">AI Value Assessment</div>
       <div class="value-hero-title" id="value-hero-title">—</div>
+      <div class="spec-strip" id="spec-strip" style="display:none"></div>
       <div class="value-tiers" id="value-tiers"></div>
       <div style="font-size:13px;color:var(--ink2);line-height:1.7" id="value-summary"></div>
     </div>
@@ -389,6 +427,43 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
           </div>
           <ul class="tips-list" id="value-tips"></ul>
         </div>
+      </div>
+    </div>
+
+    <!-- Depreciation + Negotiation + Links row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem" id="extra-cards">
+
+      <!-- Depreciation Outlook -->
+      <div class="intel-card">
+        <div class="intel-card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          Depreciation Outlook
+        </div>
+        <div id="depr-card">
+          <div style="color:var(--ink3);font-size:13px">Analyzing depreciation curve...</div>
+        </div>
+      </div>
+
+      <!-- Market Research Links -->
+      <div class="intel-card">
+        <div class="intel-card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          Research &amp; Verify
+        </div>
+        <div class="mrl-grid" id="market-links"></div>
+      </div>
+
+    </div>
+
+    <!-- Negotiation Script (full width) -->
+    <div class="intel-card" style="margin-bottom:1.5rem" id="neg-card">
+      <div class="intel-card-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Negotiation Script
+        <span style="font-size:10px;font-weight:400;color:var(--ink3);margin-left:4px">— what to say at the dealer</span>
+      </div>
+      <div id="neg-content">
+        <div style="color:var(--ink3);font-size:13px">Generating script...</div>
       </div>
     </div>
 
@@ -907,18 +982,97 @@ function renderResults(data, vehicleLabel) {
 
   // Market Stats
   const ms = data.marketStats || {};
+  const cl = data.competingListings || {};
   document.getElementById('market-stats').innerHTML = `
     <div class="stat-row"><span class="stat-row-label">Avg resale price</span><span class="stat-row-val accent">${ms.avgResalePrice ? fmt(ms.avgResalePrice) : '—'}</span></div>
     <div class="stat-row"><span class="stat-row-label">Avg time to sell</span><span class="stat-row-val">${escHtml(ms.avgDaysToSell || '—')}</span></div>
     <div class="stat-row"><span class="stat-row-label">Depreciation rate</span><span class="stat-row-val">${escHtml(ms.depreciationRate || '—')}</span></div>
     <div class="stat-row"><span class="stat-row-label">Market demand</span><span class="stat-row-val ${ms.demandLevel==='High'?'green':ms.demandLevel==='Low'?'':'yellow'}">${escHtml(ms.demandLevel || '—')}</span></div>
-    <div class="stat-row"><span class="stat-row-label">Best time to sell</span><span class="stat-row-val yellow">${escHtml(ms.bestTimeToSell || '—')}</span></div>`;
+    <div class="stat-row"><span class="stat-row-label">Best time to sell</span><span class="stat-row-val yellow">${escHtml(ms.bestTimeToSell || '—')}</span></div>
+    ${cl.estimatedCount ? `<div class="stat-row"><span class="stat-row-label">Competing listings</span><span class="stat-row-val">${escHtml(cl.estimatedCount)}</span></div>` : ''}
+    ${cl.avgAskingPrice ? `<div class="stat-row"><span class="stat-row-label">Avg listing price</span><span class="stat-row-val accent">${fmt(cl.avgAskingPrice)}</span></div>` : ''}
+    ${cl.buyerLeverage ? '<div class="stat-row"><span class="stat-row-label">Buyer leverage</span><span class="stat-row-val ' + (cl.buyerLeverage === 'Low' ? 'green' : '') + '">' + escHtml(cl.buyerLeverage) + '</span></div>' : ''}`;
 
   // Tips
   const tips = data.tips || [];
   document.getElementById('value-tips').innerHTML = tips.length ?
     tips.map(t => `<li>${escHtml(t)}</li>`).join('') :
     '<li>No specific tips available for this vehicle.</li>';
+
+  // Spec strip — vehicle attributes from form
+  const specStrip = document.getElementById('spec-strip');
+  const specYear  = document.getElementById('car-year').value.trim();
+  const specMake  = document.getElementById('car-make').value.trim();
+  const specModel = document.getElementById('car-model').value.trim();
+  const specTrim  = document.getElementById('car-trim').value.trim();
+  const specMiles = document.getElementById('car-mileage').value.trim();
+  const specCond  = document.getElementById('car-condition');
+  const specCondLabel = specCond ? specCond.options[specCond.selectedIndex]?.text : '';
+  const specAcc   = document.getElementById('car-accidents');
+  const specAccLabel = specAcc ? specAcc.options[specAcc.selectedIndex]?.text : '';
+  const specOwn   = document.getElementById('car-owners');
+  const specOwnLabel = specOwn ? specOwn.options[specOwn.selectedIndex]?.text : '';
+  const specColor = document.getElementById('car-color').value.trim();
+  const specZip   = document.getElementById('car-zip').value.trim();
+  const specVin   = document.getElementById('vin-input').value.trim();
+  const specPills = [
+    specMiles ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>', label:'Mileage', val: Number(specMiles).toLocaleString() + ' mi'} : null,
+    specCondLabel ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', label:'Condition', val: specCondLabel.replace(' – ',': ')} : null,
+    specAccLabel ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', label:'History', val: specAccLabel} : null,
+    specOwnLabel ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>', label:'Owners', val: specOwnLabel} : null,
+    specColor ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>', label:'Color', val: specColor} : null,
+    specZip ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>', label:'ZIP', val: specZip} : null,
+    specVin ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>', label:'VIN', val: specVin} : null,
+  ].filter(Boolean);
+  if (specPills.length) {
+    specStrip.style.display = 'flex';
+    specStrip.innerHTML = specPills.map(p => `<span class="spec-pill">${p.icon}<span><strong>${p.label}:</strong> ${escHtml(p.val)}</span></span>`).join('');
+  }
+
+  // Depreciation card
+  const depr = data.depreciation || {};
+  document.getElementById('depr-card').innerHTML = [
+    depr.annualLoss ? `<div class="depr-row"><div class="depr-icon" style="background:var(--danger-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="depr-content"><div class="depr-label">Annual Loss</div><div class="depr-val">${escHtml(depr.annualLoss)}</div></div></div>` : '',
+    depr.outlook12mo ? `<div class="depr-row"><div class="depr-icon" style="background:var(--info-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><div class="depr-content"><div class="depr-label">12-Month Outlook</div><div class="depr-val">${escHtml(depr.outlook12mo)}</div></div></div>` : '',
+    depr.urgencyNote ? `<div class="depr-row"><div class="depr-icon" style="background:var(--warning-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="depr-content"><div class="depr-label">Timing Note</div><div class="depr-val">${escHtml(depr.urgencyNote)}</div></div></div>` : '',
+    data.taxSavingsTip ? `<div class="depr-row"><div class="depr-icon" style="background:var(--success-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="depr-content"><div class="depr-label">Tax Trade-In Tip</div><div class="depr-val">${escHtml(data.taxSavingsTip)}</div></div></div>` : '',
+  ].join('') || '<div style="color:var(--ink3);font-size:13px">No depreciation data available.</div>';
+
+  // Negotiation Script
+  const ns = data.negotiationScript || {};
+  document.getElementById('neg-content').innerHTML = ns.dealerOpener ? `
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px">Your opening line:</div>
+    <div class="neg-opener"><div class="neg-opener-text">${escHtml(ns.dealerOpener)}"</div></div>
+    ${ns.leveragePoints?.length ? `<div style="font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink3);margin-bottom:7px">Leverage points to use:</div><ul class="neg-points">${ns.leveragePoints.map(p => `<li>${escHtml(p)}</li>`).join('')}</ul>` : ''}
+    ${ns.redFlags ? `<div class="neg-redflag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><strong style="display:block;margin-bottom:2px">Watch out for:</strong>${escHtml(ns.redFlags)}</div></div>` : ''}
+    ${cl.insight ? `<div style="font-size:12px;color:var(--ink2);line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"><strong>Market context:</strong> ${escHtml(cl.insight)}</div>` : ''}
+  ` : '<div style="color:var(--ink3);font-size:13px">Negotiation data not available.</div>';
+
+  // Market Research Links
+  const vin = (document.getElementById('vin-input').value || '').trim();
+  const make = escHtml(document.getElementById('car-make').value.trim());
+  const model = escHtml(document.getElementById('car-model').value.trim());
+  const yr = escHtml(document.getElementById('car-year').value.trim());
+  const searchQ = encodeURIComponent([yr, make, model].filter(Boolean).join(' '));
+  const links = [
+    { name:'KBB Trade-In Value', desc:'Official KBB appraisal tool', icon:'📘', url: vin ? `https://www.kbb.com/sell-your-car/?vin=${encodeURIComponent(vin)}` : 'https://www.kbb.com/sell-your-car/' },
+    { name:'NADA Guides', desc:'Industry trade-in guide used by dealers', icon:'📋', url: 'https://www.nadaguides.com/Cars' },
+    { name:'AutoTrader Listings', desc:'See what similar cars are listed for', icon:'🔍', url: `https://www.autotrader.com/cars-for-sale/used-cars/${searchQ}` },
+    { name:'Cars.com Listings', desc:'Compare private & dealer prices', icon:'🚗', url: `https://www.cars.com/shopping/results/?keyword=${searchQ}` },
+    vin ? { name:'Carfax Vehicle Report', desc:'Full history report for this VIN', icon:'📄', url: `https://www.carfax.com/vehicle/${encodeURIComponent(vin)}` } : { name:'Carfax VIN Report', desc:'Enter VIN for full history report', icon:'📄', url: 'https://www.carfax.com/value/' },
+    { name:'Carvana Real Offer', desc:'Get an actual instant cash offer', icon:'💰', url: vin ? `https://www.carvana.com/sell-car?vin=${encodeURIComponent(vin)}` : 'https://www.carvana.com/sell-car' },
+    { name:'CarMax Appraisal', desc:'Free in-store or online appraisal', icon:'🏢', url: 'https://www.carmax.com/sell-my-car' },
+    { name:'Reddit r/askcarsales', desc:'Real seller experiences & current deals', icon:'💬', url: `https://www.reddit.com/r/askcarsales/search/?q=${searchQ}&restrict_sr=1&sort=new` },
+  ];
+  document.getElementById('market-links').innerHTML = links.map(l => `
+    <a href="${l.url}" target="_blank" rel="noopener" class="mrl-btn">
+      <div class="mrl-btn-icon">${l.icon}</div>
+      <div class="mrl-btn-body">
+        <span class="mrl-btn-name">${l.name}</span>
+        <span class="mrl-btn-desc">${l.desc}</span>
+      </div>
+      <svg class="external" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </a>`).join('');
 
   // Sources
   document.getElementById('sources-list').innerHTML = (data.sources || [])
