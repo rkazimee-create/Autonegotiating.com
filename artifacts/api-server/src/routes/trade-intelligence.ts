@@ -126,12 +126,17 @@ Provide your full analysis in this EXACT JSON structure. No markdown, no code fe
   "verdict": "<exactly one of: Hot Market — Sell Now | Good Time to Sell | Neutral Market | Depreciation Risk — Act Fast>"
 }
 
-Rules:
-- All prices must reflect ${new Date().getFullYear()} market conditions for a ${conditionStr}-condition ${vehicleDesc} with ${mileageStr}
-- dealerTradeIn.mid ≈ 80-85% of typical retail; instantOffer.mid ≈ 85-90%; privateParty.mid ≈ 95-100% of KBB private party
-- Include exactly 4 platforms in instantOffers (KBB ICO, Carvana, CarMax, Vroom) in that order
-- Include 3-5 community deal reports from distinct sources
-- Tips must be specific to this vehicle and condition — not generic advice`;
+CRITICAL PRICING CALIBRATION — follow these rules exactly or the report will be wrong:
+1. Anchor ALL values to KBB's actual published valuations for ${new Date().getFullYear()}, NOT to MSRP or dealer listing price.
+2. privateParty.mid  = KBB Private Party Value "Good" condition for this mileage. This is always the highest tier.
+3. dealerTradeIn.mid = KBB Trade-In Value "Good" condition. This is ALWAYS 15-25% LESS than KBB Private Party — dealers pay wholesale, not retail. Do not inflate this.
+4. instantOffer.mid  = what Carvana / CarMax / KBB ICO actually pay today. This sits BETWEEN dealer trade-in and private party — typically 8-15% below KBB Private Party. KBB ICO and CarMax are usually within $300-$500 of each other.
+5. For a ${conditionStr}-condition vehicle with ${mileageStr}, condition adjustments matter: Fair condition reduces values by an additional 10-15% vs Good; Poor by 20-25%.
+6. Always give CONSERVATIVE estimates — users will compare these to real KBB pages and real Carvana offers. Overestimating damages credibility far more than underestimating.
+7. Spread low/mid/high within each tier realistically (low ≈ mid minus 8-12%; high ≈ mid plus 5-8%).
+8. Include exactly 4 platforms in instantOffers (KBB ICO, Carvana, CarMax, Vroom) in that order.
+9. Include 3-5 community deal reports from distinct sources.
+10. Tips must be specific to this vehicle and condition — not generic advice.`;
 
   try {
     const response = await ai.models.generateContent({
