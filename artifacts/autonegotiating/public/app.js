@@ -1735,6 +1735,63 @@ function resetTradeIn() {
   ['ti-condition','ti-accidents'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  const statusEl = document.getElementById('ti-vin-status');
+  if (statusEl) { statusEl.textContent = ''; statusEl.className = 'ti-vin-status'; }
+  const lookupBtn = document.getElementById('ti-vin-lookup');
+  if (lookupBtn) lookupBtn.style.display = 'none';
+}
+
+function onTradeInVinInput(el) {
+  el.value = el.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, '');
+  const btn = document.getElementById('ti-vin-lookup');
+  if (btn) btn.style.display = el.value.length === 17 ? 'inline-block' : 'none';
+  const status = document.getElementById('ti-vin-status');
+  if (status) { status.textContent = ''; status.className = 'ti-vin-status'; }
+}
+
+function tiTitleCase(str) {
+  if (!str) return '';
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+async function lookupTradeInVin() {
+  const vinEl  = document.getElementById('ti-vin');
+  const btn    = document.getElementById('ti-vin-lookup');
+  const status = document.getElementById('ti-vin-status');
+  const vin    = vinEl.value.trim().toUpperCase();
+  if (vin.length !== 17) return;
+  btn.disabled = true;
+  btn.textContent = 'Looking up…';
+  status.textContent = '';
+  status.className = 'ti-vin-status';
+  try {
+    const res  = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`);
+    const data = await res.json();
+    const r    = data.Results?.[0];
+    if (!r || (r.ErrorCode && !r.ErrorCode.startsWith('0'))) throw new Error('VIN not found');
+    const year  = r.ModelYear || '';
+    const make  = tiTitleCase(r.Make  || '');
+    const model = tiTitleCase(r.Model || '');
+    const trim  = r.Trim || r.Series || '';
+    if (year)  document.getElementById('ti-year').value  = year;
+    if (make)  document.getElementById('ti-make').value  = make;
+    if (model) document.getElementById('ti-model').value = model;
+    if (trim)  document.getElementById('ti-trim').value  = trim;
+    const desc = [year, make, model].filter(Boolean).join(' ');
+    if (desc) {
+      status.textContent = `✓ Found: ${desc}${trim ? ' ' + trim : ''}`;
+      status.className = 'ti-vin-status ok';
+    } else {
+      status.textContent = 'VIN decoded — please verify the filled fields';
+      status.className = 'ti-vin-status ok';
+    }
+  } catch (err) {
+    status.textContent = 'Could not decode this VIN — please fill in the fields manually';
+    status.className = 'ti-vin-status err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Look up';
+  }
 }
 
 function submitOffer() { if(!currentCar||!offerValid) return; closeModal('offer-overlay'); buildEmailDraft(); }
