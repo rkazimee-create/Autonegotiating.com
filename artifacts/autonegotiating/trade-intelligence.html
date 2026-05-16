@@ -109,20 +109,27 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .verdict-neutral{background:var(--cream);color:var(--ink3);border:1px solid var(--border2)}
 .verdict-risk{background:var(--danger-light);color:var(--danger)}
 
+/* DISCLAIMER */
+.ai-disclaimer{background:#FFFBF0;border:1px solid #E8D87A;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:10px;font-size:12px;color:#7A6400;line-height:1.5}
+.ai-disclaimer svg{flex-shrink:0;margin-top:1px}
+.ai-disclaimer strong{font-weight:700}
+
 /* INSTANT OFFER BREAKDOWN */
 .io-section{margin-bottom:1.5rem}
 .io-section-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:0.75rem;display:flex;align-items:center;gap:6px}
 .io-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.io-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem}
+.io-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;display:flex;flex-direction:column}
 .io-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .io-source{font-size:13px;font-weight:700;color:var(--ink)}
 .io-offer{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--orange)}
-.io-desc{font-size:12px;color:var(--ink2);line-height:1.5;margin-bottom:8px}
-.io-pc{display:flex;flex-direction:column;gap:3px}
+.io-desc{font-size:12px;color:var(--ink2);line-height:1.5;margin-bottom:8px;flex:1}
+.io-pc{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
 .io-pro{font-size:11px;color:var(--success);display:flex;align-items:flex-start;gap:4px;line-height:1.4}
 .io-con{font-size:11px;color:var(--ink3);display:flex;align-items:flex-start;gap:4px;line-height:1.4}
 .io-pro::before{content:'✓';font-weight:700;flex-shrink:0}
 .io-con::before{content:'–';font-weight:700;flex-shrink:0}
+.io-quote-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--orange);text-decoration:none;padding:5px 10px;border:1px solid var(--orange-border);border-radius:var(--radius-xs);background:var(--orange-light);transition:all 0.15s;align-self:flex-start;margin-top:auto}
+.io-quote-btn:hover{background:var(--orange);color:#fff}
 
 /* INTEL GRID */
 .intel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem}
@@ -309,6 +316,12 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
   </div>
 
   <div id="results" style="display:none">
+
+    <!-- Disclaimer -->
+    <div class="ai-disclaimer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span><strong>AI estimates — always verify before deciding.</strong> Values are modeled from KBB, Carvana, and CarMax market data and may differ from live quotes. Use the "Get Real Quote" buttons below to get actual current offers from each platform.</span>
+    </div>
 
     <!-- Value Hero -->
     <div class="value-hero">
@@ -834,8 +847,25 @@ function renderResults(data, vehicleLabel) {
   document.getElementById('ts-verdict').innerHTML = `<span class="verdict-pill ${vClass}">${escHtml(verdict)}</span>`;
 
   // Instant Offers
+  const PLATFORM_URLS = {
+    'kbb instant cash offer': 'https://www.kbb.com/sell-your-car/',
+    'carvana':  'https://www.carvana.com/sell-car',
+    'carmax':   'https://www.carmax.com/sell-my-car',
+    'vroom':    'https://www.vroom.com/sell-my-car',
+  };
+  const vinVal = (document.getElementById('vin-input').value || '').trim();
   const ios = data.instantOffers || [];
-  document.getElementById('io-grid').innerHTML = ios.length ? ios.slice(0,4).map(io => `
+  document.getElementById('io-grid').innerHTML = ios.length ? ios.slice(0,4).map(io => {
+    const key = (io.source || '').toLowerCase();
+    let quoteUrl = PLATFORM_URLS[key] || null;
+    if (!quoteUrl) {
+      for (const [k, u] of Object.entries(PLATFORM_URLS)) { if (key.includes(k.split(' ')[0])) { quoteUrl = u; break; } }
+    }
+    if (quoteUrl && vinVal) {
+      if (key.includes('kbb'))     quoteUrl += (quoteUrl.includes('?') ? '&' : '?') + 'vin=' + encodeURIComponent(vinVal);
+      if (key.includes('carvana')) quoteUrl = 'https://www.carvana.com/sell-car?vin=' + encodeURIComponent(vinVal);
+    }
+    return `
     <div class="io-card">
       <div class="io-card-header">
         <div class="io-source">${escHtml(io.source)}</div>
@@ -846,7 +876,12 @@ function renderResults(data, vehicleLabel) {
         ${io.pros ? `<div class="io-pro">${escHtml(io.pros)}</div>` : ''}
         ${io.cons ? `<div class="io-con">${escHtml(io.cons)}</div>` : ''}
       </div>
-    </div>`).join('') : '<p style="color:var(--ink3);font-size:13px;grid-column:1/-1">No instant offer data available.</p>';
+      ${quoteUrl ? `<a href="${quoteUrl}" target="_blank" rel="noopener" class="io-quote-btn">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Get Real Quote
+      </a>` : ''}
+    </div>`;
+  }).join('') : '<p style="color:var(--ink3);font-size:13px;grid-column:1/-1">No instant offer data available.</p>';
 
   // Community reports
   const deals = (data.deals || []).filter(d => d.description);
