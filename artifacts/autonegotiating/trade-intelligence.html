@@ -375,6 +375,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
           <option value="3">3+ keys</option>
         </select>
         <div class="extras-sect-label">Features &amp; Upgrades</div>
+        <div id="extras-features-state" style="font-size:12px;margin-bottom:8px"><em style="color:var(--ink3)">Enter vehicle info above to load specific features</em></div>
         <div class="extras-grid" id="extras-grid"></div>
         <div class="extras-sect-label" style="margin-top:14px">Other Extras</div>
         <input type="text" class="f-input" id="car-extras-other" placeholder="e.g. new tires, upgraded stereo, fresh detailing, extended warranty" oninput="updateExtrasCount()">
@@ -835,29 +836,14 @@ async function applyPromoCode() {
 }
 
 /* EXTRAS PANEL */
-const EXTRA_FEATURES = [
-  {id:'sunroof',label:'Sunroof / Moonroof'},{id:'pano',label:'Panoramic Roof'},
-  {id:'leather',label:'Leather Interior'},{id:'heated-seats',label:'Heated Seats'},
-  {id:'vented-seats',label:'Ventilated Seats'},{id:'premium-audio',label:'Premium Audio'},
-  {id:'navigation',label:'Navigation System'},{id:'backup-cam',label:'Backup Camera'},
-  {id:'bsm',label:'Blind Spot Monitoring'},{id:'parking-sensors',label:'Parking Sensors'},
-  {id:'acc',label:'Adaptive Cruise Control'},{id:'carplay',label:'CarPlay / Android Auto'},
-  {id:'remote-start',label:'Remote Start'},{id:'third-row',label:'Third Row Seating'},
-  {id:'tow',label:'Tow Package'},{id:'awd',label:'AWD / 4WD'},
-  {id:'wheels',label:'Upgraded Wheels / Rims'},{id:'pwr-liftgate',label:'Power Liftgate'},
-  {id:'perf-pkg',label:'Performance Package'},{id:'warranty',label:'Extended Warranty'},
-];
-(function initExtras() {
-  const grid = document.getElementById('extras-grid');
-  if (!grid) return;
-  grid.innerHTML = EXTRA_FEATURES.map(f => `<span class="extras-pill-wrap"><input type="checkbox" class="extras-cb" id="xf-${f.id}" value="${f.label}" onchange="updateExtrasCount()"><label class="extras-label" for="xf-${f.id}">${f.label}</label></span>`).join('');
-})();
+let _extrasLoadedFor = '';
 function toggleExtras() {
   const body = document.getElementById('extras-body');
   const chevron = document.getElementById('extras-chevron');
   const open = body.style.display !== 'none';
   body.style.display = open ? 'none' : 'block';
   chevron.style.transform = open ? '' : 'rotate(180deg)';
+  if (!open) loadVehicleFeatures();
 }
 function updateExtrasCount() {
   const checks = document.querySelectorAll('.extras-cb:checked').length;
@@ -868,6 +854,43 @@ function updateExtrasCount() {
   if (!el) return;
   if (total > 0) { el.textContent = total; el.style.display = ''; }
   else { el.style.display = 'none'; }
+}
+async function loadVehicleFeatures(force) {
+  const year  = (document.getElementById('car-year')?.value  || '').trim();
+  const make  = (document.getElementById('car-make')?.value  || '').trim();
+  const model = (document.getElementById('car-model')?.value || '').trim();
+  const trim  = (document.getElementById('car-trim')?.value  || '').trim();
+  const stateEl = document.getElementById('extras-features-state');
+  const gridEl  = document.getElementById('extras-grid');
+  if (!stateEl || !gridEl) return;
+  if (!make) {
+    stateEl.innerHTML = '<em style="color:var(--ink3)">Enter vehicle info above to load specific features</em>';
+    gridEl.innerHTML = '';
+    return;
+  }
+  const vehicleKey = [year, make, model, trim].join('|');
+  if (!force && vehicleKey === _extrasLoadedFor && gridEl.children.length > 0) return;
+  _extrasLoadedFor = vehicleKey;
+  const vehicleLabel = escHtml([year, make, model, trim].filter(Boolean).join(' '));
+  stateEl.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:4px"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0"/></svg><span style="color:var(--ink3)">Loading features for ${vehicleLabel}…</span>`;
+  gridEl.innerHTML = '';
+  try {
+    const res = await fetch('/api/vehicle-features', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year, make, model, trim })
+    });
+    const data = await res.json();
+    const features = Array.isArray(data.features) ? data.features : [];
+    if (features.length) {
+      stateEl.innerHTML = `<span style="color:var(--success);font-size:12px">✓ Features loaded for ${vehicleLabel}</span>&ensp;<button type="button" onclick="loadVehicleFeatures(true)" style="background:none;border:none;color:var(--orange);font-family:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Reload</button>`;
+      gridEl.innerHTML = features.map((f, i) => `<span class="extras-pill-wrap"><input type="checkbox" class="extras-cb" id="xf-${i}" value="${escHtml(String(f))}" onchange="updateExtrasCount()"><label class="extras-label" for="xf-${i}">${escHtml(String(f))}</label></span>`).join('');
+    } else {
+      stateEl.innerHTML = `<em style="color:var(--ink3)">No features found — use Other Extras below</em>`;
+    }
+  } catch(e) {
+    stateEl.innerHTML = `<span style="color:var(--danger);font-size:12px">Could not load features</span>&ensp;<button type="button" onclick="loadVehicleFeatures(true)" style="background:none;border:none;color:var(--orange);font-family:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Retry</button>`;
+  }
+  updateExtrasCount();
 }
 
 /* MAIN ANALYSIS */
