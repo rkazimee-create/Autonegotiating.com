@@ -30,7 +30,13 @@ router.post("/trade-intelligence", async (req, res): Promise<void> => {
     .filter(Boolean)
     .join(" · ");
 
-  const prompt = `You are an expert automotive resale market analyst specializing in maximizing seller returns. Analyze the following vehicle across all selling channels and provide a data-backed, actionable multi-path value report.
+  const isEv = /\b(tesla|ev|electric|rivian|lucid|polestar|ioniq|bolt|leaf|model [s3xy])\b/i.test(vehicleDesc);
+  const isOlderLuxury = /\b(bmw|mercedes|audi|porsche|maserati|jaguar|land rover|cadillac|lincoln|infiniti|lexus)\b/i.test(vehicleDesc);
+  const vehicleYear = parseInt(String(year)) || 0;
+  const vehicleAge = vehicleYear > 0 ? new Date().getFullYear() - vehicleYear : 0;
+  const highMileage = Number(mileage) > 100000;
+
+  const prompt = `You are an expert automotive resale market analyst. Your job is to give ACCURATE, REALISTIC resale values that will hold up when the user checks them against live CarMax, Carvana, and KBB offers.
 
 Vehicle: ${vehicleDesc}
 Condition: ${conditionStr}
@@ -39,6 +45,15 @@ History: ${historyStr || "Unknown"}
 VIN: ${vin || "not provided"}
 Location: ${zip ? `ZIP ${zip}` : "unspecified — use national averages"}
 Today: ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+${isEv ? `
+⚠️  THIS IS AN ELECTRIC VEHICLE — APPLY EV DEPRECIATION RULES:
+Electric vehicles, especially pre-2022 models, have experienced dramatic value declines of 40–65% since 2022-2023 due to Tesla's repeated price cuts, rapid EV technology advancement, battery degradation concerns, and surging competition. Do NOT use pre-2023 EV pricing data.
+- A 2017–2019 Tesla Model S/X in Good condition typically fetches $12,000–$22,000 at CarMax/Carvana in 2024–2025 — NOT $30,000+.
+- A 2017–2020 Tesla Model 3/Y trades for $14,000–$24,000 depending on trim and miles.
+- For any EV older than 3 years, start from the BOTTOM of the market range, not the middle.
+- KBB consistently over-values used EVs vs. what Carvana/CarMax actually pay — use Carvana/CarMax as the true floor.` : ''}${isOlderLuxury && vehicleAge > 5 ? `
+⚠️  OLDER LUXURY VEHICLE — apply additional 10–15% haircut vs. standard KBB due to high maintenance costs suppressing buyer demand.` : ''}${highMileage ? `
+⚠️  HIGH MILEAGE (100k+) — reduce all tiers by an additional 10–20% vs. standard KBB for this mileage bracket.` : ''}
 
 Provide your full analysis in this EXACT JSON structure. No markdown, no code fences — just valid JSON:
 
@@ -103,6 +118,7 @@ Provide your full analysis in this EXACT JSON structure. No markdown, no code fe
     {
       "source": "<source: Reddit r/carbuying | Reddit r/askcarsales | Edmunds Forums | Facebook Marketplace | Cars.com Community>",
       "price": <integer — realistic transaction price sellers achieved>,
+      "reportDate": "<approximate period from your training data, e.g. 'Late 2024' or 'Q1 2025' — be honest about when this data is from>",
       "description": "<2-3 sentences: what sellers of similar vehicles reported — price achieved, time to sell, platform used, what helped or hurt>",
       "tags": ["<tag1>", "<tag2>"]
     }
@@ -134,9 +150,10 @@ CRITICAL PRICING CALIBRATION — follow these rules exactly or the report will b
 5. For a ${conditionStr}-condition vehicle with ${mileageStr}, condition adjustments matter: Fair condition reduces values by an additional 10-15% vs Good; Poor by 20-25%.
 6. Always give CONSERVATIVE estimates — users will compare these to real KBB pages and real Carvana offers. Overestimating damages credibility far more than underestimating.
 7. Spread low/mid/high within each tier realistically (low ≈ mid minus 8-12%; high ≈ mid plus 5-8%).
-8. Include exactly 4 platforms in instantOffers (KBB ICO, Carvana, CarMax, Vroom) in that order.
-9. Include 3-5 community deal reports from distinct sources.
-10. Tips must be specific to this vehicle and condition — not generic advice.`;
+8. If the vehicle is an EV (electric vehicle), use Carvana/CarMax actual transaction data as the anchor — NOT KBB (which over-values used EVs). EV instant offers are the best floor reference. Dealer trade-ins for older EVs run especially low.
+9. Include exactly 4 platforms in instantOffers (KBB ICO, Carvana, CarMax, Vroom) in that order.
+10. Include 3-5 community deal reports from distinct sources. Each MUST include a "reportDate" field indicating the approximate period (e.g. "Late 2024", "Q2 2025"). Be honest — if you are uncertain, say "2024 est." Do not omit this field.
+11. Tips must be specific to this vehicle and condition — not generic advice.`;
 
   try {
     const response = await ai.models.generateContent({
