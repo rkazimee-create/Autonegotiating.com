@@ -10,6 +10,7 @@ import priceHistoryRouter from "./price-history";
 import promoRouter from "./promo";
 import stripeRouter from "./stripe";
 import sendOfferRouter from "./send-offer";
+import vehicleFeaturesRouter from "./vehicle-features";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(priceHistoryRouter);
 router.use(promoRouter);
 router.use(stripeRouter);
 router.use(sendOfferRouter);
+router.use(vehicleFeaturesRouter);
 
 export default router;
