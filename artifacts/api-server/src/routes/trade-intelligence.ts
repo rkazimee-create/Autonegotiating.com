@@ -30,6 +30,14 @@ router.post("/trade-intelligence", async (req, res): Promise<void> => {
     .filter(Boolean)
     .join(" · ");
 
+  const now = new Date();
+  const currentQtr = Math.ceil((now.getMonth() + 1) / 3);
+  const currentYear = now.getFullYear();
+  const lastQtr = currentQtr === 1 ? 4 : currentQtr - 1;
+  const lastQtrYear = currentQtr === 1 ? currentYear - 1 : currentYear;
+  const currentQuarter = `Q${currentQtr} ${currentYear}`;
+  const lastQuarter = `Q${lastQtr} ${lastQtrYear}`;
+
   const isEv = /\b(tesla|ev|electric|rivian|lucid|polestar|ioniq|bolt|leaf|model [s3xy])\b/i.test(vehicleDesc);
   const isOlderLuxury = /\b(bmw|mercedes|audi|porsche|maserati|jaguar|land rover|cadillac|lincoln|infiniti|lexus)\b/i.test(vehicleDesc);
   const vehicleYear = parseInt(String(year)) || 0;
@@ -118,7 +126,7 @@ Provide your full analysis in this EXACT JSON structure. No markdown, no code fe
     {
       "source": "<source: Reddit r/carbuying | Reddit r/askcarsales | Edmunds Forums | Facebook Marketplace | Cars.com Community>",
       "price": <integer — realistic transaction price sellers achieved>,
-      "reportDate": "<approximate period from your training data, e.g. 'Late 2024' or 'Q1 2025' — be honest about when this data is from>",
+      "reportDate": "<MUST be '${currentQuarter}' or '${lastQuarter}' — the current or immediately prior quarter ONLY. Do NOT include any report older than ${lastQuarter}. If you have no training data from these periods for this vehicle, include one entry with price null, description 'No forum reports found from ${lastQuarter} or ${currentQuarter} for this vehicle. Check Reddit r/askcarsales directly for the most current data.', and reportDate '${currentQuarter}'.>",
       "description": "<2-3 sentences: what sellers of similar vehicles reported — price achieved, time to sell, platform used, what helped or hurt>",
       "tags": ["<tag1>", "<tag2>"]
     }
@@ -173,7 +181,7 @@ CRITICAL PRICING CALIBRATION — follow these rules exactly or the report will b
 7. Spread low/mid/high within each tier realistically (low ≈ mid minus 8-12%; high ≈ mid plus 5-8%).
 8. If the vehicle is an EV (electric vehicle), use Carvana/CarMax actual transaction data as the anchor — NOT KBB (which over-values used EVs). EV instant offers are the best floor reference. Dealer trade-ins for older EVs run especially low.
 9. Include exactly 4 platforms in instantOffers (KBB ICO, Carvana, CarMax, Vroom) in that order.
-10. Include 3-5 community deal reports from distinct sources. Each MUST include a "reportDate" field indicating the approximate period (e.g. "Late 2024", "Q2 2025"). Be honest — if you are uncertain, say "2024 est." Do not omit this field.
+10. Include 3-5 community deal reports. ONLY use reports from ${currentQuarter} (highest priority) or ${lastQuarter}. Do NOT include anything older. If no data exists for these periods, say so explicitly rather than substituting older data.
 11. Tips must be specific to this vehicle and condition — not generic advice.`;
 
   try {
