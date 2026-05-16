@@ -137,6 +137,27 @@ Provide your full analysis in this EXACT JSON structure. No markdown, no code fe
     "<tip 4>",
     "<tip 5>"
   ],
+  "depreciation": {
+    "annualLoss": "<e.g. '$3,200/year at current mileage and condition'>",
+    "outlook12mo": "<1-2 sentences: where this vehicle's value is headed in the next 12 months — stable, declining fast, rising seasonally, etc.>",
+    "urgencyNote": "<1 sentence: act now or wait — specific to this vehicle's trajectory>"
+  },
+  "negotiationScript": {
+    "dealerOpener": "<exact opening line to say when trading in — reference THIS vehicle's specific strengths, e.g. low mileage, clean title, high-demand color>",
+    "leveragePoints": [
+      "<specific fact about this vehicle that gives you negotiating power — e.g. 'KBB Private Party for this mileage is $X, so your trade should be at least $Y'>",
+      "<second leverage point — e.g. competing instant offers you can reference>",
+      "<third leverage point — e.g. market demand or timing factor>"
+    ],
+    "redFlags": "<what it sounds like when a dealer is lowballing THIS specific vehicle — e.g. citing cosmetic issues that don't affect value, referencing auction prices for a retail-quality car>"
+  },
+  "competingListings": {
+    "estimatedCount": "<e.g. '80–120 similar listings nationally'>",
+    "avgAskingPrice": <integer — average private/dealer asking price for similar vehicles on AutoTrader/Cars.com>,
+    "buyerLeverage": "<exactly one of: High | Moderate | Low — how much bargaining power a buyer has given supply>",
+    "insight": "<1-2 sentences: does high supply hurt your selling price, or is demand strong enough to sustain value?>"
+  },
+  "taxSavingsTip": "<1-2 sentences: most states apply sales tax only to the net purchase price after trade-in. Mention the typical dollar savings of trading in vs selling private party for THIS vehicle's value, and whether that changes the overall recommendation.>",
   "sources": ["KBB Instant Cash Offer", "Carvana", "CarMax", "Vroom", "Reddit r/askcarsales", "Edmunds Forums"],
   "tradeScore": <integer 1-10 — current market demand and sellability for this vehicle>,
   "verdict": "<exactly one of: Hot Market — Sell Now | Good Time to Sell | Neutral Market | Depreciation Risk — Act Fast>"
