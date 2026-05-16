@@ -1084,80 +1084,243 @@ function generatePDF() {
   if (!lastParsed) return;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const orange = [201, 94, 26], ink = [26, 26, 24], ink3 = [138, 138, 132];
+  const orange = [201, 94, 26], ink = [26, 26, 24], ink2 = [74, 74, 70], ink3 = [138, 138, 132];
+  const success = [29, 158, 117], danger = [192, 57, 43], warning = [186, 117, 23];
   const W = doc.internal.pageSize.getWidth();
   let y = 18;
-  const nl = (n=6) => { y += n; if (y > 255) { doc.addPage(); y = 18; } };
+  const M = 14; // left margin
+  const nl = (n=6) => { y += n; if (y > 258) { doc.addPage(); y = 18; } };
+  const sectionHead = (title) => {
+    if (y > 230) { doc.addPage(); y = 18; }
+    doc.setFillColor(245, 245, 242); doc.rect(M, y - 3, W - M*2, 8, 'F');
+    doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(title, M + 2, y + 2); y += 8;
+  };
+  const bodyText = (text, maxW = W - M*2) => {
+    doc.setTextColor(...ink2); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    const lines = doc.splitTextToSize(text, maxW);
+    doc.text(lines, M, y); y += lines.length * 4.5;
+  };
 
-  // Header
-  doc.setFillColor(26,26,24); doc.rect(0,0,W,14,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
-  doc.text('AutoNegotiating.com', 14, 9.5);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  doc.setTextColor(138,138,132);
-  doc.text('Trade Intelligence Report — ' + new Date().toLocaleDateString(), W - 14, 9.5, { align:'right' });
+  // ── Header bar ──
+  doc.setFillColor(...ink); doc.rect(0, 0, W, 14, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('AutoNegotiating.com', M, 9.5);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.setTextColor(180,180,174);
+  doc.text('Trade Intelligence Report — ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), W - M, 9.5, { align:'right' });
 
-  y = 22;
-  doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(18);
-  doc.text('Trade Intelligence Report', 14, y); nl(6);
-  doc.setTextColor(...ink); doc.setFontSize(12);
-  doc.text(lastVehicleLabel || 'Vehicle', 14, y); nl(8);
+  // ── Title + vehicle ──
+  y = 24;
+  doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text('Trade Intelligence Report', M, y); nl(7);
+  doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text(lastVehicleLabel || 'Vehicle', M, y); nl(5);
 
-  // Value Tiers
-  const vt = lastParsed.valueTiers || {};
-  doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text('VALUE ESTIMATES', 14, y); nl(5);
-  const tierRows = [
-    ['Dealer Trade-In', vt.dealerTradeIn?.mid ? '$'+vt.dealerTradeIn.mid.toLocaleString() : '—', vt.dealerTradeIn?.low && vt.dealerTradeIn?.high ? '$'+vt.dealerTradeIn.low.toLocaleString()+' – $'+vt.dealerTradeIn.high.toLocaleString() : ''],
-    ['Instant Offer',   vt.instantOffer?.mid  ? '$'+vt.instantOffer.mid.toLocaleString()  : '—', vt.instantOffer?.low  && vt.instantOffer?.high  ? '$'+vt.instantOffer.low.toLocaleString()+' – $'+vt.instantOffer.high.toLocaleString() : ''],
-    ['Private Party',   vt.privateParty?.mid  ? '$'+vt.privateParty.mid.toLocaleString()  : '—', vt.privateParty?.low  && vt.privateParty?.high  ? '$'+vt.privateParty.low.toLocaleString()+' – $'+vt.privateParty.high.toLocaleString() : ''],
-  ];
-  doc.autoTable({ startY: y, head:[['Channel','Typical Value','Range']], body: tierRows, theme:'striped', headStyles:{fillColor:orange}, margin:{left:14,right:14}, styles:{fontSize:10}, didDrawPage: d => { y = d.cursor.y; } });
-  y = doc.lastAutoTable.finalY + 6; nl(0);
-
-  // Recommendation
-  const rec = lastParsed.recommendation || {};
-  doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text('RECOMMENDATION', 14, y); nl(5);
-  doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.text('Best Path: ' + (rec.bestPath || '—'), 14, y); nl(4);
-  if (rec.reasoning) {
-    doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    const lines = doc.splitTextToSize(rec.reasoning, W - 28);
-    doc.text(lines, 14, y); y += lines.length * 4.5; nl(0);
+  // ── Vehicle spec strip ──
+  const pVin   = (document.getElementById('vin-input')?.value || '').trim();
+  const pMiles = (document.getElementById('car-mileage')?.value || '').trim();
+  const pCond  = document.getElementById('car-condition');
+  const pCondT = pCond ? pCond.options[pCond.selectedIndex]?.text : '';
+  const pAcc   = document.getElementById('car-accidents');
+  const pAccT  = pAcc ? pAcc.options[pAcc.selectedIndex]?.text : '';
+  const pOwn   = document.getElementById('car-owners');
+  const pOwnT  = pOwn ? pOwn.options[pOwn.selectedIndex]?.text : '';
+  const pColor = (document.getElementById('car-color')?.value || '').trim();
+  const pZip   = (document.getElementById('car-zip')?.value || '').trim();
+  const specItems = [
+    pMiles  ? ['Mileage', Number(pMiles).toLocaleString() + ' mi'] : null,
+    pCondT  ? ['Condition', pCondT.replace(' – ', ': ')] : null,
+    pAccT   ? ['History', pAccT] : null,
+    pOwnT   ? ['Owners', pOwnT] : null,
+    pColor  ? ['Color', pColor] : null,
+    pZip    ? ['ZIP', pZip] : null,
+    pVin    ? ['VIN', pVin] : null,
+  ].filter(Boolean);
+  if (specItems.length) {
+    doc.autoTable({
+      startY: y, body: specItems.map(([k,v]) => [k, v]),
+      theme: 'plain',
+      columnStyles: { 0:{fontStyle:'bold', cellWidth:28, textColor:ink3, fontSize:8}, 1:{textColor:ink, fontSize:9} },
+      margin:{left:M, right:M}, styles:{cellPadding:1.5},
+    });
+    y = doc.lastAutoTable.finalY + 5;
   }
-  nl(4);
 
-  // Instant Offers
+  // ── Value estimates ──
+  sectionHead('VALUE ESTIMATES');
+  const vt = lastParsed.valueTiers || {};
+  const rec = lastParsed.recommendation || {};
+  const tierRows = [
+    ['Dealer Trade-In', vt.dealerTradeIn?.mid ? '$'+vt.dealerTradeIn.mid.toLocaleString() : '—', vt.dealerTradeIn?.low && vt.dealerTradeIn?.high ? '$'+vt.dealerTradeIn.low.toLocaleString()+' – $'+vt.dealerTradeIn.high.toLocaleString() : '', vt.dealerTradeIn?.desc || ''],
+    ['Instant Offer',   vt.instantOffer?.mid  ? '$'+vt.instantOffer.mid.toLocaleString()  : '—', vt.instantOffer?.low  && vt.instantOffer?.high  ? '$'+vt.instantOffer.low.toLocaleString()+' – $'+vt.instantOffer.high.toLocaleString() : '', vt.instantOffer?.desc || ''],
+    ['Private Party',   vt.privateParty?.mid  ? '$'+vt.privateParty.mid.toLocaleString()  : '—', vt.privateParty?.low  && vt.privateParty?.high  ? '$'+vt.privateParty.low.toLocaleString()+' – $'+vt.privateParty.high.toLocaleString() : '', vt.privateParty?.desc || ''],
+  ];
+  doc.autoTable({
+    startY: y,
+    head: [['Channel', 'Typical', 'Range', 'Notes']],
+    body: tierRows,
+    theme: 'striped',
+    headStyles: { fillColor: orange, fontSize: 9 },
+    columnStyles: { 0:{fontStyle:'bold', cellWidth:34}, 1:{cellWidth:22}, 2:{cellWidth:34}, 3:{fontSize:8, textColor:ink2} },
+    margin: {left:M, right:M}, styles:{fontSize:9},
+  });
+  y = doc.lastAutoTable.finalY + 4; nl(0);
+
+  // ── Market summary ──
+  if (lastParsed.summary) { bodyText(lastParsed.summary); nl(3); }
+
+  // ── Recommendation ──
+  sectionHead('RECOMMENDATION');
+  doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('Best Path: ' + (rec.bestPath || '—') + '  |  Urgency: ' + (rec.urgency || '—'), M, y); nl(5);
+  if (rec.reasoning) { bodyText(rec.reasoning); nl(3); }
+
+  // ── Market stats ──
+  const ms = lastParsed.marketStats || {};
+  const cl = lastParsed.competingListings || {};
+  const statsRows = [
+    ms.avgResalePrice ? ['Avg resale price', '$' + ms.avgResalePrice.toLocaleString()] : null,
+    ms.avgDaysToSell  ? ['Avg time to sell', ms.avgDaysToSell] : null,
+    ms.depreciationRate ? ['Depreciation rate', ms.depreciationRate] : null,
+    ms.demandLevel ? ['Market demand', ms.demandLevel] : null,
+    ms.bestTimeToSell ? ['Best time to sell', ms.bestTimeToSell] : null,
+    cl.estimatedCount ? ['Competing listings', cl.estimatedCount] : null,
+    cl.avgAskingPrice ? ['Avg listing price', '$' + cl.avgAskingPrice.toLocaleString()] : null,
+    cl.buyerLeverage ? ['Buyer leverage', cl.buyerLeverage] : null,
+  ].filter(Boolean);
+  if (statsRows.length) {
+    sectionHead('MARKET STATS');
+    doc.autoTable({
+      startY: y, body: statsRows, theme: 'plain',
+      columnStyles: { 0:{fontStyle:'bold', cellWidth:50, textColor:ink3, fontSize:8}, 1:{textColor:ink, fontSize:9} },
+      margin:{left:M, right:M}, styles:{cellPadding:1.8},
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  // ── Instant Offers ──
   const ios = lastParsed.instantOffers || [];
   if (ios.length) {
-    doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('INSTANT OFFER ESTIMATES', 14, y); nl(5);
+    sectionHead('INSTANT OFFER ESTIMATES');
     doc.autoTable({
       startY: y,
-      head: [['Platform','Estimated Offer','Notes']],
-      body: ios.map(io => [io.source, io.estimatedOffer ? '$'+io.estimatedOffer.toLocaleString() : '—', io.description || '']),
-      theme:'striped', headStyles:{fillColor:orange}, margin:{left:14,right:14}, styles:{fontSize:9},
+      head: [['Platform', 'Offer', 'Pros', 'Cons']],
+      body: ios.map(io => [io.source, io.estimatedOffer ? '$'+io.estimatedOffer.toLocaleString() : '—', io.pros || '', io.cons || '']),
+      theme: 'striped', headStyles:{fillColor:orange, fontSize:9},
+      columnStyles: { 0:{fontStyle:'bold', cellWidth:36}, 1:{cellWidth:22}, 2:{fontSize:8, textColor:success}, 3:{fontSize:8, textColor:ink3} },
+      margin:{left:M, right:M}, styles:{fontSize:9},
     });
-    y = doc.lastAutoTable.finalY + 6; nl(0);
+    y = doc.lastAutoTable.finalY + 4;
   }
 
-  // Tips
+  // ── Depreciation Outlook ──
+  const depr = lastParsed.depreciation || {};
+  if (depr.annualLoss || depr.outlook12mo) {
+    sectionHead('DEPRECIATION OUTLOOK');
+    if (depr.annualLoss) {
+      doc.setTextColor(...danger); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text('Annual Loss: ', M, y);
+      const lw = doc.getTextWidth('Annual Loss: ');
+      doc.setTextColor(...ink); doc.setFont('helvetica','normal');
+      doc.text(depr.annualLoss, M + lw, y); nl(5);
+    }
+    if (depr.outlook12mo) { bodyText('12-Month Outlook: ' + depr.outlook12mo); nl(3); }
+    if (depr.urgencyNote) { bodyText('Timing: ' + depr.urgencyNote); nl(3); }
+    if (lastParsed.taxSavingsTip) { bodyText('Tax Trade-In Tip: ' + lastParsed.taxSavingsTip); nl(3); }
+    nl(2);
+  }
+
+  // ── Negotiation Script ──
+  const ns = lastParsed.negotiationScript || {};
+  if (ns.dealerOpener) {
+    sectionHead('NEGOTIATION SCRIPT');
+    doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('Your opening line:', M, y); nl(5);
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...ink2);
+    const opLines = doc.splitTextToSize('"' + ns.dealerOpener + '"', W - M*2);
+    doc.text(opLines, M, y); y += opLines.length * 4.5; nl(3);
+    if (ns.leveragePoints?.length) {
+      doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text('Leverage points:', M, y); nl(5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...ink2);
+      ns.leveragePoints.forEach((pt, i) => {
+        const ptLines = doc.splitTextToSize((i+1) + '. ' + pt, W - M*2 - 4);
+        doc.text(ptLines, M + 4, y); y += ptLines.length * 4.5;
+      });
+      nl(3);
+    }
+    if (ns.redFlags) {
+      doc.setTextColor(...danger); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text('Watch out for:', M, y); nl(5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...danger);
+      const rfLines = doc.splitTextToSize(ns.redFlags, W - M*2);
+      doc.text(rfLines, M, y); y += rfLines.length * 4.5; nl(3);
+    }
+    nl(2);
+  }
+
+  // ── Tips ──
   const tips = lastParsed.tips || [];
   if (tips.length) {
-    doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('TIPS TO MAXIMIZE VALUE', 14, y); nl(5);
-    doc.setTextColor(...ink); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    sectionHead('TIPS TO MAXIMIZE VALUE');
+    doc.setTextColor(...ink2); doc.setFont('helvetica','normal'); doc.setFontSize(9);
     tips.forEach((t, i) => {
-      const lines = doc.splitTextToSize((i+1) + '. ' + t, W - 28);
-      doc.text(lines, 14, y); y += lines.length * 4.5; nl(0);
+      const lines = doc.splitTextToSize((i+1) + '. ' + t, W - M*2);
+      doc.text(lines, M, y); y += lines.length * 4.5; nl(0);
     });
-    nl(4);
+    nl(3);
   }
 
-  // Footer
-  doc.setTextColor(...ink3); doc.setFontSize(8);
-  doc.text('Generated by AutoNegotiating.com — For informational purposes only. Values are AI estimates based on market data.', W/2, 265, {align:'center'});
+  // ── Historical Reports ──
+  const deals = (lastParsed.deals || []).filter(d => d.description);
+  if (deals.length) {
+    sectionHead('HISTORICAL MARKET REPORTS');
+    doc.autoTable({
+      startY: y,
+      head: [['Source', 'Period', 'Price', 'Notes']],
+      body: deals.map(d => [d.source || '', d.reportDate || '', d.price ? '$'+d.price.toLocaleString() : '—', d.description || '']),
+      theme: 'striped', headStyles:{fillColor:orange, fontSize:8},
+      columnStyles: { 0:{cellWidth:34, fontSize:8}, 1:{cellWidth:20, fontSize:8}, 2:{cellWidth:22, fontSize:9, fontStyle:'bold'}, 3:{fontSize:8, textColor:ink2} },
+      margin:{left:M, right:M}, styles:{fontSize:8},
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  // ── Research Links ──
+  const resVin = (document.getElementById('vin-input')?.value || '').trim();
+  const resMake = (document.getElementById('car-make')?.value || '').trim();
+  const resModel = (document.getElementById('car-model')?.value || '').trim();
+  const resYr = (document.getElementById('car-year')?.value || '').trim();
+  if (y > 210) { doc.addPage(); y = 18; }
+  sectionHead('RESEARCH & VERIFY — LINKS');
+  const linkRows = [
+    ['KBB Trade-In', resVin ? `kbb.com/sell-your-car/?vin=${resVin}` : 'kbb.com/sell-your-car/'],
+    ['NADA Guides', 'nadaguides.com/Cars'],
+    ['AutoTrader', `autotrader.com/cars-for-sale/used-cars/${encodeURIComponent([resYr,resMake,resModel].filter(Boolean).join(' '))}`],
+    ['Cars.com', `cars.com/shopping/results/?keyword=${encodeURIComponent([resYr,resMake,resModel].filter(Boolean).join(' '))}`],
+    ['Carfax', resVin ? `carfax.com/vehicle/${resVin}` : 'carfax.com/value/'],
+    ['Carvana Offer', resVin ? `carvana.com/sell-car?vin=${resVin}` : 'carvana.com/sell-car'],
+    ['CarMax', 'carmax.com/sell-my-car'],
+    ['Reddit r/askcarsales', `reddit.com/r/askcarsales/search/?q=${encodeURIComponent([resYr,resMake,resModel].filter(Boolean).join(' '))}&sort=new`],
+  ];
+  doc.autoTable({
+    startY: y, body: linkRows, theme: 'plain',
+    columnStyles: { 0:{fontStyle:'bold', cellWidth:40, fontSize:8, textColor:ink3}, 1:{fontSize:7.5, textColor:[201,94,26]} },
+    margin:{left:M, right:M}, styles:{cellPadding:1.8},
+  });
+  y = doc.lastAutoTable.finalY + 4;
+
+  // ── Footer ──
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(26,26,24); doc.rect(0, 274, W, 8, 'F');
+    doc.setTextColor(138,138,132); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.text('AutoNegotiating.com — AI estimates for informational purposes only. Always verify with live quotes.', M, 278.5);
+    doc.text('Page ' + i + ' of ' + pageCount, W - M, 278.5, {align:'right'});
+  }
+
   doc.save('trade-intelligence-' + (lastVehicleLabel || 'report').replace(/\s+/g,'-').toLowerCase() + '.pdf');
 }
 
