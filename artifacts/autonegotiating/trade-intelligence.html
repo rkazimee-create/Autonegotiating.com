@@ -320,7 +320,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
     <!-- Disclaimer -->
     <div class="ai-disclaimer">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span><strong>AI estimates — always verify before deciding.</strong> Values are modeled from KBB, Carvana, and CarMax market data and may differ from live quotes. Use the "Get Real Quote" buttons below to get actual current offers from each platform.</span>
+      <span><strong>AI estimates — always verify with live quotes before deciding.</strong> Values are modeled from KBB, Carvana, and CarMax market data and may differ from what platforms actually offer today. <strong>EV and luxury vehicles depreciate faster than standard models</strong> — the "Get Real Quote" buttons below give you the only accurate current number. Community reports are sourced from AI training data and may be 1–2 years old.</span>
     </div>
 
     <!-- Value Hero -->
@@ -366,7 +366,10 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
       <div class="intel-card">
         <div class="intel-card-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          Community Sale Reports
+          Historical Market Reports
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:10px;padding:5px 8px;background:var(--cream);border-radius:var(--radius-xs);border:1px solid var(--border)">
+          Sourced from AI training data · dates shown per report · <a href="https://www.reddit.com/r/askcarsales/" target="_blank" rel="noopener" style="color:var(--orange)">search Reddit for current reports →</a>
         </div>
         <div id="deal-reports"></div>
       </div>
@@ -889,7 +892,10 @@ function renderResults(data, vehicleLabel) {
     <div class="deal-report">
       <div class="deal-report-header">
         <span class="deal-report-source">${escHtml(d.source)}</span>
-        <span class="deal-price-tag">${d.price ? fmt(d.price) : ''}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${d.reportDate ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;background:var(--warning-light);color:var(--warning);border-radius:20px">${escHtml(d.reportDate)}</span>` : ''}
+          <span class="deal-price-tag">${d.price ? fmt(d.price) : ''}</span>
+        </div>
       </div>
       <div class="deal-report-text">"${escHtml(d.description)}"</div>
       <div class="deal-report-meta">
