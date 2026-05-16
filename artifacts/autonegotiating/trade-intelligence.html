@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Intelligence Report | AI Trade-In & Resale Analysis — AutoNegotiating.com</title>
+<meta name="description" content="Find out exactly what your car is worth. Our AI agent scans KBB, Carvana, CarMax and automotive forums to compare dealer trade-in, instant offers, and private party values.">
+<meta name="keywords" content="trade in value, car trade in, KBB trade in, Carvana offer, CarMax offer, sell my car, private party sale, car resale value">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://www.autonegotiating.com/trade-intelligence.html">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.autonegotiating.com/trade-intelligence.html">
+<meta property="og:title" content="Trade Intelligence Report | AI Trade-In & Resale Analysis">
+<meta property="og:description" content="Find out exactly what your car is worth from KBB, Carvana, CarMax and private party. AI-powered multi-path value report.">
+<meta property="og:site_name" content="AutoNegotiating.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cream:#FAFAF7;--white:#FFFFFF;--ink:#1A1A18;--ink2:#4A4A46;--ink3:#8A8A84;
+  --border:#E8E8E2;--border2:#D0D0C8;
+  --orange:#C95E1A;--orange-dark:#A34A12;--orange-mid:#D97230;--orange-light:#FBF0E8;--orange-border:rgba(201,94,26,0.2);
+  --success:#1D9E75;--success-light:#E1F5EE;
+  --danger:#C0392B;--danger-light:#FDECEA;
+  --warning:#BA7517;--warning-light:#FAEEDA;
+  --info:#185FA5;--info-light:#E6F1FB;
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+}
+body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.6}
+nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-0.3px;text-decoration:none}
+.logo em{color:var(--orange);font-style:normal}
+.nav-actions{display:flex;align-items:center;gap:8px}
+.back-btn{font-size:13px;font-weight:500;color:var(--ink2);text-decoration:none;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);transition:all 0.15s;display:flex;align-items:center;gap:5px}
+.back-btn:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-light)}
+.nav-deal-btn{font-size:12px;font-weight:600;color:var(--orange);text-decoration:none;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--orange-border);background:var(--orange-light);transition:all 0.15s;white-space:nowrap}
+.nav-deal-btn:hover{background:var(--orange);color:#fff}
+.page-wrap{max-width:960px;margin:0 auto;padding:2.5rem 2rem}
+.page-header{margin-bottom:2rem}
+.page-header h1{font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,36px);font-weight:700;letter-spacing:-0.5px;line-height:1.1;margin-bottom:0.4rem;color:var(--ink)}
+.page-header h1 em{color:var(--orange);font-style:normal}
+.page-header p{color:var(--ink2);font-size:14px;max-width:540px;line-height:1.7}
+.search-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;margin-bottom:1.5rem}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group label{font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:5px}
+.f-input,.f-select{width:100%;background:var(--cream);border:1px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:14px;padding:9px 12px;border-radius:var(--radius-sm);outline:none;transition:border-color 0.15s;height:38px}
+.f-input:focus,.f-select:focus{border-color:var(--orange)}
+.f-input::placeholder{color:var(--ink3)}
+.f-select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238A8A84' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.f-select option{background:var(--white)}
+.extras-panel{border:1px solid var(--border2);border-radius:var(--radius-sm);margin-bottom:12px;overflow:hidden}
+.extras-toggle{width:100%;background:var(--cream);border:none;padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--ink2);text-align:left}
+.extras-toggle:hover{background:var(--bg2)}
+.extras-chevron{margin-left:auto;flex-shrink:0;transition:transform 0.2s}
+.extras-count{background:var(--orange);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle}
+.extras-body{padding:14px;border-top:1px solid var(--border2);background:var(--white)}
+.extras-sect-label{font-size:11px;font-weight:700;letter-spacing:0.7px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px}
+.extras-grid{display:flex;flex-wrap:wrap;gap:7px}
+.extras-cb{position:absolute;opacity:0;width:0;height:0}
+.extras-pill-wrap{position:relative}
+.extras-label{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--border2);border-radius:99px;font-size:12px;font-weight:500;color:var(--ink2);cursor:pointer;transition:all 0.13s;background:var(--cream);white-space:nowrap;user-select:none}
+.extras-label:hover{border-color:var(--orange);color:var(--orange)}
+.extras-cb:checked+.extras-label{background:var(--orange);border-color:var(--orange);color:#fff}
+.extras-impact-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.extras-impact-row:last-child{border-bottom:none;padding-bottom:0}
+.extras-impact-badge{flex-shrink:0;width:26px;height:26px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.extras-impact-badge.pos{background:var(--success-light);color:var(--success)}
+.extras-impact-badge.neg{background:var(--danger-light);color:var(--danger)}
+.extras-impact-badge.neu{background:var(--cream);color:var(--ink3)}
+.extras-impact-name{font-size:13px;font-weight:600;color:var(--ink)}
+.extras-impact-val{font-size:12px;font-weight:700}
+.extras-impact-note{font-size:12px;color:var(--ink2);line-height:1.5;margin-top:2px}
+.vin-lookup-btn{background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:0 14px;height:38px;cursor:pointer;white-space:nowrap;transition:background 0.15s;flex-shrink:0}
+.vin-lookup-btn:hover:not(:disabled){background:var(--orange-dark)}
+.vin-lookup-btn:disabled{opacity:0.5;cursor:not-allowed}
+.vin-status{font-size:11px;margin-top:5px;min-height:14px}
+.vin-status.ok{color:var(--success)}
+.vin-status.err{color:var(--danger)}
+.vin-status.info{color:var(--info)}
+.analyze-btn{width:100%;background:var(--orange);color:white;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border:none;padding:13px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s,opacity 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+.analyze-btn:hover:not(:disabled){background:var(--orange-dark)}
+.analyze-btn:disabled{opacity:0.45;cursor:not-allowed}
+.error-box{background:var(--danger-light);border:1px solid rgba(192,57,43,0.2);border-radius:var(--radius-sm);padding:0.875rem 1rem;color:var(--danger);margin-bottom:1rem;font-size:13px;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.thinking-bar{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;display:none}
+.thinking-steps{display:flex;flex-direction:column;gap:10px}
+.thinking-step{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink3)}
+.thinking-step.active{color:var(--ink)}
+.thinking-step.done{color:var(--success)}
+.step-icon{font-size:14px;width:18px;text-align:center}
+.step-icon.spin{display:inline-block;animation:spin 0.8s linear infinite}
+.stream-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;display:none}
+.stream-label{font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--orange);margin-bottom:0.75rem}
+.stream-content{font-size:13px;color:var(--ink2);line-height:1.8;min-height:40px}
+.cursor{display:inline-block;width:2px;height:14px;background:var(--orange);margin-left:2px;animation:blink 1s step-end infinite;vertical-align:middle}
+@keyframes blink{50%{opacity:0}}
+
+/* VALUE HERO */
+.value-hero{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;margin-bottom:1.5rem}
+.value-hero-label{font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink3);margin-bottom:0.5rem}
+.value-hero-title{font-family:'Playfair Display',serif;font-size:clamp(16px,2.5vw,22px);font-weight:700;color:var(--ink);margin-bottom:1.25rem;line-height:1.2}
+.value-hero-title span{color:var(--orange)}
+.value-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.25rem}
+.value-tier{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:1rem;text-align:center;position:relative;transition:border-color 0.15s}
+.value-tier.best{border-color:var(--orange);background:var(--orange-light)}
+.value-tier.best::before{content:'Best Path';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--orange);color:#fff;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 10px;border-radius:20px}
+.vt-type{font-size:10px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink3);margin-bottom:6px}
+.vt-mid{font-family:'Playfair Display',serif;font-size:clamp(20px,3vw,28px);font-weight:700;color:var(--ink);margin-bottom:2px}
+.value-tier.best .vt-mid{color:var(--orange)}
+.vt-range{font-size:11px;color:var(--ink3);margin-bottom:8px}
+.vt-desc{font-size:11px;color:var(--ink2);line-height:1.5;text-align:left}
+
+/* RECOMMENDATION */
+.path-rec{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;display:flex;gap:1.25rem;align-items:flex-start}
+.path-rec-icon{width:44px;height:44px;background:var(--orange-light);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.path-rec-body{flex:1;min-width:0}
+.path-rec-label{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--orange);margin-bottom:4px}
+.path-rec-title{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.path-rec-text{font-size:13px;color:var(--ink2);line-height:1.7}
+.urgency-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.urgency-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px}
+.urgency-pill.now{background:var(--danger-light);color:var(--danger)}
+.urgency-pill.flex{background:var(--success-light);color:var(--success)}
+.urgency-pill.hold{background:var(--warning-light);color:var(--warning)}
+.verdict-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:0.3px}
+.verdict-hot{background:#FFF3CD;color:#856404}
+.verdict-good{background:var(--success-light);color:var(--success)}
+.verdict-neutral{background:var(--cream);color:var(--ink3);border:1px solid var(--border2)}
+.verdict-risk{background:var(--danger-light);color:var(--danger)}
+
+/* DISCLAIMER */
+.ai-disclaimer{background:#FFFBF0;border:1px solid #E8D87A;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:10px;font-size:12px;color:#7A6400;line-height:1.5}
+.ai-disclaimer svg{flex-shrink:0;margin-top:1px}
+.ai-disclaimer strong{font-weight:700}
+
+/* INSTANT OFFER BREAKDOWN */
+.io-section{margin-bottom:1.5rem}
+.io-section-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:0.75rem;display:flex;align-items:center;gap:6px}
+.io-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.io-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;display:flex;flex-direction:column}
+.io-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.io-source{font-size:13px;font-weight:700;color:var(--ink)}
+.io-offer{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--orange)}
+.io-desc{font-size:12px;color:var(--ink2);line-height:1.5;margin-bottom:8px;flex:1}
+.io-pc{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.io-pro{font-size:11px;color:var(--success);display:flex;align-items:flex-start;gap:4px;line-height:1.4}
+.io-con{font-size:11px;color:var(--ink3);display:flex;align-items:flex-start;gap:4px;line-height:1.4}
+.io-pro::before{content:'✓';font-weight:700;flex-shrink:0}
+.io-con::before{content:'–';font-weight:700;flex-shrink:0}
+.io-quote-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--orange);text-decoration:none;padding:5px 10px;border:1px solid var(--orange-border);border-radius:var(--radius-xs);background:var(--orange-light);transition:all 0.15s;align-self:flex-start;margin-top:auto}
+.io-quote-btn:hover{background:var(--orange);color:#fff}
+
+/* INTEL GRID */
+.intel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem}
+.intel-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.intel-card-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:1rem;display:flex;align-items:center;gap:6px}
+.deal-report{border-bottom:1px solid var(--border);padding:0.75rem 0}
+.deal-report:last-child{border-bottom:none;padding-bottom:0}
+.deal-report:first-child{padding-top:0}
+.deal-report-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;flex-wrap:wrap}
+.deal-report-source{font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:0.4px}
+.deal-price-tag{font-size:13px;font-weight:700;color:var(--orange)}
+.deal-report-text{font-size:12px;color:var(--ink2);line-height:1.6;font-style:italic;margin-bottom:6px}
+.deal-report-meta{display:flex;gap:5px;flex-wrap:wrap}
+.deal-meta-pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:0.2px}
+.pill-green{background:var(--success-light);color:var(--success)}
+.pill-blue{background:var(--info-light);color:var(--info)}
+.pill-yellow{background:var(--warning-light);color:var(--warning)}
+
+/* MARKET STATS & TIPS */
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.stat-row:last-child{border-bottom:none}
+.stat-row-label{color:var(--ink2)}
+.stat-row-val{font-weight:600;color:var(--ink);text-align:right;max-width:55%}
+.stat-row-val.green{color:var(--success)}
+.stat-row-val.accent{color:var(--orange)}
+.stat-row-val.yellow{color:var(--warning)}
+.tips-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.tips-list li{font-size:13px;color:var(--ink2);line-height:1.6;padding-left:20px;position:relative}
+.tips-list li::before{content:'→';position:absolute;left:0;color:var(--orange);font-weight:700}
+
+/* TRADE SCORE */
+.trade-score-bar{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap}
+.ts-label{font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink3);flex-shrink:0}
+.ts-track{flex:1;height:8px;background:var(--border);border-radius:4px;min-width:120px;position:relative}
+.ts-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--danger),var(--warning),var(--success));transition:width 0.8s ease}
+.ts-score{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--orange);flex-shrink:0}
+.ts-score span{font-family:'Inter',sans-serif;font-size:13px;font-weight:400;color:var(--ink3)}
+
+/* PDF */
+.pdf-btn{background:var(--ink);color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:12px 20px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.15s;margin:0 auto 1.5rem}
+.pdf-btn:hover{background:#2a2a26}
+
+/* SOURCES */
+.sources-section{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem 1.25rem;margin-bottom:2rem}
+.sources-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px}
+.sources-list{display:flex;flex-wrap:wrap;gap:6px}
+.source-chip{background:var(--cream);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--ink2);font-weight:500}
+
+/* VEHICLE SPEC STRIP */
+.spec-strip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.spec-pill{display:inline-flex;align-items:center;gap:5px;background:var(--cream);border:1px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--ink2);font-weight:500;white-space:nowrap}
+.spec-pill svg{color:var(--ink3);flex-shrink:0}
+.spec-pill strong{color:var(--ink);font-weight:600}
+
+/* DEPRECIATION CARD */
+.depr-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.depr-row:last-child{border-bottom:none;padding-bottom:0}
+.depr-row:first-child{padding-top:0}
+.depr-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.depr-content{flex:1;min-width:0}
+.depr-label{font-size:10px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}
+.depr-val{font-size:13px;color:var(--ink);line-height:1.5}
+
+/* NEGOTIATION SCRIPT */
+.neg-opener{background:var(--orange-light);border:1px solid var(--orange-border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;font-size:13px;font-style:italic;color:var(--ink);line-height:1.6;position:relative}
+.neg-opener::before{content:'"';position:absolute;top:-4px;left:10px;font-family:'Playfair Display',serif;font-size:32px;color:var(--orange);line-height:1;opacity:0.5}
+.neg-opener-text{padding-left:8px}
+.neg-points{list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.neg-points li{font-size:12px;color:var(--ink2);line-height:1.6;padding-left:20px;position:relative}
+.neg-points li::before{content:'✓';position:absolute;left:0;color:var(--success);font-weight:700}
+.neg-redflag{background:var(--danger-light);border:1px solid rgba(192,57,43,0.18);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--danger);line-height:1.5;display:flex;gap:8px;align-items:flex-start}
+.neg-redflag svg{flex-shrink:0;margin-top:1px}
+
+/* MARKET RESEARCH LINKS */
+.mrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mrl-btn{display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--cream);border:1px solid var(--border2);border-radius:var(--radius-sm);text-decoration:none;transition:all 0.15s;color:var(--ink)}
+.mrl-btn:hover{border-color:var(--orange);background:var(--orange-light);color:var(--orange)}
+.mrl-btn-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.mrl-btn-body{flex:1;min-width:0}
+.mrl-btn-name{font-size:12px;font-weight:600;color:inherit;display:block}
+.mrl-btn-desc{font-size:10px;color:var(--ink3);display:block;margin-top:1px}
+.mrl-btn:hover .mrl-btn-desc{color:var(--orange-mid)}
+.mrl-btn svg.external{flex-shrink:0;color:var(--ink3);transition:color 0.15s}
+.mrl-btn:hover svg.external{color:var(--orange)}
+
+/* MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:1000;padding:1rem;opacity:0;transition:opacity 0.2s}
+.modal-backdrop.visible{opacity:1}
+.modal{background:var(--white);border-radius:var(--radius);width:100%;max-width:460px;padding:2rem;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.18);transform:translateY(8px);transition:transform 0.2s}
+.modal-backdrop.visible .modal{transform:none}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;cursor:pointer;color:var(--ink3);padding:4px;border-radius:4px;line-height:1;transition:color 0.15s}
+.modal-close:hover{color:var(--ink)}
+.modal-eyebrow{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--orange);margin-bottom:6px}
+.modal h2{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;margin-bottom:0.5rem;color:var(--ink);line-height:1.2}
+.modal-sub{font-size:13px;color:var(--ink2);margin-bottom:1.25rem;line-height:1.6}
+.modal-features{list-style:none;margin-bottom:1.25rem;display:flex;flex-direction:column;gap:7px}
+.modal-features li{font-size:13px;color:var(--ink2);display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.modal-features li svg{flex-shrink:0;margin-top:2px;color:var(--success)}
+.modal-price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:1.5rem;padding:1rem;background:var(--orange-light);border:1px solid var(--orange-border);border-radius:var(--radius-sm)}
+.modal-price{font-family:'Playfair Display',serif;font-size:32px;font-weight:700;color:var(--orange)}
+.modal-price-desc{font-size:13px;color:var(--ink2);line-height:1.4}
+.modal-price-desc strong{display:block;color:var(--ink);font-size:14px;font-weight:600}
+.modal-pay-btn{width:100%;background:var(--orange);color:white;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;border:none;padding:14px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:0.75rem}
+.modal-pay-btn:hover{background:var(--orange-dark)}
+.modal-note{text-align:center;font-size:11px;color:var(--ink3)}
+
+/* RESPONSIVE */
+@media(max-width:680px){
+  .value-tiers{grid-template-columns:1fr}
+  .value-tier.best::before{top:-10px}
+  .io-grid{grid-template-columns:1fr}
+  .intel-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .path-rec{flex-direction:column;gap:0.75rem}
+  nav{padding:0 1rem}
+  .page-wrap{padding:1.5rem 1rem}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/">Auto<em>Negotiating</em>.com</a>
+  <div class="nav-actions">
+    <a class="nav-deal-btn" href="/deal-intelligence.html">Deal Intelligence</a>
+    <a class="back-btn" href="/">← Inventory</a>
+  </div>
+</nav>
+
+<div class="page-wrap">
+
+  <div class="page-header">
+    <h1>Trade <em>Intelligence</em> Agent</h1>
+    <p>Our AI agent scans KBB, Carvana, CarMax and automotive forums to compare dealer trade-in offers, instant cash offers, and private party values — so you know exactly what your car is worth and where to sell it.</p>
+  </div>
+
+  <div class="search-card">
+    <!-- VIN Row -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:5px">VIN <span style="font-weight:400;text-transform:none;letter-spacing:0">(auto-fills form)</span></label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="f-input" id="vin-input" style="flex:1;min-width:0" placeholder="e.g. 1HGBH41JXMN109186" maxlength="17" oninput="onVinInput(this)">
+        <button id="vin-lookup-btn" class="analyze-btn" style="width:auto;padding:0 20px;display:none;flex-shrink:0" onclick="lookupVin()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Look up
+        </button>
+      </div>
+      <div id="vin-status" class="vin-status"></div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Year</label>
+        <input type="number" class="f-input" id="car-year" placeholder="e.g. 2020" min="1990" max="2026">
+      </div>
+      <div class="form-group">
+        <label>Make</label>
+        <input type="text" class="f-input" id="car-make" placeholder="e.g. Honda">
+      </div>
+      <div class="form-group">
+        <label>Model</label>
+        <input type="text" class="f-input" id="car-model" placeholder="e.g. Civic">
+      </div>
+      <div class="form-group">
+        <label>Trim <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="text" class="f-input" id="car-trim" placeholder="e.g. EX-L">
+      </div>
+      <div class="form-group">
+        <label>Mileage</label>
+        <input type="number" class="f-input" id="car-mileage" placeholder="e.g. 45000">
+      </div>
+      <div class="form-group">
+        <label>Condition</label>
+        <select class="f-select" id="car-condition">
+          <option value="excellent">Excellent – Like new</option>
+          <option value="good" selected>Good – Minor wear</option>
+          <option value="fair">Fair – Visible wear</option>
+          <option value="poor">Poor – Significant wear</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Accident History</label>
+        <select class="f-select" id="car-accidents">
+          <option value="0">Clean – No accidents</option>
+          <option value="1">1 accident reported</option>
+          <option value="2">2 or more accidents</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Owners</label>
+        <select class="f-select" id="car-owners">
+          <option value="1">1 owner</option>
+          <option value="2">2 owners</option>
+          <option value="3">3+ owners</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Exterior Color <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="text" class="f-input" id="car-color" placeholder="e.g. Silver">
+      </div>
+      <div class="form-group">
+        <label>ZIP Code <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="text" class="f-input" id="car-zip" placeholder="e.g. 90210" maxlength="5">
+      </div>
+    </div>
+
+    <!-- Features & Extras -->
+    <div class="extras-panel">
+      <button type="button" class="extras-toggle" onclick="toggleExtras()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Add Features &amp; Extras
+        <span class="extras-count" id="extras-count" style="display:none">0</span>
+        <svg class="extras-chevron" id="extras-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="extras-body" id="extras-body" style="display:none">
+        <div class="extras-sect-label">Keys</div>
+        <select class="f-select" id="car-keys" style="max-width:230px;margin-bottom:14px" onchange="updateExtrasCount()">
+          <option value="">Unknown / Not sure</option>
+          <option value="1">1 key only — reduces value</option>
+          <option value="2">2 keys (standard)</option>
+          <option value="3">3+ keys</option>
+        </select>
+        <div class="extras-sect-label">Features &amp; Upgrades</div>
+        <div id="extras-features-state" style="font-size:12px;margin-bottom:8px"><em style="color:var(--ink3)">Enter vehicle info above to load specific features</em></div>
+        <div class="extras-grid" id="extras-grid"></div>
+        <div class="extras-sect-label" style="margin-top:14px">Other Extras</div>
+        <input type="text" class="f-input" id="car-extras-other" placeholder="e.g. new tires, upgraded stereo, fresh detailing, extended warranty" oninput="updateExtrasCount()">
+      </div>
+    </div>
+
+    <button class="analyze-btn" id="analyze-btn" onclick="runAnalysis()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Analyze Trade-In &amp; Resale Value
+    </button>
+  </div>
+
+  <div class="error-box" id="error-box"></div>
+
+  <div class="thinking-bar" id="thinking-bar">
+    <div class="thinking-steps" id="thinking-steps"></div>
+  </div>
+
+  <div class="stream-card" id="stream-card">
+    <div class="stream-label">AI Agent · Live Analysis</div>
+    <div class="stream-content" id="stream-content"></div>
+  </div>
+
+  <div id="results" style="display:none">
+
+    <!-- Disclaimer -->
+    <div class="ai-disclaimer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span><strong>AI estimates — always verify with live quotes before deciding.</strong> Values are modeled from KBB, Carvana, and CarMax market data and may differ from what platforms actually offer today. <strong>EV and luxury vehicles depreciate faster than standard models</strong> — the "Get Real Quote" buttons below give you the only accurate current number. Community reports are sourced from AI training data and may be 1–2 years old.</span>
+    </div>
+
+    <!-- Value Hero -->
+    <div class="value-hero">
+      <div class="value-hero-label">AI Value Assessment</div>
+      <div class="value-hero-title" id="value-hero-title">—</div>
+      <div class="spec-strip" id="spec-strip" style="display:none"></div>
+      <div class="value-tiers" id="value-tiers"></div>
+      <div style="font-size:13px;color:var(--ink2);line-height:1.7" id="value-summary"></div>
+    </div>
+
+    <!-- Recommendation -->
+    <div class="path-rec" id="path-rec">
+      <div class="path-rec-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="path-rec-body">
+        <div class="path-rec-label">Recommended Path</div>
+        <div class="path-rec-title" id="rec-title">—</div>
+        <div class="path-rec-text" id="rec-text"></div>
+        <div class="urgency-badges" id="rec-badges"></div>
+      </div>
+    </div>
+
+    <!-- Trade Score -->
+    <div class="trade-score-bar" id="trade-score-bar">
+      <div class="ts-label">Sellability Score</div>
+      <div class="ts-track"><div class="ts-fill" id="ts-fill" style="width:0%"></div></div>
+      <div class="ts-score" id="ts-score">—<span>/10</span></div>
+      <div id="ts-verdict"></div>
+    </div>
+
+    <!-- Instant Offer Breakdown -->
+    <div class="io-section" id="io-section">
+      <div class="io-section-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Instant Offer Estimates by Platform
+      </div>
+      <div class="io-grid" id="io-grid"></div>
+    </div>
+
+    <!-- Intel Grid -->
+    <div class="intel-grid">
+      <div class="intel-card">
+        <div class="intel-card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Historical Market Reports
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:10px;padding:5px 8px;background:var(--cream);border-radius:var(--radius-xs);border:1px solid var(--border)">
+          Sourced from AI training data · dates shown per report · <a href="https://www.reddit.com/r/askcarsales/" target="_blank" rel="noopener" style="color:var(--orange)">search Reddit for current reports →</a>
+        </div>
+        <div id="deal-reports"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="intel-card">
+          <div class="intel-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Market Stats
+          </div>
+          <div id="market-stats"></div>
+        </div>
+        <div class="intel-card">
+          <div class="intel-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            Tips to Maximize Value
+          </div>
+          <ul class="tips-list" id="value-tips"></ul>
+        </div>
+        <div class="intel-card" id="extras-impact-card" style="display:none">
+          <div class="intel-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            Features &amp; Extras Impact
+          </div>
+          <div id="extras-impact-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Depreciation + Negotiation + Links row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem" id="extra-cards">
+
+      <!-- Depreciation Outlook -->
+      <div class="intel-card">
+        <div class="intel-card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          Depreciation Outlook
+        </div>
+        <div id="depr-card">
+          <div style="color:var(--ink3);font-size:13px">Analyzing depreciation curve...</div>
+        </div>
+      </div>
+
+      <!-- Market Research Links -->
+      <div class="intel-card">
+        <div class="intel-card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          Research &amp; Verify
+        </div>
+        <div class="mrl-grid" id="market-links"></div>
+      </div>
+
+    </div>
+
+    <!-- Negotiation Script (full width) -->
+    <div class="intel-card" style="margin-bottom:1.5rem" id="neg-card">
+      <div class="intel-card-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Negotiation Script
+        <span style="font-size:10px;font-weight:400;color:var(--ink3);margin-left:4px">— what to say at the dealer</span>
+      </div>
+      <div id="neg-content">
+        <div style="color:var(--ink3);font-size:13px">Generating script...</div>
+      </div>
+    </div>
+
+    <div id="pdf-wrap" style="display:none;text-align:center">
+      <button class="pdf-btn" id="pdf-btn" onclick="generatePDF()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        Download PDF Report
+      </button>
+    </div>
+
+    <div class="sources-section">
+      <div class="sources-title">Sources Analyzed</div>
+      <div class="sources-list" id="sources-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<footer style="text-align:center;padding:2rem;border-top:1px solid var(--border);font-size:12px;color:var(--ink3)">
+  <p>© 2026 <a href="/" style="color:var(--ink3)">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com" style="color:var(--ink3)">offers@autonegotiating.com</a></p>
+</footer>
+
+<!-- STRIPE EMBEDDED CHECKOUT MODAL -->
+<div class="modal-backdrop" id="stripe-checkout-modal" style="display:none;z-index:10000;overflow:hidden">
+  <div class="modal" style="max-width:520px;width:100%;padding:0;border-radius:12px;transform:none;display:flex;flex-direction:column;max-height:calc(100vh - 4rem);overflow:hidden">
+    <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--white)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <span style="font-size:14px;font-weight:600;color:var(--ink)">Trade Intelligence Report — $9.99</span>
+      </div>
+      <button onclick="closeStripeModal()" style="background:none;border:none;cursor:pointer;color:var(--ink3);padding:4px;line-height:1;border-radius:4px" title="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="stripe-checkout-container" style="flex:1;overflow-y:auto;padding:20px;min-height:200px;-webkit-overflow-scrolling:touch">
+      <div id="stripe-checkout-loading" style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;color:var(--ink3);font-size:14px">
+        <svg style="animation:spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+        Loading secure checkout...
+      </div>
+    </div>
+    <div style="flex-shrink:0;padding:10px 20px 14px;border-top:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;gap:6px">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span style="font-size:11px;color:var(--ink3)">Secured by Stripe · No subscription · Instant access</span>
+    </div>
+  </div>
+</div>
+
+<!-- PAYWALL MODAL -->
+<div class="modal-backdrop" id="paywall-modal" onclick="closePaywallModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closePaywallModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="modal-eyebrow">Trade Intelligence Report</div>
+    <h2>Know Exactly What Your Car Is Worth</h2>
+    <p class="modal-sub">Our AI searches KBB, Carvana, CarMax, and automotive forums in real time to build your custom trade-in &amp; resale report — so you never leave money on the table.</p>
+    <ul class="modal-features">
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Dealer trade-in, instant offer, and private party value comparison</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>KBB Instant Cash Offer, Carvana, CarMax &amp; Vroom estimates</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Community reports — what sellers actually got for similar cars</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>AI recommendation: best path to maximize your return</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>5 specific tips to maximize this vehicle's trade-in value</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Downloadable PDF report</li>
+    </ul>
+
+    <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:1.25rem">
+      <div style="background:var(--success-light);border-bottom:1px solid rgba(29,158,117,0.2);padding:10px 14px;display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--success);text-transform:uppercase">Have a promo code?</span>
+      </div>
+      <div style="padding:12px 14px;background:var(--white)">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="promo-input" placeholder="Enter promo code" class="f-input" style="flex:1;text-transform:uppercase;letter-spacing:1px" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')applyPromoCode()">
+          <button onclick="applyPromoCode()" id="promo-btn" style="background:var(--success);color:white;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border:none;padding:0 18px;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;transition:background 0.15s" onmouseover="this.style.background='#178a63'" onmouseout="this.style.background='var(--success)'">Apply</button>
+        </div>
+        <div id="promo-msg" style="font-size:12px;margin-top:7px;display:none"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <span style="font-size:11px;color:var(--ink3);font-weight:500">or purchase for $9.99</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+
+    <button class="modal-pay-btn" onclick="handlePayment()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      Pay $9.99 — Generate My Trade Report
+    </button>
+    <div class="modal-note">Secure payment via Stripe · Instant delivery · No subscription</div>
+  </div>
+</div>
+
+<script>
+const STEPS = [
+  'Checking KBB Instant Cash Offer estimates...',
+  'Scanning Carvana & CarMax offer data...',
+  'Searching Reddit r/carbuying & r/askcarsales...',
+  'Analyzing private party sale comparables...',
+  'Comparing dealer trade-in vs. instant offers...',
+  'Generating your maximum value strategy...',
+];
+
+let lastParsed = null;
+let lastVehicleLabel = '';
+let _sessionUnlocked = false;
+let _stripeCheckout = null;
+
+function isUnlocked() { return _sessionUnlocked; }
+function unlock() { _sessionUnlocked = true; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* VIN LOOKUP */
+function onVinInput(el) {
+  el.value = el.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, '');
+  const btn = document.getElementById('vin-lookup-btn');
+  if (btn) btn.style.display = el.value.length === 17 ? 'inline-flex' : 'none';
+  const s = document.getElementById('vin-status');
+  if (s) { s.textContent = ''; s.className = 'vin-status'; }
+}
+
+function _tc(s) { return s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : ''; }
+
+async function lookupVin() {
+  const vinEl = document.getElementById('vin-input');
+  const btn   = document.getElementById('vin-lookup-btn');
+  const status= document.getElementById('vin-status');
+  const vin   = vinEl.value.trim().toUpperCase();
+  if (vin.length !== 17) return;
+  btn.disabled = true;
+  btn.textContent = 'Looking up…';
+  status.textContent = 'Decoding VIN...';
+  status.className = 'vin-status info';
+  try {
+    const res  = await fetch('https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/' + encodeURIComponent(vin) + '?format=json');
+    const raw  = await res.json();
+    const r    = raw.Results?.[0];
+    if (!r || (r.ErrorCode && !r.ErrorCode.startsWith('0'))) throw new Error('VIN not found');
+    const year  = r.ModelYear || '';
+    const make  = _tc(r.Make  || '');
+    const model = _tc(r.Model || '');
+    const trim  = r.Trim || r.Series || '';
+    if (year)  document.getElementById('car-year').value  = year;
+    if (make)  document.getElementById('car-make').value  = make;
+    if (model) document.getElementById('car-model').value = model;
+    if (trim)  document.getElementById('car-trim').value  = trim;
+    const desc = [year, make, model, trim].filter(Boolean).join(' ');
+    status.textContent = desc ? '✓ Found: ' + desc : 'VIN decoded — verify fields below';
+    status.className = 'vin-status ok';
+  } catch(e) {
+    status.textContent = 'Could not decode VIN — please fill in the fields manually';
+    status.className = 'vin-status err';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Look up';
+  }
+}
+
+/* THINKING BAR */
+function showStep(idx, state) {
+  const steps = document.getElementById('thinking-steps');
+  const el = steps.children[idx];
+  if (!el) return;
+  el.className = 'thinking-step ' + state;
+  const icon = el.querySelector('.step-icon');
+  icon.className = 'step-icon ' + (state === 'active' ? 'spin' : '');
+  icon.textContent = state === 'done' ? '✓' : '◎';
+}
+
+function buildSteps() {
+  document.getElementById('thinking-steps').innerHTML = STEPS.map(s =>
+    `<div class="thinking-step"><div class="step-icon">◎</div><span>${s}</span></div>`).join('');
+}
+
+async function animateSteps(totalMs) {
+  const delay = totalMs / STEPS.length;
+  for (let i = 0; i < STEPS.length; i++) {
+    showStep(i, 'active');
+    await sleep(delay);
+    showStep(i, 'done');
+  }
+}
+
+/* ERROR */
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+/* PAYMENT */
+function openPaywallModal() {
+  const modal = document.getElementById('paywall-modal');
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('visible'));
+}
+
+function closePaywallModal(e) {
+  if (e && e.target !== document.getElementById('paywall-modal')) return;
+  const modal = document.getElementById('paywall-modal');
+  modal.classList.remove('visible');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+
+function closeStripeModal() {
+  const modal = document.getElementById('stripe-checkout-modal');
+  modal.classList.remove('visible');
+  setTimeout(() => {
+    modal.style.display = 'none';
+    if (_stripeCheckout) { _stripeCheckout.destroy(); _stripeCheckout = null; }
+    document.getElementById('stripe-checkout-container').innerHTML =
+      '<div id="stripe-checkout-loading" style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;color:var(--ink3);font-size:14px">' +
+      '<svg style="animation:spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>' +
+      'Loading secure checkout...</div>';
+  }, 200);
+}
+
+function buildVehicleParams() {
+  const p = new URLSearchParams();
+  const year  = document.getElementById('car-year').value.trim();
+  const make  = document.getElementById('car-make').value.trim();
+  const model = document.getElementById('car-model').value.trim();
+  const trim  = document.getElementById('car-trim').value.trim();
+  const miles = document.getElementById('car-mileage').value.trim();
+  const cond  = document.getElementById('car-condition').value;
+  const acc   = document.getElementById('car-accidents').value;
+  const own   = document.getElementById('car-owners').value;
+  const color = document.getElementById('car-color').value.trim();
+  const zip   = document.getElementById('car-zip').value.trim();
+  const vin   = document.getElementById('vin-input').value.trim();
+  if (year)  p.set('year', year);
+  if (make)  p.set('make', make);
+  if (model) p.set('model', model);
+  if (trim)  p.set('trim', trim);
+  if (miles) p.set('mileage', miles);
+  if (cond)  p.set('condition', cond);
+  if (acc)   p.set('accidents', acc);
+  if (own)   p.set('owners', own);
+  if (color) p.set('color', color);
+  if (zip)   p.set('zip', zip);
+  if (vin)   p.set('vin', vin);
+  return p;
+}
+
+async function handlePayment() {
+  const btn = document.querySelector('.modal-pay-btn');
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<svg style="animation:spin 1s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg> Opening checkout...';
+  try {
+    const formParams = buildVehicleParams();
+    const base = window.location.origin + window.location.pathname;
+    const returnUrl = `${base}?payment=success&session_id={CHECKOUT_SESSION_ID}&${formParams.toString()}`;
+    const configRes = await fetch('/api/stripe/config');
+    const configData = await configRes.json();
+    if (!configData.publishableKey || !configData.priceId) throw new Error(configData.error || 'Stripe not configured');
+    const sessionRes = await fetch('/api/stripe/embedded-checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId: configData.priceId, returnUrl })
+    });
+    const sessionData = await sessionRes.json();
+    if (!sessionData.clientSecret) throw new Error(sessionData.error || 'Failed to initialize checkout');
+    document.getElementById('paywall-modal').classList.remove('visible');
+    document.getElementById('paywall-modal').style.display = 'none';
+    const stripeModal = document.getElementById('stripe-checkout-modal');
+    stripeModal.style.display = 'flex';
+    requestAnimationFrame(() => stripeModal.classList.add('visible'));
+    const stripe = Stripe(configData.publishableKey);
+    _stripeCheckout = await stripe.initEmbeddedCheckout({ fetchClientSecret: () => Promise.resolve(sessionData.clientSecret) });
+    const container = document.getElementById('stripe-checkout-container');
+    const mountDiv = document.createElement('div');
+    mountDiv.id = 'stripe-checkout-mount';
+    container.innerHTML = '';
+    container.appendChild(mountDiv);
+    _stripeCheckout.mount('#stripe-checkout-mount');
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+    const msgEl = document.getElementById('promo-msg');
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Checkout failed to load. Please try again.';
+  }
+}
+
+async function applyPromoCode() {
+  const input = document.getElementById('promo-input');
+  const btn   = document.getElementById('promo-btn');
+  const msgEl = document.getElementById('promo-msg');
+  const code  = input.value.trim();
+  if (!code) { msgEl.style.display='block'; msgEl.style.color='var(--danger)'; msgEl.textContent='Please enter a promo code.'; return; }
+  btn.disabled = true; btn.textContent = 'Checking...'; msgEl.style.display = 'none';
+  try {
+    const res = await fetch('/api/promo/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code}) });
+    const data = await res.json();
+    msgEl.style.display = 'block';
+    if (data.valid) {
+      msgEl.style.color = 'var(--success)';
+      msgEl.textContent = '✓ ' + data.message;
+      unlock();
+      setTimeout(() => {
+        document.getElementById('paywall-modal').classList.remove('visible');
+        document.getElementById('paywall-modal').style.display = 'none';
+        runAnalysis();
+      }, 900);
+    } else {
+      msgEl.style.color = 'var(--danger)';
+      msgEl.textContent = data.message || 'Invalid promo code.';
+      input.focus();
+    }
+  } catch(e) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Could not validate code. Please try again.';
+  } finally { btn.disabled=false; btn.textContent='Apply'; }
+}
+
+/* EXTRAS PANEL */
+let _extrasLoadedFor = '';
+function toggleExtras() {
+  const body = document.getElementById('extras-body');
+  const chevron = document.getElementById('extras-chevron');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chevron.style.transform = open ? '' : 'rotate(180deg)';
+  if (!open) loadVehicleFeatures();
+}
+function updateExtrasCount() {
+  const checks = document.querySelectorAll('.extras-cb:checked').length;
+  const keys = (document.getElementById('car-keys')?.value || '');
+  const other = (document.getElementById('car-extras-other')?.value || '').trim();
+  const total = checks + (keys ? 1 : 0) + (other ? 1 : 0);
+  const el = document.getElementById('extras-count');
+  if (!el) return;
+  if (total > 0) { el.textContent = total; el.style.display = ''; }
+  else { el.style.display = 'none'; }
+}
+async function loadVehicleFeatures(force) {
+  const year  = (document.getElementById('car-year')?.value  || '').trim();
+  const make  = (document.getElementById('car-make')?.value  || '').trim();
+  const model = (document.getElementById('car-model')?.value || '').trim();
+  const trim  = (document.getElementById('car-trim')?.value  || '').trim();
+  const stateEl = document.getElementById('extras-features-state');
+  const gridEl  = document.getElementById('extras-grid');
+  if (!stateEl || !gridEl) return;
+  if (!make) {
+    stateEl.innerHTML = '<em style="color:var(--ink3)">Enter vehicle info above to load specific features</em>';
+    gridEl.innerHTML = '';
+    return;
+  }
+  const vehicleKey = [year, make, model, trim].join('|');
+  if (!force && vehicleKey === _extrasLoadedFor && gridEl.children.length > 0) return;
+  _extrasLoadedFor = vehicleKey;
+  const vehicleLabel = escHtml([year, make, model, trim].filter(Boolean).join(' '));
+  stateEl.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:4px"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0"/></svg><span style="color:var(--ink3)">Loading features for ${vehicleLabel}…</span>`;
+  gridEl.innerHTML = '';
+  try {
+    const res = await fetch('/api/vehicle-features', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year, make, model, trim })
+    });
+    const data = await res.json();
+    const features = Array.isArray(data.features) ? data.features : [];
+    if (features.length) {
+      stateEl.innerHTML = `<span style="color:var(--success);font-size:12px">✓ Features loaded for ${vehicleLabel}</span>&ensp;<button type="button" onclick="loadVehicleFeatures(true)" style="background:none;border:none;color:var(--orange);font-family:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Reload</button>`;
+      gridEl.innerHTML = features.map((f, i) => `<span class="extras-pill-wrap"><input type="checkbox" class="extras-cb" id="xf-${i}" value="${escHtml(String(f))}" onchange="updateExtrasCount()"><label class="extras-label" for="xf-${i}">${escHtml(String(f))}</label></span>`).join('');
+    } else {
+      stateEl.innerHTML = `<em style="color:var(--ink3)">No features found — use Other Extras below</em>`;
+    }
+  } catch(e) {
+    stateEl.innerHTML = `<span style="color:var(--danger);font-size:12px">Could not load features</span>&ensp;<button type="button" onclick="loadVehicleFeatures(true)" style="background:none;border:none;color:var(--orange);font-family:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Retry</button>`;
+  }
+  updateExtrasCount();
+}
+
+/* MAIN ANALYSIS */
+async function runAnalysis() {
+  if (!isUnlocked()) { openPaywallModal(); return; }
+  const year  = document.getElementById('car-year').value.trim();
+  const make  = document.getElementById('car-make').value.trim();
+  const model = document.getElementById('car-model').value.trim();
+  const trim  = document.getElementById('car-trim').value.trim();
+  const miles = document.getElementById('car-mileage').value.trim();
+  const cond  = document.getElementById('car-condition').value;
+  const acc   = document.getElementById('car-accidents').value;
+  const own   = document.getElementById('car-owners').value;
+  const color = document.getElementById('car-color').value.trim();
+  const zip   = document.getElementById('car-zip').value.trim();
+  const vin   = document.getElementById('vin-input').value.trim();
+
+  if (!make || !model) { showError('Please enter at least a make and model.'); return; }
+
+  const vehicleLabel = [year, make, model, trim].filter(Boolean).join(' ');
+  lastVehicleLabel = vehicleLabel;
+
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('stream-card').style.display = 'none';
+
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 0.8s linear infinite"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0"/></svg> Analyzing...`;
+
+  buildSteps();
+  document.getElementById('thinking-bar').style.display = 'block';
+  document.getElementById('stream-card').style.display = 'block';
+  document.getElementById('stream-content').innerHTML = '<span class="cursor"></span>';
+
+  try {
+    const stepsPromise = animateSteps(12000);
+
+    const extrasKeys = (document.getElementById('car-keys')?.value || '').trim();
+    const extrasFeatures = [...document.querySelectorAll('.extras-cb:checked')].map(el => el.value);
+    const extrasOther = (document.getElementById('car-extras-other')?.value || '').trim();
+    const extrasPayload = (extrasKeys || extrasFeatures.length || extrasOther)
+      ? { keys: extrasKeys || undefined, features: extrasFeatures.length ? extrasFeatures : undefined, other: extrasOther || undefined }
+      : undefined;
+
+    const body = { year, make, model, trim, condition: cond, mileage: miles || undefined,
+      color: color || undefined, accidents: acc, owners: own, zip: zip || undefined, vin: vin || undefined,
+      extras: extrasPayload };
+
+    const response = await fetch('/api/trade-intelligence', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(()=>({}));
+      throw new Error(err.error || `Server error ${response.status}`);
+    }
+
+    const data = await response.json();
+    await stepsPromise;
+
+    const rawText = data.raw || '';
+    await streamText(rawText);
+
+    const parsed = data.parsed || extractJSON(rawText);
+    if (parsed) {
+      renderResults(parsed, vehicleLabel);
+    } else {
+      showError('Analysis returned unexpected data. Please try again.');
+    }
+  } catch(e) {
+    document.getElementById('thinking-bar').style.display = 'none';
+    document.getElementById('stream-card').style.display = 'none';
+    showError('Analysis failed: ' + e.message + '. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Analyze Trade-In &amp; Resale Value`;
+  }
+}
+
+async function streamText(text) {
+  const el = document.getElementById('stream-content');
+  el.innerHTML = '';
+  const words = text.split(' ');
+  let shown = '';
+  for (let i = 0; i < Math.min(words.length, 120); i++) {
+    shown += (i > 0 ? ' ' : '') + words[i];
+    el.innerHTML = shown + '<span class="cursor"></span>';
+    await sleep(18);
+  }
+  if (words.length > 120) el.innerHTML = shown + ' ...<span class="cursor"></span>';
+  await sleep(400);
+  el.innerHTML = shown + (words.length > 120 ? ' ...' : '');
+}
+
+function extractJSON(text) {
+  try { const m = text.match(/\{[\s\S]*\}/); if (m) return JSON.parse(m[0]); } catch(e) {}
+  return null;
+}
+
+/* RENDER RESULTS */
+function renderResults(data, vehicleLabel) {
+  lastParsed = data;
+  document.getElementById('thinking-bar').style.display = 'none';
+  document.getElementById('stream-card').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('pdf-wrap').style.display = 'block';
+
+  const vt = data.valueTiers || {};
+  const rec = data.recommendation || {};
+
+  // Value Hero
+  document.getElementById('value-hero-title').innerHTML =
+    `Trade-in &amp; resale values for <span>${escHtml(vehicleLabel)}</span>`;
+
+  const tierDefs = [
+    { key: 'dealerTradeIn', label: 'Dealer Trade-In', id: 'tier-trade' },
+    { key: 'instantOffer',  label: 'Instant Offer',   id: 'tier-instant' },
+    { key: 'privateParty',  label: 'Private Party',   id: 'tier-private' },
+  ];
+  const bestPath = (rec.bestPath || '').toLowerCase();
+  document.getElementById('value-tiers').innerHTML = tierDefs.map(t => {
+    const d = vt[t.key] || {};
+    const isBest = (t.key === 'dealerTradeIn' && bestPath.includes('dealer')) ||
+                   (t.key === 'instantOffer'  && bestPath.includes('instant')) ||
+                   (t.key === 'privateParty'  && bestPath.includes('private'));
+    return `<div class="value-tier${isBest ? ' best' : ''}">
+      <div class="vt-type">${escHtml(t.label)}</div>
+      <div class="vt-mid">${d.mid ? fmt(d.mid) : '—'}</div>
+      <div class="vt-range">${d.low && d.high ? fmt(d.low) + ' – ' + fmt(d.high) : ''}</div>
+      <div class="vt-desc">${escHtml(d.desc || '')}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('value-summary').textContent = data.summary || '';
+
+  // Recommendation
+  document.getElementById('rec-title').textContent = rec.bestPath || '—';
+  document.getElementById('rec-text').textContent = rec.reasoning || '';
+  const urgency = rec.urgency || '';
+  const uClass = urgency === 'Sell Now' ? 'now' : urgency === 'Hold If Possible' ? 'hold' : 'flex';
+  document.getElementById('rec-badges').innerHTML =
+    `<span class="urgency-pill ${uClass}">${escHtml(urgency)}</span>`;
+
+  // Trade Score
+  const score = Math.max(1, Math.min(10, parseInt(data.tradeScore) || 5));
+  document.getElementById('ts-score').innerHTML = `${score}<span>/10</span>`;
+  document.getElementById('ts-fill').style.width = (score * 10) + '%';
+  const verdict = data.verdict || '';
+  const vClass = verdict.includes('Hot') ? 'verdict-hot' : verdict.includes('Good') ? 'verdict-good' : verdict.includes('Depreciation') ? 'verdict-risk' : 'verdict-neutral';
+  document.getElementById('ts-verdict').innerHTML = `<span class="verdict-pill ${vClass}">${escHtml(verdict)}</span>`;
+
+  // Instant Offers
+  const PLATFORM_URLS = {
+    'kbb instant cash offer': 'https://www.kbb.com/sell-your-car/',
+    'carvana':  'https://www.carvana.com/sell-car',
+    'carmax':   'https://www.carmax.com/sell-my-car',
+    'vroom':    'https://www.vroom.com/sell-my-car',
+  };
+  const vinVal = (document.getElementById('vin-input').value || '').trim();
+  const ios = data.instantOffers || [];
+  document.getElementById('io-grid').innerHTML = ios.length ? ios.slice(0,4).map(io => {
+    const key = (io.source || '').toLowerCase();
+    let quoteUrl = PLATFORM_URLS[key] || null;
+    if (!quoteUrl) {
+      for (const [k, u] of Object.entries(PLATFORM_URLS)) { if (key.includes(k.split(' ')[0])) { quoteUrl = u; break; } }
+    }
+    if (quoteUrl && vinVal) {
+      if (key.includes('kbb'))     quoteUrl += (quoteUrl.includes('?') ? '&' : '?') + 'vin=' + encodeURIComponent(vinVal);
+      if (key.includes('carvana')) quoteUrl = 'https://www.carvana.com/sell-car?vin=' + encodeURIComponent(vinVal);
+    }
+    return `
+    <div class="io-card">
+      <div class="io-card-header">
+        <div class="io-source">${escHtml(io.source)}</div>
+        <div class="io-offer">${io.estimatedOffer ? fmt(io.estimatedOffer) : '—'}</div>
+      </div>
+      <div class="io-desc">${escHtml(io.description || '')}</div>
+      <div class="io-pc">
+        ${io.pros ? `<div class="io-pro">${escHtml(io.pros)}</div>` : ''}
+        ${io.cons ? `<div class="io-con">${escHtml(io.cons)}</div>` : ''}
+      </div>
+      ${quoteUrl ? `<a href="${quoteUrl}" target="_blank" rel="noopener" class="io-quote-btn">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Get Real Quote
+      </a>` : ''}
+    </div>`;
+  }).join('') : '<p style="color:var(--ink3);font-size:13px;grid-column:1/-1">No instant offer data available.</p>';
+
+  // Community reports
+  const deals = (data.deals || []).filter(d => d.description);
+  document.getElementById('deal-reports').innerHTML = deals.length ? deals.slice(0,5).map(d => `
+    <div class="deal-report">
+      <div class="deal-report-header">
+        <span class="deal-report-source">${escHtml(d.source)}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${d.reportDate ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;background:var(--warning-light);color:var(--warning);border-radius:20px">${escHtml(d.reportDate)}</span>` : ''}
+          <span class="deal-price-tag">${d.price ? fmt(d.price) : ''}</span>
+        </div>
+      </div>
+      <div class="deal-report-text">"${escHtml(d.description)}"</div>
+      <div class="deal-report-meta">
+        ${(d.tags||[]).map((t,i)=>`<span class="deal-meta-pill ${i===0?'pill-green':i===1?'pill-blue':'pill-yellow'}">${escHtml(t)}</span>`).join('')}
+      </div>
+    </div>`).join('') :
+    '<p style="color:var(--ink3);font-size:13px;padding:0.5rem 0">No community reports found. Try adding trim and mileage for better results.</p>';
+
+  // Market Stats
+  const ms = data.marketStats || {};
+  const cl = data.competingListings || {};
+  document.getElementById('market-stats').innerHTML = `
+    <div class="stat-row"><span class="stat-row-label">Avg resale price</span><span class="stat-row-val accent">${ms.avgResalePrice ? fmt(ms.avgResalePrice) : '—'}</span></div>
+    <div class="stat-row"><span class="stat-row-label">Avg time to sell</span><span class="stat-row-val">${escHtml(ms.avgDaysToSell || '—')}</span></div>
+    <div class="stat-row"><span class="stat-row-label">Depreciation rate</span><span class="stat-row-val">${escHtml(ms.depreciationRate || '—')}</span></div>
+    <div class="stat-row"><span class="stat-row-label">Market demand</span><span class="stat-row-val ${ms.demandLevel==='High'?'green':ms.demandLevel==='Low'?'':'yellow'}">${escHtml(ms.demandLevel || '—')}</span></div>
+    <div class="stat-row"><span class="stat-row-label">Best time to sell</span><span class="stat-row-val yellow">${escHtml(ms.bestTimeToSell || '—')}</span></div>
+    ${cl.estimatedCount ? `<div class="stat-row"><span class="stat-row-label">Competing listings</span><span class="stat-row-val">${escHtml(cl.estimatedCount)}</span></div>` : ''}
+    ${cl.avgAskingPrice ? `<div class="stat-row"><span class="stat-row-label">Avg listing price</span><span class="stat-row-val accent">${fmt(cl.avgAskingPrice)}</span></div>` : ''}
+    ${cl.buyerLeverage ? '<div class="stat-row"><span class="stat-row-label">Buyer leverage</span><span class="stat-row-val ' + (cl.buyerLeverage === 'Low' ? 'green' : '') + '">' + escHtml(cl.buyerLeverage) + '</span></div>' : ''}`;
+
+  // Tips
+  const tips = data.tips || [];
+  document.getElementById('value-tips').innerHTML = tips.length ?
+    tips.map(t => `<li>${escHtml(t)}</li>`).join('') :
+    '<li>No specific tips available for this vehicle.</li>';
+
+  // Extras Impact
+  const extrasImpact = data.extrasImpact || [];
+  const extrasCard = document.getElementById('extras-impact-card');
+  const extrasList = document.getElementById('extras-impact-list');
+  if (extrasImpact.length) {
+    extrasCard.style.display = '';
+    extrasList.innerHTML = extrasImpact.map(e => {
+      const dir = e.direction === '+' ? 'pos' : e.direction === '-' ? 'neg' : 'neu';
+      const sign = e.direction === '+' ? '+' : e.direction === '-' ? '-' : '~';
+      const valStr = e.dollarImpact
+        ? (sign === '~' ? 'Negligible' : sign + '$' + Number(e.dollarImpact).toLocaleString())
+        : (sign === '~' ? 'Negligible' : sign);
+      const valColor = dir === 'pos' ? 'var(--success)' : dir === 'neg' ? 'var(--danger)' : 'var(--ink3)';
+      return `<div class="extras-impact-row">
+        <div class="extras-impact-badge ${dir}">${sign}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+            <span class="extras-impact-name">${escHtml(e.feature)}</span>
+            <span class="extras-impact-val" style="color:${valColor};flex-shrink:0">${escHtml(valStr)}</span>
+          </div>
+          ${e.note ? `<div class="extras-impact-note">${escHtml(e.note)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    extrasCard.style.display = 'none';
+  }
+
+  // Spec strip — vehicle attributes from form
+  const specStrip = document.getElementById('spec-strip');
+  const specYear  = document.getElementById('car-year').value.trim();
+  const specMake  = document.getElementById('car-make').value.trim();
+  const specModel = document.getElementById('car-model').value.trim();
+  const specTrim  = document.getElementById('car-trim').value.trim();
+  const specMiles = document.getElementById('car-mileage').value.trim();
+  const specCond  = document.getElementById('car-condition');
+  const specCondLabel = specCond ? specCond.options[specCond.selectedIndex]?.text : '';
+  const specAcc   = document.getElementById('car-accidents');
+  const specAccLabel = specAcc ? specAcc.options[specAcc.selectedIndex]?.text : '';
+  const specOwn   = document.getElementById('car-owners');
+  const specOwnLabel = specOwn ? specOwn.options[specOwn.selectedIndex]?.text : '';
+  const specColor = document.getElementById('car-color').value.trim();
+  const specZip   = document.getElementById('car-zip').value.trim();
+  const specVin   = document.getElementById('vin-input').value.trim();
+  const specKeysEl = document.getElementById('car-keys');
+  const specKeysVal = specKeysEl ? specKeysEl.value : '';
+  const specKeysLabel = specKeysVal === '1' ? '1 key only' : specKeysVal === '2' ? '2 keys' : specKeysVal === '3' ? '3+ keys' : '';
+  const specChecked = [...document.querySelectorAll('.extras-cb:checked')].map(el => el.value);
+  const specExtrasOther = (document.getElementById('car-extras-other')?.value || '').trim();
+  const specPills = [
+    specMiles ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>', label:'Mileage', val: Number(specMiles).toLocaleString() + ' mi'} : null,
+    specCondLabel ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', label:'Condition', val: specCondLabel.replace(' – ',': ')} : null,
+    specAccLabel ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', label:'History', val: specAccLabel} : null,
+    specOwnLabel ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>', label:'Owners', val: specOwnLabel} : null,
+    specColor ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>', label:'Color', val: specColor} : null,
+    specZip ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>', label:'ZIP', val: specZip} : null,
+    specVin ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>', label:'VIN', val: specVin} : null,
+    specKeysLabel ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>', label:'Keys', val: specKeysLabel} : null,
+    specChecked.length ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', label:'Features', val: specChecked.length + ' selected'} : null,
+    specExtrasOther ? {icon:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>', label:'Other extras', val: specExtrasOther} : null,
+  ].filter(Boolean);
+  if (specPills.length) {
+    specStrip.style.display = 'flex';
+    specStrip.innerHTML = specPills.map(p => `<span class="spec-pill">${p.icon}<span><strong>${p.label}:</strong> ${escHtml(p.val)}</span></span>`).join('');
+  }
+
+  // Depreciation card
+  const depr = data.depreciation || {};
+  document.getElementById('depr-card').innerHTML = [
+    depr.annualLoss ? `<div class="depr-row"><div class="depr-icon" style="background:var(--danger-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="depr-content"><div class="depr-label">Annual Loss</div><div class="depr-val">${escHtml(depr.annualLoss)}</div></div></div>` : '',
+    depr.outlook12mo ? `<div class="depr-row"><div class="depr-icon" style="background:var(--info-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><div class="depr-content"><div class="depr-label">12-Month Outlook</div><div class="depr-val">${escHtml(depr.outlook12mo)}</div></div></div>` : '',
+    depr.urgencyNote ? `<div class="depr-row"><div class="depr-icon" style="background:var(--warning-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="depr-content"><div class="depr-label">Timing Note</div><div class="depr-val">${escHtml(depr.urgencyNote)}</div></div></div>` : '',
+    data.taxSavingsTip ? `<div class="depr-row"><div class="depr-icon" style="background:var(--success-light)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="depr-content"><div class="depr-label">Tax Trade-In Tip</div><div class="depr-val">${escHtml(data.taxSavingsTip)}</div></div></div>` : '',
+  ].join('') || '<div style="color:var(--ink3);font-size:13px">No depreciation data available.</div>';
+
+  // Negotiation Script
+  const ns = data.negotiationScript || {};
+  document.getElementById('neg-content').innerHTML = ns.dealerOpener ? `
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px">Your opening line:</div>
+    <div class="neg-opener"><div class="neg-opener-text">${escHtml(ns.dealerOpener)}"</div></div>
+    ${ns.leveragePoints?.length ? `<div style="font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink3);margin-bottom:7px">Leverage points to use:</div><ul class="neg-points">${ns.leveragePoints.map(p => `<li>${escHtml(p)}</li>`).join('')}</ul>` : ''}
+    ${ns.redFlags ? `<div class="neg-redflag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><strong style="display:block;margin-bottom:2px">Watch out for:</strong>${escHtml(ns.redFlags)}</div></div>` : ''}
+    ${cl.insight ? `<div style="font-size:12px;color:var(--ink2);line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"><strong>Market context:</strong> ${escHtml(cl.insight)}</div>` : ''}
+  ` : '<div style="color:var(--ink3);font-size:13px">Negotiation data not available.</div>';
+
+  // Market Research Links
+  const vin = (document.getElementById('vin-input').value || '').trim();
+  const make = escHtml(document.getElementById('car-make').value.trim());
+  const model = escHtml(document.getElementById('car-model').value.trim());
+  const yr = escHtml(document.getElementById('car-year').value.trim());
+  const searchQ = encodeURIComponent([yr, make, model].filter(Boolean).join(' '));
+  const links = [
+    { name:'KBB Trade-In Value', desc:'Official KBB appraisal tool', icon:'📘', url: vin ? `https://www.kbb.com/sell-your-car/?vin=${encodeURIComponent(vin)}` : 'https://www.kbb.com/sell-your-car/' },
+    { name:'NADA Guides', desc:'Industry trade-in guide used by dealers', icon:'📋', url: 'https://www.nadaguides.com/Cars' },
+    { name:'AutoTrader Listings', desc:'See what similar cars are listed for', icon:'🔍', url: `https://www.autotrader.com/cars-for-sale/used-cars/${searchQ}` },
+    { name:'Cars.com Listings', desc:'Compare private & dealer prices', icon:'🚗', url: `https://www.cars.com/shopping/results/?keyword=${searchQ}` },
+    vin ? { name:'Carfax Vehicle Report', desc:'Full history report for this VIN', icon:'📄', url: `https://www.carfax.com/vehicle/${encodeURIComponent(vin)}` } : { name:'Carfax VIN Report', desc:'Enter VIN for full history report', icon:'📄', url: 'https://www.carfax.com/value/' },
+    { name:'Carvana Real Offer', desc:'Get an actual instant cash offer', icon:'💰', url: vin ? `https://www.carvana.com/sell-car?vin=${encodeURIComponent(vin)}` : 'https://www.carvana.com/sell-car' },
+    { name:'CarMax Appraisal', desc:'Free in-store or online appraisal', icon:'🏢', url: 'https://www.carmax.com/sell-my-car' },
+    { name:'Reddit r/askcarsales', desc:'Real seller experiences & current deals', icon:'💬', url: `https://www.reddit.com/r/askcarsales/search/?q=${searchQ}&restrict_sr=1&sort=new` },
+  ];
+  document.getElementById('market-links').innerHTML = links.map(l => `
+    <a href="${l.url}" target="_blank" rel="noopener" class="mrl-btn">
+      <div class="mrl-btn-icon">${l.icon}</div>
+      <div class="mrl-btn-body">
+        <span class="mrl-btn-name">${l.name}</span>
+        <span class="mrl-btn-desc">${l.desc}</span>
+      </div>
+      <svg class="external" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </a>`).join('');
+
+  // Sources
+  document.getElementById('sources-list').innerHTML = (data.sources || [])
+    .map(s => `<span class="source-chip">${escHtml(s)}</span>`).join('');
+}
+
+/* PDF GENERATION */
+function generatePDF() {
+  if (!lastParsed) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const orange = [201, 94, 26], ink = [26, 26, 24], ink2 = [74, 74, 70], ink3 = [138, 138, 132];
+  const success = [29, 158, 117], danger = [192, 57, 43], warning = [186, 117, 23];
+  const W = doc.internal.pageSize.getWidth();
+  let y = 18;
+  const M = 14; // left margin
+  const nl = (n=6) => { y += n; if (y > 258) { doc.addPage(); y = 18; } };
+  const sectionHead = (title) => {
+    if (y > 230) { doc.addPage(); y = 18; }
+    doc.setFillColor(245, 245, 242); doc.rect(M, y - 3, W - M*2, 8, 'F');
+    doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text(title, M + 2, y + 2); y += 8;
+  };
+  const bodyText = (text, maxW = W - M*2) => {
+    doc.setTextColor(...ink2); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    const lines = doc.splitTextToSize(text, maxW);
+    doc.text(lines, M, y); y += lines.length * 4.5;
+  };
+
+  // ── Header bar ──
+  doc.setFillColor(...ink); doc.rect(0, 0, W, 14, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('AutoNegotiating.com', M, 9.5);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.setTextColor(180,180,174);
+  doc.text('Trade Intelligence Report — ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), W - M, 9.5, { align:'right' });
+
+  // ── Title + vehicle ──
+  y = 24;
+  doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text('Trade Intelligence Report', M, y); nl(7);
+  doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text(lastVehicleLabel || 'Vehicle', M, y); nl(5);
+
+  // ── Vehicle spec strip ──
+  const pVin   = (document.getElementById('vin-input')?.value || '').trim();
+  const pMiles = (document.getElementById('car-mileage')?.value || '').trim();
+  const pCond  = document.getElementById('car-condition');
+  const pCondT = pCond ? pCond.options[pCond.selectedIndex]?.text : '';
+  const pAcc   = document.getElementById('car-accidents');
+  const pAccT  = pAcc ? pAcc.options[pAcc.selectedIndex]?.text : '';
+  const pOwn   = document.getElementById('car-owners');
+  const pOwnT  = pOwn ? pOwn.options[pOwn.selectedIndex]?.text : '';
+  const pColor = (document.getElementById('car-color')?.value || '').trim();
+  const pZip   = (document.getElementById('car-zip')?.value || '').trim();
+  const specItems = [
+    pMiles  ? ['Mileage', Number(pMiles).toLocaleString() + ' mi'] : null,
+    pCondT  ? ['Condition', pCondT.replace(' – ', ': ')] : null,
+    pAccT   ? ['History', pAccT] : null,
+    pOwnT   ? ['Owners', pOwnT] : null,
+    pColor  ? ['Color', pColor] : null,
+    pZip    ? ['ZIP', pZip] : null,
+    pVin    ? ['VIN', pVin] : null,
+  ].filter(Boolean);
+  if (specItems.length) {
+    doc.autoTable({
+      startY: y, body: specItems.map(([k,v]) => [k, v]),
+      theme: 'plain',
+      columnStyles: { 0:{fontStyle:'bold', cellWidth:28, textColor:ink3, fontSize:8}, 1:{textColor:ink, fontSize:9} },
+      margin:{left:M, right:M}, styles:{cellPadding:1.5},
+    });
+    y = doc.lastAutoTable.finalY + 5;
+  }
+
+  // ── Value estimates ──
+  sectionHead('VALUE ESTIMATES');
+  const vt = lastParsed.valueTiers || {};
+  const rec = lastParsed.recommendation || {};
+  const tierRows = [
+    ['Dealer Trade-In', vt.dealerTradeIn?.mid ? '$'+vt.dealerTradeIn.mid.toLocaleString() : '—', vt.dealerTradeIn?.low && vt.dealerTradeIn?.high ? '$'+vt.dealerTradeIn.low.toLocaleString()+' – $'+vt.dealerTradeIn.high.toLocaleString() : '', vt.dealerTradeIn?.desc || ''],
+    ['Instant Offer',   vt.instantOffer?.mid  ? '$'+vt.instantOffer.mid.toLocaleString()  : '—', vt.instantOffer?.low  && vt.instantOffer?.high  ? '$'+vt.instantOffer.low.toLocaleString()+' – $'+vt.instantOffer.high.toLocaleString() : '', vt.instantOffer?.desc || ''],
+    ['Private Party',   vt.privateParty?.mid  ? '$'+vt.privateParty.mid.toLocaleString()  : '—', vt.privateParty?.low  && vt.privateParty?.high  ? '$'+vt.privateParty.low.toLocaleString()+' – $'+vt.privateParty.high.toLocaleString() : '', vt.privateParty?.desc || ''],
+  ];
+  doc.autoTable({
+    startY: y,
+    head: [['Channel', 'Typical', 'Range', 'Notes']],
+    body: tierRows,
+    theme: 'striped',
+    headStyles: { fillColor: orange, fontSize: 9 },
+    columnStyles: { 0:{fontStyle:'bold', cellWidth:34}, 1:{cellWidth:22}, 2:{cellWidth:34}, 3:{fontSize:8, textColor:ink2} },
+    margin: {left:M, right:M}, styles:{fontSize:9},
+  });
+  y = doc.lastAutoTable.finalY + 4; nl(0);
+
+  // ── Market summary ──
+  if (lastParsed.summary) { bodyText(lastParsed.summary); nl(3); }
+
+  // ── Recommendation ──
+  sectionHead('RECOMMENDATION');
+  doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('Best Path: ' + (rec.bestPath || '—') + '  |  Urgency: ' + (rec.urgency || '—'), M, y); nl(5);
+  if (rec.reasoning) { bodyText(rec.reasoning); nl(3); }
+
+  // ── Market stats ──
+  const ms = lastParsed.marketStats || {};
+  const cl = lastParsed.competingListings || {};
+  const statsRows = [
+    ms.avgResalePrice ? ['Avg resale price', '$' + ms.avgResalePrice.toLocaleString()] : null,
+    ms.avgDaysToSell  ? ['Avg time to sell', ms.avgDaysToSell] : null,
+    ms.depreciationRate ? ['Depreciation rate', ms.depreciationRate] : null,
+    ms.demandLevel ? ['Market demand', ms.demandLevel] : null,
+    ms.bestTimeToSell ? ['Best time to sell', ms.bestTimeToSell] : null,
+    cl.estimatedCount ? ['Competing listings', cl.estimatedCount] : null,
+    cl.avgAskingPrice ? ['Avg listing price', '$' + cl.avgAskingPrice.toLocaleString()] : null,
+    cl.buyerLeverage ? ['Buyer leverage', cl.buyerLeverage] : null,
+  ].filter(Boolean);
+  if (statsRows.length) {
+    sectionHead('MARKET STATS');
+    doc.autoTable({
+      startY: y, body: statsRows, theme: 'plain',
+      columnStyles: { 0:{fontStyle:'bold', cellWidth:50, textColor:ink3, fontSize:8}, 1:{textColor:ink, fontSize:9} },
+      margin:{left:M, right:M}, styles:{cellPadding:1.8},
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  // ── Instant Offers ──
+  const ios = lastParsed.instantOffers || [];
+  if (ios.length) {
+    sectionHead('INSTANT OFFER ESTIMATES');
+    doc.autoTable({
+      startY: y,
+      head: [['Platform', 'Offer', 'Pros', 'Cons']],
+      body: ios.map(io => [io.source, io.estimatedOffer ? '$'+io.estimatedOffer.toLocaleString() : '—', io.pros || '', io.cons || '']),
+      theme: 'striped', headStyles:{fillColor:orange, fontSize:9},
+      columnStyles: { 0:{fontStyle:'bold', cellWidth:36}, 1:{cellWidth:22}, 2:{fontSize:8, textColor:success}, 3:{fontSize:8, textColor:ink3} },
+      margin:{left:M, right:M}, styles:{fontSize:9},
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  // ── Depreciation Outlook ──
+  const depr = lastParsed.depreciation || {};
+  if (depr.annualLoss || depr.outlook12mo) {
+    sectionHead('DEPRECIATION OUTLOOK');
+    if (depr.annualLoss) {
+      doc.setTextColor(...danger); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text('Annual Loss: ', M, y);
+      const lw = doc.getTextWidth('Annual Loss: ');
+      doc.setTextColor(...ink); doc.setFont('helvetica','normal');
+      doc.text(depr.annualLoss, M + lw, y); nl(5);
+    }
+    if (depr.outlook12mo) { bodyText('12-Month Outlook: ' + depr.outlook12mo); nl(3); }
+    if (depr.urgencyNote) { bodyText('Timing: ' + depr.urgencyNote); nl(3); }
+    if (lastParsed.taxSavingsTip) { bodyText('Tax Trade-In Tip: ' + lastParsed.taxSavingsTip); nl(3); }
+    nl(2);
+  }
+
+  // ── Negotiation Script ──
+  const ns = lastParsed.negotiationScript || {};
+  if (ns.dealerOpener) {
+    sectionHead('NEGOTIATION SCRIPT');
+    doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('Your opening line:', M, y); nl(5);
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...ink2);
+    const opLines = doc.splitTextToSize('"' + ns.dealerOpener + '"', W - M*2);
+    doc.text(opLines, M, y); y += opLines.length * 4.5; nl(3);
+    if (ns.leveragePoints?.length) {
+      doc.setTextColor(...ink); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text('Leverage points:', M, y); nl(5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...ink2);
+      ns.leveragePoints.forEach((pt, i) => {
+        const ptLines = doc.splitTextToSize((i+1) + '. ' + pt, W - M*2 - 4);
+        doc.text(ptLines, M + 4, y); y += ptLines.length * 4.5;
+      });
+      nl(3);
+    }
+    if (ns.redFlags) {
+      doc.setTextColor(...danger); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.text('Watch out for:', M, y); nl(5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...danger);
+      const rfLines = doc.splitTextToSize(ns.redFlags, W - M*2);
+      doc.text(rfLines, M, y); y += rfLines.length * 4.5; nl(3);
+    }
+    nl(2);
+  }
+
+  // ── Extras Impact ──
+  const pdfExtras = lastParsed.extrasImpact || [];
+  if (pdfExtras.length) {
+    sectionHead('FEATURES & EXTRAS IMPACT');
+    doc.autoTable({
+      startY: y,
+      head: [['Feature', 'Impact', 'Value', 'Notes']],
+      body: pdfExtras.map(e => [
+        e.feature || '',
+        e.direction === '+' ? 'Adds value' : e.direction === '-' ? 'Reduces value' : 'Negligible',
+        e.dollarImpact ? (e.direction === '+' ? '+$' : e.direction === '-' ? '-$' : '') + Number(e.dollarImpact).toLocaleString() : '—',
+        e.note || '',
+      ]),
+      theme: 'striped',
+      headStyles: { fillColor: orange, fontSize: 9 },
+      columnStyles: {
+        0: { fontStyle:'bold', cellWidth:42 },
+        1: { cellWidth:26, fontSize:8 },
+        2: { cellWidth:22, fontStyle:'bold', fontSize:9 },
+        3: { fontSize:8, textColor: ink2 },
+      },
+      margin: {left:M, right:M}, styles:{fontSize:9},
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  // ── Tips ──
+  const tips = lastParsed.tips || [];
+  if (tips.length) {
+    sectionHead('TIPS TO MAXIMIZE VALUE');
+    doc.setTextColor(...ink2); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    tips.forEach((t, i) => {
+      const lines = doc.splitTextToSize((i+1) + '. ' + t, W - M*2);
+      doc.text(lines, M, y); y += lines.length * 4.5; nl(0);
+    });
+    nl(3);
+  }
+
+  // ── Historical Reports ──
+  const deals = (lastParsed.deals || []).filter(d => d.description);
+  if (deals.length) {
+    sectionHead('HISTORICAL MARKET REPORTS');
+    doc.autoTable({
+      startY: y,
+      head: [['Source', 'Period', 'Price', 'Notes']],
+      body: deals.map(d => [d.source || '', d.reportDate || '', d.price ? '$'+d.price.toLocaleString() : '—', d.description || '']),
+      theme: 'striped', headStyles:{fillColor:orange, fontSize:8},
+      columnStyles: { 0:{cellWidth:34, fontSize:8}, 1:{cellWidth:20, fontSize:8}, 2:{cellWidth:22, fontSize:9, fontStyle:'bold'}, 3:{fontSize:8, textColor:ink2} },
+      margin:{left:M, right:M}, styles:{fontSize:8},
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  // ── Research Links ──
+  const resVin = (document.getElementById('vin-input')?.value || '').trim();
+  const resMake = (document.getElementById('car-make')?.value || '').trim();
+  const resModel = (document.getElementById('car-model')?.value || '').trim();
+  const resYr = (document.getElementById('car-year')?.value || '').trim();
+  if (y > 210) { doc.addPage(); y = 18; }
+  sectionHead('RESEARCH & VERIFY — LINKS');
+  const linkRows = [
+    ['KBB Trade-In', resVin ? `kbb.com/sell-your-car/?vin=${resVin}` : 'kbb.com/sell-your-car/'],
+    ['NADA Guides', 'nadaguides.com/Cars'],
+    ['AutoTrader', `autotrader.com/cars-for-sale/used-cars/${encodeURIComponent([resYr,resMake,resModel].filter(Boolean).join(' '))}`],
+    ['Cars.com', `cars.com/shopping/results/?keyword=${encodeURIComponent([resYr,resMake,resModel].filter(Boolean).join(' '))}`],
+    ['Carfax', resVin ? `carfax.com/vehicle/${resVin}` : 'carfax.com/value/'],
+    ['Carvana Offer', resVin ? `carvana.com/sell-car?vin=${resVin}` : 'carvana.com/sell-car'],
+    ['CarMax', 'carmax.com/sell-my-car'],
+    ['Reddit r/askcarsales', `reddit.com/r/askcarsales/search/?q=${encodeURIComponent([resYr,resMake,resModel].filter(Boolean).join(' '))}&sort=new`],
+  ];
+  doc.autoTable({
+    startY: y, body: linkRows, theme: 'plain',
+    columnStyles: { 0:{fontStyle:'bold', cellWidth:40, fontSize:8, textColor:ink3}, 1:{fontSize:7.5, textColor:[201,94,26]} },
+    margin:{left:M, right:M}, styles:{cellPadding:1.8},
+  });
+  y = doc.lastAutoTable.finalY + 4;
+
+  // ── Footer ──
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(26,26,24); doc.rect(0, 274, W, 8, 'F');
+    doc.setTextColor(138,138,132); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.text('AutoNegotiating.com — AI estimates for informational purposes only. Always verify with live quotes.', M, 278.5);
+    doc.text('Page ' + i + ' of ' + pageCount, W - M, 278.5, {align:'right'});
+  }
+
+  doc.save('trade-intelligence-' + (lastVehicleLabel || 'report').replace(/\s+/g,'-').toLowerCase() + '.pdf');
+}
+
+/* URL PARAMS — pre-fill form on load */
+(function() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('vin'))       { const el=document.getElementById('vin-input');       if(el){ el.value=p.get('vin').toUpperCase(); const btn=document.getElementById('vin-lookup-btn'); if(btn&&el.value.length===17) btn.style.display='inline-flex'; } }
+  if (p.get('year'))      { const el=document.getElementById('car-year');      if(el) el.value=p.get('year'); }
+  if (p.get('make'))      { const el=document.getElementById('car-make');      if(el) el.value=p.get('make'); }
+  if (p.get('model'))     { const el=document.getElementById('car-model');     if(el) el.value=p.get('model'); }
+  if (p.get('trim'))      { const el=document.getElementById('car-trim');      if(el) el.value=p.get('trim'); }
+  if (p.get('mileage'))   { const el=document.getElementById('car-mileage');   if(el) el.value=p.get('mileage'); }
+  if (p.get('condition')) { const el=document.getElementById('car-condition'); if(el) el.value=p.get('condition'); }
+  if (p.get('color'))     { const el=document.getElementById('car-color');     if(el) el.value=p.get('color'); }
+  if (p.get('zip'))       { const el=document.getElementById('car-zip');       if(el) el.value=p.get('zip'); }
+
+  // Handle post-payment return
+  if (p.get('payment') === 'success' && p.get('session_id')) {
+    (async () => {
+      try {
+        const r = await fetch('/api/stripe/verify-session?session_id=' + p.get('session_id'));
+        const d = await r.json();
+        if (d.paid) { unlock(); runAnalysis(); }
+      } catch(e) {}
+    })();
+  }
+})();
+</script>
+</body>
+</html>

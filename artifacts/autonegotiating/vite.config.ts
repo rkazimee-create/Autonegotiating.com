@@ -27,6 +27,7 @@ export default defineConfig({
       input: {
         main: path.resolve(import.meta.dirname, "index.html"),
         dealIntelligence: path.resolve(import.meta.dirname, "deal-intelligence.html"),
+        tradeIntelligence: path.resolve(import.meta.dirname, "trade-intelligence.html"),
       },
     },
   },
