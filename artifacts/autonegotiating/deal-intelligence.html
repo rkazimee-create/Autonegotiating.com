@@ -1287,14 +1287,17 @@ async function lookupVin() {
   showVinStatus('Decoding VIN...', 'info');
 
   try {
-    const res = await fetch('/api/vin-decode?vin=' + encodeURIComponent(vin));
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    const res = await fetch('https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/' + encodeURIComponent(vin) + '?format=json');
+    const raw = await res.json();
+    const r = raw.Results?.[0];
+    if (!r || (r.ErrorCode && !r.ErrorCode.startsWith('0'))) throw new Error('VIN not found in NHTSA database');
+    function _tc(s) { return s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : ''; }
 
-    const year  = data.year || '';
-    const make  = data.make || '';
-    const model = data.model || '';
-    const trim  = data.trim || '';
+    const year  = r.ModelYear || '';
+    const make  = _tc(r.Make  || '');
+    const model = _tc(r.Model || '');
+    const trim  = r.Trim || r.Series || '';
+    const data  = { year, make, model, trim };
 
     // Fill year
     if (year) document.getElementById('car-year').value = year;
