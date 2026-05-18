@@ -1421,7 +1421,6 @@ function openOffer(carId) {
   const profile = getBuyerProfile();
   if (!profile) {
     _pendingOfferCarId = carId;
-    // Pre-fill fields if partially saved before
     document.getElementById('buyer-name').value = '';
     document.getElementById('buyer-email').value = '';
     document.getElementById('buyer-phone').value = '';
@@ -1432,7 +1431,7 @@ function openOffer(carId) {
     setTimeout(() => document.getElementById('buyer-name').focus(), 100);
     return;
   }
-  openOfferModal(carId);
+  checkOfferPaywall(carId);
 }
 
 function saveBuyerProfile() {
@@ -1451,7 +1450,50 @@ function saveBuyerProfile() {
   if (_pendingOfferCarId) {
     const id = _pendingOfferCarId;
     _pendingOfferCarId = null;
-    openOfferModal(id);
+    checkOfferPaywall(id);
+  }
+}
+
+function checkOfferPaywall(carId) {
+  if (localStorage.getItem('offerPaid') === 'true') {
+    openOfferModal(carId);
+    return;
+  }
+  _pendingOfferCarId = carId;
+  document.getElementById('offer-pay-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+let _offerPriceId = null;
+async function startOfferPayment() {
+  const btn = document.getElementById('offer-pay-btn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  try {
+    if (!_offerPriceId) {
+      const cfg = await fetch('/api/stripe/config').then(r => r.json());
+      _offerPriceId = cfg.offerPriceId;
+    }
+    if (!_offerPriceId) throw new Error('No price ID');
+    const carId = _pendingOfferCarId || '';
+    const profile = getBuyerProfile();
+    const successUrl = `${location.origin}/?offer_success={CHECKOUT_SESSION_ID}&car=${encodeURIComponent(carId)}`;
+    const cancelUrl  = `${location.origin}/`;
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId: _offerPriceId, email: profile?.email, successUrl, cancelUrl })
+    });
+    const data = await res.json();
+    if (data.url) {
+      location.href = data.url;
+    } else {
+      throw new Error('No checkout URL');
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = origText;
   }
 }
 
@@ -1952,8 +1994,27 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
   renderRecentSearches();
 
-  // Auto-search if ?make= param is present (e.g. arriving from PDF comparable link)
+  // Handle Stripe offer payment return
   const urlParams = new URLSearchParams(window.location.search);
+  const offerSuccess = urlParams.get('offer_success');
+  const offerCarId   = urlParams.get('car');
+  if (offerSuccess) {
+    // Strip params from URL immediately so refresh doesn't re-trigger
+    const cleanUrl = location.origin + location.pathname;
+    history.replaceState({}, '', cleanUrl);
+    // Verify payment server-side then unlock
+    fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(offerSuccess)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.paid) {
+          localStorage.setItem('offerPaid', 'true');
+          if (offerCarId) openOffer(offerCarId);
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Auto-search if ?make= param is present (e.g. arriving from PDF comparable link)
   const makeParam  = urlParams.get('make');
   const modelParam = urlParams.get('model');
   const yearParam  = urlParams.get('year');
