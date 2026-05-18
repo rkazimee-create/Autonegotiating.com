@@ -1454,8 +1454,18 @@ function saveBuyerProfile() {
   }
 }
 
+let _offerUnlocked = false;
+let _offerConfig = null;
+let _offerStripeInstance = null;
+
 function checkOfferPaywall(carId) {
-  if (localStorage.getItem('offerPaid') === 'true') {
+  if (_offerUnlocked) {
+    openOfferModal(carId);
+    return;
+  }
+  if (sessionStorage.getItem('offerUnlocked') === 'once') {
+    sessionStorage.removeItem('offerUnlocked');
+    _offerUnlocked = true;
     openOfferModal(carId);
     return;
   }
@@ -1464,37 +1474,92 @@ function checkOfferPaywall(carId) {
   document.body.style.overflow = 'hidden';
 }
 
-let _offerPriceId = null;
-async function startOfferPayment() {
-  const btn = document.getElementById('offer-pay-btn');
-  const origText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Loading…';
-  try {
-    if (!_offerPriceId) {
-      const cfg = await fetch('/api/stripe/config').then(r => r.json());
-      _offerPriceId = cfg.offerPriceId;
-    }
-    if (!_offerPriceId) throw new Error('No price ID');
-    const carId = _pendingOfferCarId || '';
-    const profile = getBuyerProfile();
-    const successUrl = `${location.origin}/?offer_success={CHECKOUT_SESSION_ID}&car=${encodeURIComponent(carId)}`;
-    const cancelUrl  = `${location.origin}/`;
-    const res = await fetch('/api/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priceId: _offerPriceId, email: profile?.email, successUrl, cancelUrl })
-    });
-    const data = await res.json();
-    if (data.url) {
-      location.href = data.url;
+function applyOfferPromoCode() {
+  const input = document.getElementById('offer-promo-input');
+  const btn   = document.getElementById('offer-promo-btn');
+  const msgEl = document.getElementById('offer-promo-msg');
+  const code  = input.value.trim();
+  if (!code) { msgEl.style.display='block'; msgEl.style.color='var(--danger)'; msgEl.textContent='Please enter a promo code.'; return; }
+  btn.disabled = true; btn.textContent = 'Checking…';
+  msgEl.style.display = 'none';
+  fetch('/api/promo/validate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false; btn.textContent = 'Apply';
+    if (data.valid) {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--success)';
+      msgEl.textContent = '✓ Promo applied! Opening offer…';
+      _offerUnlocked = true;
+      setTimeout(() => {
+        closeModal('offer-pay-overlay');
+        if (_pendingOfferCarId) { const id = _pendingOfferCarId; _pendingOfferCarId = null; openOfferModal(id); }
+      }, 800);
     } else {
-      throw new Error('No checkout URL');
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+      msgEl.textContent = data.message || 'Invalid promo code.';
     }
+  })
+  .catch(() => {
+    btn.disabled = false; btn.textContent = 'Apply';
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Could not validate code. Please try again.';
+  });
+}
+
+async function handleOfferPayment() {
+  const btn = document.getElementById('offer-pay-btn');
+  const origHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0"/></svg>Loading…';
+  try {
+    if (!_offerConfig) {
+      _offerConfig = await fetch('/api/stripe/config').then(r => r.json());
+    }
+    const { publishableKey, offerPriceId } = _offerConfig;
+    if (!offerPriceId) throw new Error('No offer price ID');
+    const carId = _pendingOfferCarId || '';
+    // Save car for restoration after Stripe redirect
+    const car = allCars.find(c => String(c.id) === String(carId));
+    if (car) sessionStorage.setItem('offerCar', JSON.stringify(car));
+    const returnUrl = `${location.origin}/?offer_success={CHECKOUT_SESSION_ID}&car=${encodeURIComponent(carId)}`;
+    const sessionRes = await fetch('/api/stripe/embedded-checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId: offerPriceId, returnUrl })
+    });
+    const sessionData = await sessionRes.json();
+    if (!sessionData.clientSecret) throw new Error('No client secret');
+    // Hide paywall modal, show Stripe modal
+    closeModal('offer-pay-overlay');
+    const stripeModal = document.getElementById('offer-stripe-modal');
+    stripeModal.style.display = 'flex';
+    // Mount embedded checkout
+    const stripe = Stripe(publishableKey);
+    if (_offerStripeInstance) { _offerStripeInstance.destroy(); _offerStripeInstance = null; }
+    _offerStripeInstance = await stripe.initEmbeddedCheckout({
+      fetchClientSecret: () => Promise.resolve(sessionData.clientSecret),
+    });
+    const container = document.getElementById('offer-stripe-checkout-container');
+    container.innerHTML = '';
+    const mountDiv = document.createElement('div');
+    mountDiv.id = 'offer-stripe-mount';
+    container.appendChild(mountDiv);
+    _offerStripeInstance.mount('#offer-stripe-mount');
   } catch(e) {
     btn.disabled = false;
-    btn.textContent = origText;
+    btn.innerHTML = origHTML;
   }
+}
+
+function closeOfferStripeModal() {
+  const modal = document.getElementById('offer-stripe-modal');
+  if (modal) modal.style.display = 'none';
+  if (_offerStripeInstance) { _offerStripeInstance.destroy(); _offerStripeInstance = null; }
+  const loadingHTML = '<div id="offer-stripe-loading" style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;color:var(--ink3);font-size:14px"><svg style="animation:spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>Loading secure checkout...</div>';
+  const container = document.getElementById('offer-stripe-checkout-container');
+  if (container) container.innerHTML = loadingHTML;
 }
 
 function openOfferModal(carId) {
@@ -1951,6 +2016,9 @@ async function sendOfferEmail() {
     if (!res.ok) throw new Error(data.error || 'Send failed');
     label.textContent = 'Sent ✓';
     showToast('Offer sent! Check your inbox for a copy.');
+    _offerUnlocked = false;
+    sessionStorage.removeItem('offerUnlocked');
+    sessionStorage.removeItem('offerCar');
     setTimeout(() => closeModal('email-overlay'), 2000);
   } catch (err) {
     btn.disabled = false;
@@ -1968,7 +2036,7 @@ function copyEmail(){
 }
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeModal('email-overlay');closeModal('offer-overlay');closeModal('detail-overlay');closeModal('verify-overlay');}
+  if(e.key==='Escape'){closeModal('email-overlay');closeModal('offer-overlay');closeModal('detail-overlay');closeModal('verify-overlay');closeModal('offer-pay-overlay');closeOfferStripeModal();}
   const detailOpen = !document.getElementById('detail-overlay').classList.contains('hidden');
   if(detailOpen && galleryPhotos.length > 1){
     if(e.key==='ArrowLeft')  galleryGo(-1);
@@ -1999,15 +2067,17 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   const offerSuccess = urlParams.get('offer_success');
   const offerCarId   = urlParams.get('car');
   if (offerSuccess) {
-    // Strip params from URL immediately so refresh doesn't re-trigger
-    const cleanUrl = location.origin + location.pathname;
-    history.replaceState({}, '', cleanUrl);
-    // Verify payment server-side then unlock
+    history.replaceState({}, '', location.origin + location.pathname);
     fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(offerSuccess)}`)
       .then(r => r.json())
       .then(data => {
         if (data.paid) {
-          localStorage.setItem('offerPaid', 'true');
+          sessionStorage.setItem('offerUnlocked', 'once');
+          // Restore saved car so openOfferModal can find it
+          const savedCar = (() => { try { return JSON.parse(sessionStorage.getItem('offerCar') || 'null'); } catch(e) { return null; } })();
+          if (savedCar && !allCars.find(c => String(c.id) === String(savedCar.id))) {
+            allCars.push(savedCar);
+          }
           if (offerCarId) openOffer(offerCarId);
         }
       })
