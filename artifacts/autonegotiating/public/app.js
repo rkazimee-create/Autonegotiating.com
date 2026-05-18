@@ -1474,6 +1474,21 @@ function checkOfferPaywall(carId) {
   document.body.style.overflow = 'hidden';
 }
 
+function showOfferVerifyStep(carId) {
+  _pendingOfferCarId = carId;
+  const profile = getBuyerProfile();
+  const nameEl  = document.getElementById('buyer-name');
+  const emailEl = document.getElementById('buyer-email');
+  const phoneEl = document.getElementById('buyer-phone');
+  const errEl   = document.getElementById('verify-error');
+  if (nameEl)  nameEl.value  = profile?.name  || '';
+  if (emailEl) emailEl.value = profile?.email || '';
+  if (phoneEl) phoneEl.value = profile?.phone || '';
+  if (errEl)   errEl.style.display = 'none';
+  document.getElementById('verify-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
 function applyOfferPromoCode() {
   const input = document.getElementById('offer-promo-input');
   const btn   = document.getElementById('offer-promo-btn');
@@ -1491,11 +1506,11 @@ function applyOfferPromoCode() {
     btn.disabled = false; btn.textContent = 'Apply';
     if (data.valid) {
       msgEl.style.display = 'block'; msgEl.style.color = 'var(--success)';
-      msgEl.textContent = '✓ Promo applied! Opening offer…';
+      msgEl.textContent = '✓ Promo applied!';
       _offerUnlocked = true;
       setTimeout(() => {
         closeModal('offer-pay-overlay');
-        if (_pendingOfferCarId) { const id = _pendingOfferCarId; _pendingOfferCarId = null; openOfferModal(id); }
+        if (_pendingOfferCarId) { const id = _pendingOfferCarId; _pendingOfferCarId = null; showOfferVerifyStep(id); }
       }, 800);
     } else {
       msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
@@ -2078,7 +2093,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
           if (savedCar && !allCars.find(c => String(c.id) === String(savedCar.id))) {
             allCars.push(savedCar);
           }
-          if (offerCarId) openOffer(offerCarId);
+          if (offerCarId) showOfferVerifyStep(offerCarId);
         }
       })
       .catch(() => {});
