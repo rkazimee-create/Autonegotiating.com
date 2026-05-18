@@ -280,7 +280,13 @@ footer a{color:var(--orange);text-decoration:none}
 
 <nav>
   <a class="logo" href="/">Auto<em>Negotiating</em>.com</a>
-  <a class="back-btn" href="/"> Back to Inventory</a>
+  <div style="display:flex;align-items:center;gap:8px">
+    <a class="back-btn" href="/"> Back to Inventory</a>
+    <a class="nav-intel" href="/trade-intelligence.html" style="font-size:13px;font-weight:500;color:var(--ink2);text-decoration:none;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);display:flex;align-items:center;gap:5px;transition:all 0.15s" onmouseover="this.style.borderColor='var(--orange)';this.style.color='var(--orange)';this.style.background='var(--orange-light)'" onmouseout="this.style.borderColor='';this.style.color='';this.style.background=''">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      Trade Intelligence
+    </a>
+  </div>
 </nav>
 
 <div class="page-wrap">
