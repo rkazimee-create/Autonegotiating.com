@@ -6,8 +6,10 @@ const router: IRouter = Router();
 
 const DEAL_INTEL_METADATA_KEY = "autonegotiating_product";
 const DEAL_INTEL_METADATA_VAL = "deal-intelligence";
+const OFFER_ACCESS_METADATA_VAL = "offer-access";
 
 let cachedDealIntelPriceId: string | null = null;
+let cachedOfferPriceId: string | null = null;
 
 async function ensureDealIntelPrice(): Promise<string> {
   if (cachedDealIntelPriceId) return cachedDealIntelPriceId;
@@ -52,13 +54,53 @@ async function ensureDealIntelPrice(): Promise<string> {
   return priceId;
 }
 
+async function ensureOfferAccessPrice(): Promise<string> {
+  if (cachedOfferPriceId) return cachedOfferPriceId;
+
+  const stripe = await getUncachableStripeClient();
+
+  const products = await stripe.products.search({
+    query: `metadata["${DEAL_INTEL_METADATA_KEY}"]:"${OFFER_ACCESS_METADATA_VAL}"`,
+  });
+
+  let productId: string;
+  let priceId: string | null = null;
+
+  if (products.data.length > 0) {
+    productId = products.data[0].id;
+    const prices = await stripe.prices.list({ product: productId, active: true, limit: 10 });
+    const existing = prices.data.find(p => p.unit_amount === 999 && p.currency === "usd" && p.type === "one_time");
+    if (existing) priceId = existing.id;
+  } else {
+    const product = await stripe.products.create({
+      name: "Offer Submission Access",
+      description: "Verified buyer offer submission — professional offer email sent to the dealer's internet sales team on your behalf. One-time purchase, never expires.",
+      metadata: { [DEAL_INTEL_METADATA_KEY]: OFFER_ACCESS_METADATA_VAL },
+    });
+    productId = product.id;
+  }
+
+  if (!priceId) {
+    const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: 999,
+      currency: "usd",
+    });
+    priceId = price.id;
+  }
+
+  cachedOfferPriceId = priceId;
+  return priceId;
+}
+
 router.get("/stripe/config", async (req, res) => {
   try {
-    const [publishableKey, priceId] = await Promise.all([
+    const [publishableKey, priceId, offerPriceId] = await Promise.all([
       getStripePublishableKey(),
       ensureDealIntelPrice(),
+      ensureOfferAccessPrice(),
     ]);
-    res.json({ publishableKey, priceId });
+    res.json({ publishableKey, priceId, offerPriceId });
   } catch (err: any) {
     req.log.error({ err }, "Failed to get Stripe config");
     res.status(500).json({ error: "Stripe not configured" });
