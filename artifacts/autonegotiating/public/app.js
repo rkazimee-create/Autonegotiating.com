@@ -112,6 +112,7 @@ function normalizeListing(l, idx) {
     drivetrain:  l.drivetrain || '',
     fuel:        l.fuelType || '',
     bodyStyle:   l.bodyStyle || l.bodyType || '',
+    listingUrl:     l.vdpUrl || l.clickoffUrl || null,
     carfaxUrl:      l.vin ? `https://www.carfax.com/VehicleHistory/p/Report.cfx?partner=DEY_0&vin=${l.vin}` : (l.carfaxUrl || null),
     history:        l.history   || null,
     recentPriceDrop: l.recentPriceDrop === true,
@@ -1051,6 +1052,17 @@ async function openDetail(carId) {
       </a>
     </div>` : '';
   document.getElementById('detail-dealer-rows').innerHTML = dealerRows + historyBtns;
+
+  // View Listing button
+  const listingBtn = document.getElementById('btn-detail-listing');
+  if (listingBtn) {
+    if (detailCar.listingUrl) {
+      listingBtn.href = detailCar.listingUrl;
+      listingBtn.style.display = '';
+    } else {
+      listingBtn.style.display = 'none';
+    }
+  }
 
   // Wire up Deal Intelligence button with car data
   const intelBtn = document.getElementById('btn-detail-intel');
