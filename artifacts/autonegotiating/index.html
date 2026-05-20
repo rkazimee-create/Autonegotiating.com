@@ -938,10 +938,9 @@ footer a{color:var(--orange);text-decoration:none}
 async function initClerk() {
   try {
     await window.Clerk.load({
-      routerPush:    (to) => { window.location.href = to; },
-      routerReplace: (to) => { window.location.replace(to); },
-      afterSignInUrl: '/',
-      afterSignUpUrl: '/',
+      routerPush:         (to) => { window.location.href = to; },
+      routerReplace:      (to) => { window.location.replace(to); },
+      fallbackRedirectUrl: '/',
     });
 
     const btn    = document.getElementById("auth-btn");
