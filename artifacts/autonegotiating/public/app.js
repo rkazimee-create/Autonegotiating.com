@@ -112,7 +112,7 @@ function normalizeListing(l, idx) {
     drivetrain:  l.drivetrain || '',
     fuel:        l.fuelType || '',
     bodyStyle:   l.bodyStyle || l.bodyType || '',
-    listingUrl:     l.vdpUrl || l.clickoffUrl || null,
+    listingUrl:     l.vdpUrl ? 'https://auto.dev' + l.vdpUrl : (l.clickoffUrl || null),
     carfaxUrl:      l.vin ? `https://www.carfax.com/VehicleHistory/p/Report.cfx?partner=DEY_0&vin=${l.vin}` : (l.carfaxUrl || null),
     history:        l.history   || null,
     recentPriceDrop: l.recentPriceDrop === true,
