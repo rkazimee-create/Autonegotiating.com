@@ -932,45 +932,51 @@ footer a{color:var(--orange);text-decoration:none}
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js" crossorigin="anonymous"></script>
-<script src="/app.js?v=20260520a"></script>
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_test_b3B0aW1hbC11bmljb3JuLTMyLmNsZXJrLmFjY291bnRzLmRldiQ"
+  src="https://optimal-unicorn-32.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+  onload="initClerk()"
+  onerror="document.getElementById('auth-btn').style.display='flex'"
+></script>
+<script src="/app.js?v=20260520c"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────
-(async function initClerk() {
-  const pk = "pk_test_b3B0aW1hbC11bmljb3JuLTMyLmNsZXJrLmFjY291bnRzLmRldiQ";
-  if (!window.Clerk) return;
-  await window.Clerk.load({ publishableKey: pk });
+async function initClerk() {
+  try {
+    await window.Clerk.load();
 
-  const btn = document.getElementById("auth-btn");
-  const avatar = document.getElementById("auth-avatar");
+    const btn    = document.getElementById("auth-btn");
+    const avatar = document.getElementById("auth-avatar");
 
-  function renderAuth() {
-    const user = window.Clerk.user;
-    if (user) {
-      // Logged in — show avatar or initials
-      const img = user.imageUrl;
-      const initials = ((user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "")).toUpperCase() || user.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() || "?";
-      if (img) {
-        avatar.innerHTML = `<img src="${img}" alt="Profile" style="width:30px;height:30px;border-radius:50%;object-fit:cover;cursor:pointer" id="clerk-avatar-img">`;
+    function renderAuth() {
+      const user = window.Clerk.user;
+      if (user) {
+        const img      = user.imageUrl;
+        const initials = ((user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "")).toUpperCase()
+                         || user.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() || "?";
+        avatar.innerHTML = img
+          ? `<img src="${img}" alt="Profile" style="width:30px;height:30px;border-radius:50%;object-fit:cover;cursor:pointer">`
+          : `<span style="width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer">${initials}</span>`;
+        btn.style.display    = "none";
+        avatar.style.display = "flex";
+        avatar.onclick       = () => window.Clerk.openUserProfile();
+        window.dispatchEvent(new CustomEvent("clerk:signed-in", { detail: { user } }));
       } else {
-        avatar.innerHTML = `<span style="width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer">${initials}</span>`;
+        btn.style.display    = "flex";
+        avatar.style.display = "none";
+        btn.onclick          = () => window.Clerk.openSignIn();
       }
-      btn.style.display = "none";
-      avatar.style.display = "flex";
-      avatar.onclick = () => window.Clerk.openUserProfile();
-
-      // Notify app.js that user is signed in
-      window.dispatchEvent(new CustomEvent("clerk:signed-in", { detail: { user } }));
-    } else {
-      btn.style.display = "flex";
-      avatar.style.display = "none";
-      btn.onclick = () => window.Clerk.openSignIn({ afterSignInUrl: window.location.href, afterSignUpUrl: window.location.href });
     }
-  }
 
-  renderAuth();
-  window.Clerk.addListener(renderAuth);
-})();
+    renderAuth();
+    window.Clerk.addListener(renderAuth);
+  } catch(err) {
+    document.getElementById("auth-btn").style.display = "flex";
+    console.warn("[Clerk] init failed:", err);
+  }
+}
 </script>
 </body>
 </html>
