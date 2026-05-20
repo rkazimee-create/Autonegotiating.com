@@ -127,16 +127,26 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .search-btn:hover:not(:disabled){background:var(--orange-dark)}
 .search-btn:disabled{opacity:0.5;cursor:not-allowed}
 
-/* Recent searches */
-.recent-bar{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
-.rs-lbl{font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:0.3px;white-space:nowrap}
-.rs-chips{display:flex;gap:6px;flex-wrap:wrap}
-.rs-chip{background:rgba(0,0,0,0.04);border:1px solid var(--border2);color:var(--ink2);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:5px}
-.rs-chip:hover{background:var(--orange-light);color:var(--orange);border-color:var(--orange)}
-.rs-chip-x{opacity:0.5;font-size:13px;line-height:1;margin-left:2px}
-.rs-chip-x:hover{opacity:1}
 .filter-pill{background:transparent;border:1px solid var(--border2);color:var(--ink2);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:5px 14px;border-radius:20px;cursor:pointer;transition:all 0.15s}
 .filter-pill:hover,.filter-pill.active{background:var(--orange);color:white;border-color:var(--orange)}
+/* Recent search previews */
+#recent-previews{background:var(--white);border-bottom:1px solid var(--border);padding:1.25rem 2rem}
+.rp-header{display:flex;align-items:center;justify-content:space-between;max-width:1280px;margin:0 auto 0.9rem}
+.rp-title{font-size:13px;font-weight:600;color:var(--ink3);letter-spacing:0.4px;text-transform:uppercase}
+.rp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;max-width:1280px;margin:0 auto}
+.rp-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all 0.18s;position:relative}
+.rp-card:hover{border-color:var(--orange);box-shadow:0 4px 16px rgba(0,0,0,0.1);transform:translateY(-2px)}
+.rp-img-wrap{width:100%;height:110px;overflow:hidden;background:#eee;position:relative;display:flex;align-items:center;justify-content:center}
+.rp-collage{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%}
+.rp-collage img{width:100%;height:100%;object-fit:cover;display:block}
+.rp-single-img{width:100%;height:100%;object-fit:cover;display:block}
+.rp-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:36px;background:#f0ede8}
+.rp-info{padding:8px 10px 10px}
+.rp-label{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:3px}
+.rp-meta{font-size:11px;color:var(--ink3)}
+.rp-remove{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.45);color:white;border:none;border-radius:50%;width:20px;height:20px;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s}
+.rp-card:hover .rp-remove{opacity:1}
+@media(max-width:600px){#recent-previews{padding:1rem};.rp-grid{grid-template-columns:repeat(2,1fr)}}
 main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.5rem}
 .stat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem}
@@ -560,11 +570,14 @@ footer a{color:var(--orange);text-decoration:none}
       </div>
     </div>
 
-    <div class="recent-bar" id="recent-bar" style="display:none">
-      <span class="rs-lbl">Recent:</span>
-      <div class="rs-chips" id="rs-chips"></div>
-    </div>
   </div>
+</div>
+
+<div id="recent-previews" style="display:none">
+  <div class="rp-header">
+    <span class="rp-title">Recent Searches</span>
+  </div>
+  <div class="rp-grid"></div>
 </div>
 
 <main>
