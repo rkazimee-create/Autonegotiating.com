@@ -622,7 +622,7 @@ async function runSearch(page = 1, forceParams = {}) {
   if (fuel)      params['fuelType']  = fuel;
   if (drive)     params['driveType'] = drive;
 
-  saveRecentSearch(make, model, trim, condition, zip, bodyStyle);
+  saveRecentSearch(make, model, trim, condition, zip, radius, bodyStyle);
 
   setLoading(true);
 
@@ -1687,7 +1687,7 @@ function toggleMoreFilters() {
 const RS_KEY = 'recentSearches';
 const RS_MAX = 6;
 
-function saveRecentSearch(make, model, trim, condition, zip, body) {
+function saveRecentSearch(make, model, trim, condition, zip, radius, body) {
   if (!make && !model && !body) return; // don't save blank searches
   const label = [
     make || 'Any Make',
@@ -1697,13 +1697,33 @@ function saveRecentSearch(make, model, trim, condition, zip, body) {
     body || ''
   ].filter(Boolean).join(' ');
   // Save without images first — images are patched in after results load
-  const entry = { make, model, trim, condition, zip, body, label, ts: Date.now(), imgs: [] };
+  const entry = { make, model, trim, condition, zip, radius, body, label, ts: Date.now(), imgs: [] };
   let list = loadRecentSearches();
   list = list.filter(r => r.label !== label); // dedupe
   list.unshift(entry);
   list = list.slice(0, RS_MAX);
   try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
   renderRecentPreviews();
+  // Persist to DB if signed in
+  if (window.Clerk?.user) {
+    window.Clerk.session.getToken().then(token => {
+      const user = window.Clerk.user;
+      return fetch('/api/user/searches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ make, model, trim, condition, zip, radius, body, label,
+          email: user.primaryEmailAddress?.emailAddress,
+          name: user.fullName })
+      }).then(r => r.ok ? r.json() : null).then(row => {
+        if (row?.id) {
+          // Backfill DB id into localStorage entry
+          let ls = loadRecentSearches();
+          if (ls[0] && ls[0].label === label) { ls[0]._dbId = row.id; }
+          try { localStorage.setItem(RS_KEY, JSON.stringify(ls)); } catch(_) {}
+        }
+      });
+    }).catch(() => {});
+  }
 }
 
 function patchRecentSearchImages(cars) {
@@ -1714,6 +1734,17 @@ function patchRecentSearchImages(cars) {
   list[0] = { ...list[0], imgs }; // update the most recent entry
   try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
   renderRecentPreviews();
+  // Patch images in DB if signed in
+  if (window.Clerk?.user && list[0]._dbId) {
+    const dbId = list[0]._dbId;
+    window.Clerk.session.getToken().then(token => {
+      fetch(`/api/user/searches/${dbId}/images`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ imgs })
+      }).catch(() => {});
+    }).catch(() => {});
+  }
 }
 
 function loadRecentSearches() {
@@ -1729,6 +1760,10 @@ function applyRecentSearch(idx) {
   const condEl = document.getElementById('search-condition');
   const zipEl  = document.getElementById('search-zip');
   if (r.zip) zipEl.value = r.zip;
+  if (r.radius) {
+    const radiusEl = document.getElementById('search-radius');
+    if (radiusEl) radiusEl.value = r.radius;
+  }
   if (condEl) condEl.value = r.condition || '';
   // sync cond tab
   document.querySelectorAll('.cond-tab').forEach(t => {
@@ -1803,9 +1838,19 @@ function renderRecentPreviews() {
 function removeRecentPreview(e, idx) {
   e.stopPropagation();
   let list = loadRecentSearches();
+  const removed = list[idx];
   list.splice(idx, 1);
   try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
   renderRecentPreviews();
+  // Remove from DB if signed in and we have a DB id
+  if (window.Clerk?.user && removed?._dbId) {
+    window.Clerk.session.getToken().then(token => {
+      fetch(`/api/user/searches/${removed._dbId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    }).catch(() => {});
+  }
 }
 
 // ── Card carousel ─────────────────────────────────────────────────────────────
@@ -2184,4 +2229,68 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
     runSearch(1, { make: makeParam, model: modelParam || '' });
   }
+
+  // ── Clerk: sync user data when signed in ──────────────────────────────────
+  window.addEventListener('clerk:signed-in', async (e) => {
+    try {
+      const token = await window.Clerk.session.getToken();
+      // Fetch saved searches from DB and merge into localStorage
+      const res = await fetch('/api/user/searches', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const dbSearches = await res.json();
+        if (dbSearches.length) {
+          // DB is source of truth when logged in — replace localStorage
+          const merged = dbSearches.map(r => ({
+            make: r.make, model: r.model, trim: r.trim,
+            condition: r.condition, zip: r.zip, radius: r.radius,
+            body: r.body, label: r.label, ts: new Date(r.createdAt).getTime(),
+            imgs: Array.isArray(r.imgs) ? r.imgs : [],
+            _dbId: r.id
+          }));
+          try { localStorage.setItem(RS_KEY, JSON.stringify(merged)); } catch(_) {}
+          renderRecentPreviews();
+        } else {
+          // No DB records yet — push local searches to DB
+          const localSearches = loadRecentSearches();
+          for (const s of localSearches.slice().reverse()) {
+            const t = await window.Clerk.session.getToken();
+            await fetch('/api/user/searches', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+              body: JSON.stringify({ ...s, email: e.detail?.user?.primaryEmailAddress?.emailAddress, name: e.detail?.user?.fullName })
+            }).catch(() => {});
+          }
+          // Re-fetch to get IDs
+          const res2 = await fetch('/api/user/searches', { headers: { Authorization: `Bearer ${await window.Clerk.session.getToken()}` } });
+          if (res2.ok) {
+            const rows = await res2.json();
+            const merged = rows.map(r => ({
+              make: r.make, model: r.model, trim: r.trim,
+              condition: r.condition, zip: r.zip, radius: r.radius,
+              body: r.body, label: r.label, ts: new Date(r.createdAt).getTime(),
+              imgs: Array.isArray(r.imgs) ? r.imgs : [],
+              _dbId: r.id
+            }));
+            try { localStorage.setItem(RS_KEY, JSON.stringify(merged)); } catch(_) {}
+            renderRecentPreviews();
+          }
+        }
+      }
+
+      // Sync buyer profile to/from DB
+      const profRes = await fetch('/api/user/profile', {
+        headers: { Authorization: `Bearer ${await window.Clerk.session.getToken()}` }
+      });
+      if (profRes.ok) {
+        const dbProfile = await profRes.json();
+        if (dbProfile && dbProfile.email) {
+          try { localStorage.setItem('buyerProfile', JSON.stringify(dbProfile)); } catch(_) {}
+        }
+      }
+    } catch (err) {
+      console.warn('[Clerk sync]', err);
+    }
+  });
 })();
