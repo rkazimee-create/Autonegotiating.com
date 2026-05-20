@@ -622,9 +622,10 @@ async function runSearch(page = 1, forceParams = {}) {
   if (fuel)      params['fuelType']  = fuel;
   if (drive)     params['driveType'] = drive;
 
-  saveRecentSearch(make, model, condition, zip, bodyStyle);
+  saveRecentSearch(make, model, trim, condition, zip, bodyStyle);
 
   setLoading(true);
+
   clearError();
 
   try {
@@ -717,6 +718,7 @@ async function runSearch(page = 1, forceParams = {}) {
       computeDealRatings(normalized);
 
       allCars = normalized;
+      patchRecentSearchImages(allCars);
       isLiveData = true;
       populateYearFilters(allCars);
       const badge = document.getElementById('api-status-badge');
@@ -1685,34 +1687,39 @@ function toggleMoreFilters() {
 const RS_KEY = 'recentSearches';
 const RS_MAX = 6;
 
-function saveRecentSearch(make, model, condition, zip, body) {
+function saveRecentSearch(make, model, trim, condition, zip, body) {
   if (!make && !model && !body) return; // don't save blank searches
   const label = [
     make || 'Any Make',
     model || '',
+    trim || '',
     condition ? ({new:'New',used:'Used',certified:'CPO'}[condition] || condition) : '',
     body || ''
   ].filter(Boolean).join(' ');
-  const entry = { make, model, condition, zip, body, label, ts: Date.now() };
+  // Save without images first — images are patched in after results load
+  const entry = { make, model, trim, condition, zip, body, label, ts: Date.now(), imgs: [] };
   let list = loadRecentSearches();
   list = list.filter(r => r.label !== label); // dedupe
   list.unshift(entry);
   list = list.slice(0, RS_MAX);
   try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
-  renderRecentSearches();
+  renderRecentPreviews();
+}
+
+function patchRecentSearchImages(cars) {
+  const imgs = (cars || []).slice(0, 4).map(c => c.img).filter(Boolean);
+  if (!imgs.length) return;
+  let list = loadRecentSearches();
+  if (!list.length) return;
+  list[0] = { ...list[0], imgs }; // update the most recent entry
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentPreviews();
 }
 
 function loadRecentSearches() {
   try { return JSON.parse(localStorage.getItem(RS_KEY) || '[]'); } catch(e) { return []; }
 }
 
-function removeRecentSearch(e, idx) {
-  e.stopPropagation();
-  let list = loadRecentSearches();
-  list.splice(idx, 1);
-  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
-  renderRecentSearches();
-}
 
 function applyRecentSearch(idx) {
   const list = loadRecentSearches();
@@ -1734,7 +1741,10 @@ function applyRecentSearch(idx) {
   }
   setTimeout(() => {
     const modelEl = document.getElementById('search-model');
-    if (modelEl && r.model) modelEl.value = r.model;
+    if (modelEl && r.model) {
+      modelEl.value = r.model;
+      modelEl.dispatchEvent(new Event('change')); // triggers trim population
+    }
     if (r.body) {
       document.getElementById('search-body').value = r.body;
       document.querySelectorAll('.bs-pill').forEach(p => {
@@ -1742,22 +1752,60 @@ function applyRecentSearch(idx) {
         p.classList.toggle('active', v === r.body);
       });
     }
-    runSearch();
+    if (r.trim) {
+      // Trim options load async — wait for them before setting the value
+      setTimeout(() => {
+        const trimEl = document.getElementById('search-trim');
+        if (trimEl) trimEl.value = r.trim;
+        runSearch();
+      }, 600);
+    } else {
+      runSearch();
+    }
   }, 150);
 }
 
-function renderRecentSearches() {
-  const bar = document.getElementById('recent-bar');
-  const chips = document.getElementById('rs-chips');
-  if (!bar || !chips) return;
+
+function renderRecentPreviews() {
+  const section = document.getElementById('recent-previews');
+  if (!section) return;
   const list = loadRecentSearches();
-  if (!list.length) { bar.style.display = 'none'; return; }
-  bar.style.display = 'flex';
-  chips.innerHTML = list.map((r, i) => `
-    <button class="rs-chip" onclick="applyRecentSearch(${i})">
-      ${escHtml(r.label)}
-      <span class="rs-chip-x" onclick="removeRecentSearch(event,${i})" title="Remove">×</span>
-    </button>`).join('');
+  if (!list.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const cards = list.map((r, i) => {
+    const imgs = r.imgs || [];
+    // Build a 2x2 photo collage if we have multiple images, otherwise single image
+    let photoHtml;
+    if (imgs.length >= 4) {
+      photoHtml = `<div class="rp-collage">
+        ${imgs.slice(0,4).map(url => `<img src="${escHtml(url)}" alt="" loading="lazy" onerror="this.style.display='none'">`).join('')}
+      </div>`;
+    } else if (imgs.length >= 1) {
+      photoHtml = `<img class="rp-single-img" src="${escHtml(imgs[0])}" alt="" loading="lazy" onerror="this.parentElement.querySelector('.rp-placeholder').style.display='flex';this.style.display='none'">
+        <div class="rp-placeholder" style="display:none">🚗</div>`;
+    } else {
+      photoHtml = `<div class="rp-placeholder">🚗</div>`;
+    }
+    const condLabel = r.condition ? ({new:'New',used:'Used',certified:'CPO'}[r.condition] || r.condition) : 'All';
+    return `
+      <div class="rp-card" onclick="applyRecentSearch(${i})">
+        <div class="rp-img-wrap">${photoHtml}</div>
+        <div class="rp-info">
+          <div class="rp-label">${escHtml(r.label)}</div>
+          <div class="rp-meta">${escHtml(condLabel)}${r.zip ? ' · ' + escHtml(r.zip) : ''}</div>
+        </div>
+        <button class="rp-remove" onclick="removeRecentPreview(event,${i})" title="Remove">×</button>
+      </div>`;
+  }).join('');
+  section.querySelector('.rp-grid').innerHTML = cards;
+}
+
+function removeRecentPreview(e, idx) {
+  e.stopPropagation();
+  let list = loadRecentSearches();
+  list.splice(idx, 1);
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentPreviews();
 }
 
 // ── Card carousel ─────────────────────────────────────────────────────────────
@@ -2087,7 +2135,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   const modelEl = document.getElementById('search-model');
   if (modelEl) modelEl.addEventListener('change', populateTrims);
 
-  renderRecentSearches();
+  renderRecentPreviews();
 
   // Handle Stripe offer payment return
   const urlParams = new URLSearchParams(window.location.search);
