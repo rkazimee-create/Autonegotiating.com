@@ -69,6 +69,8 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .nav-links{display:flex;align-items:center;gap:8px}
 .nav-intel{font-size:13px;font-weight:500;color:var(--ink2);text-decoration:none;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);transition:all 0.15s;display:flex;align-items:center;gap:5px}
 .nav-intel:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-light)}
+.nav-auth-btn{font-size:13px;font-weight:500;color:var(--white);background:var(--orange);border:none;padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:5px;transition:background 0.15s}
+.nav-auth-btn:hover{background:var(--orange-dark)}
 .live-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:0.3px}
 .live-badge.live{background:var(--orange-light);color:var(--orange)}
 .live-badge.demo{background:var(--warning-light);color:var(--warning)}
@@ -450,6 +452,11 @@ footer a{color:var(--orange);text-decoration:none}
       <span>Trade Intelligence</span>
     </a>
     <span class="live-badge" id="api-status-badge" style="display:none"></span>
+    <button id="auth-btn" class="nav-auth-btn" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Sign In
+    </button>
+    <div id="auth-avatar" style="display:none;align-items:center;cursor:pointer"></div>
   </div>
 </nav>
 
@@ -925,6 +932,51 @@ footer a{color:var(--orange);text-decoration:none}
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="/app.js?v=20260518c"></script>
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_test_b3B0aW1hbC11bmljb3JuLTMyLmNsZXJrLmFjY291bnRzLmRldiQ"
+  src="https://optimal-unicorn-32.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+  onload="initClerk()"
+  onerror="document.getElementById('auth-btn').style.display='flex'"
+></script>
+<script src="/app.js?v=20260520c"></script>
+<script>
+// ── Clerk Auth Init ──────────────────────────────────────────────────────────
+async function initClerk() {
+  try {
+    await window.Clerk.load();
+
+    const btn    = document.getElementById("auth-btn");
+    const avatar = document.getElementById("auth-avatar");
+
+    function renderAuth() {
+      const user = window.Clerk.user;
+      if (user) {
+        const img      = user.imageUrl;
+        const initials = ((user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "")).toUpperCase()
+                         || user.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() || "?";
+        avatar.innerHTML = img
+          ? `<img src="${img}" alt="Profile" style="width:30px;height:30px;border-radius:50%;object-fit:cover;cursor:pointer">`
+          : `<span style="width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer">${initials}</span>`;
+        btn.style.display    = "none";
+        avatar.style.display = "flex";
+        avatar.onclick       = () => window.Clerk.openUserProfile();
+        window.dispatchEvent(new CustomEvent("clerk:signed-in", { detail: { user } }));
+      } else {
+        btn.style.display    = "flex";
+        avatar.style.display = "none";
+        btn.onclick          = () => window.Clerk.openSignIn();
+      }
+    }
+
+    renderAuth();
+    window.Clerk.addListener(renderAuth);
+  } catch(err) {
+    document.getElementById("auth-btn").style.display = "flex";
+    console.warn("[Clerk] init failed:", err);
+  }
+}
+</script>
 </body>
 </html>
