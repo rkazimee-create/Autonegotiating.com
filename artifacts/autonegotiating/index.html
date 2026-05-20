@@ -937,7 +937,12 @@ footer a{color:var(--orange);text-decoration:none}
 // Must be defined BEFORE the Clerk <script> tag fires its onload
 async function initClerk() {
   try {
-    await window.Clerk.load();
+    await window.Clerk.load({
+      routerPush:    (to) => { window.location.href = to; },
+      routerReplace: (to) => { window.location.replace(to); },
+      afterSignInUrl: '/',
+      afterSignUpUrl: '/',
+    });
 
     const btn    = document.getElementById("auth-btn");
     const avatar = document.getElementById("auth-avatar");
