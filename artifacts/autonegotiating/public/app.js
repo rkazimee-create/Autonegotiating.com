@@ -1,6 +1,11 @@
 // AutoNegotiating.com  app.js
 
-//  STATE 
+// Shared "no image" placeholder — used everywhere a photo is unavailable
+const NO_IMG_SM  = `<span class="rp-ph-logo">Auto<em>Negotiating</em>.com</span><span class="rp-ph-sub">Image not available</span>`;
+const NO_IMG_MD  = `<span style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ink3);letter-spacing:-0.2px">Auto<em style="color:var(--orange);font-style:normal">Negotiating</em>.com</span><span style="font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:0.3px;text-transform:uppercase;opacity:0.7">Image not available</span>`;
+const NO_IMG_LG  = `<span class="ph-logo">Auto<em>Negotiating</em>.com</span><span class="ph-sub">Image not available</span>`;
+
+//  STATE
 let allCars = [];
 let filteredCars = [];
 let currentCar = null;
@@ -914,7 +919,7 @@ function renderGrid() {
     const cid = escHtml(JSON.stringify(String(car.id)));
     let carouselHtml;
     if (photos.length === 0) {
-      carouselHtml = `<div class="car-emoji-ph">${car.emoji}</div>`;
+      carouselHtml = `<div class="car-emoji-ph">${NO_IMG_MD}</div>`;
     } else {
       const imgs = photos.map((url, i) =>
         `<img src="${escHtml(url)}" alt="${escHtml(car.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:${i===0?1:0};transition:opacity 0.25s" onerror="this.style.display='none'">`
@@ -940,9 +945,11 @@ function renderGrid() {
     return `
     <div class="car-card${isSelected?' selected':''}" onclick="openDetail(${cid})">
       <div class="car-img" style="overflow:hidden">
-        <label class="card-select-wrap" onclick="event.stopPropagation()">
-          <input type="checkbox" data-id="${escHtml(String(car.id))}" ${isSelected?'checked':''} onchange="toggleSelect(event,'${escHtml(String(car.id))}')">
-        </label>
+        <div class="card-select-wrap" onclick="event.stopPropagation()">
+          <button class="card-heart-btn${isSelected?' selected':''}" data-id="${escHtml(String(car.id))}" onclick="toggleSelect(event,'${escHtml(String(car.id))}')" title="${isSelected?'Remove from selection':'Add to selection'}">
+            ${isSelected ? '♥' : '♡'}
+          </button>
+        </div>
         ${carouselHtml}${daysBadge}${dropBadge}
       </div>
       <div class="car-body">
@@ -1012,7 +1019,7 @@ async function openDetail(carId) {
   if (!detailCar) return;
 
   // Reset modal
-  document.getElementById('gallery-main').innerHTML = '<div class="no-img"></div>';
+  document.getElementById('gallery-main').innerHTML = `<div class="no-img">${NO_IMG_LG}</div>`;
   document.getElementById('gallery-thumbs').innerHTML = '';
   document.getElementById('detail-title').textContent = `${detailCar.year} ${detailCar.name}`;
   document.getElementById('detail-subtitle').textContent = [detailCar.trim, detailCar.dealer, detailCar.dealerCity].filter(Boolean).join('  ');
@@ -1824,9 +1831,9 @@ function renderRecentPreviews() {
       </div>`;
     } else if (imgs.length >= 1) {
       photoHtml = `<img class="rp-single-img" src="${escHtml(imgs[0])}" alt="" loading="lazy" onerror="this.parentElement.querySelector('.rp-placeholder').style.display='flex';this.style.display='none'">
-        <div class="rp-placeholder" style="display:none">🚗</div>`;
+        <div class="rp-placeholder" style="display:none"><span class="rp-ph-logo">Auto<em>Negotiating</em>.com</span><span class="rp-ph-sub">Image not available</span></div>`;
     } else {
-      photoHtml = `<div class="rp-placeholder">🚗</div>`;
+      photoHtml = `<div class="rp-placeholder"><span class="rp-ph-logo">Auto<em>Negotiating</em>.com</span><span class="rp-ph-sub">Image not available</span></div>`;
     }
     const condLabel = r.condition ? ({new:'New',used:'Used',certified:'CPO'}[r.condition] || r.condition) : 'All';
     return `
@@ -2237,6 +2244,126 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
     runSearch(1, { make: makeParam, model: modelParam || '' });
   }
 
+  // ── Saved vehicles & offer history ───────────────────────────────────────
+  window.openSavedVehicles = async function() {
+    if (typeof closeProfileMenu === 'function') closeProfileMenu();
+    const overlay = document.getElementById('saved-overlay');
+    const body    = document.getElementById('saved-modal-body');
+    overlay.classList.remove('hidden');
+    body.innerHTML = '<div class="saved-empty"><p>Loading...</p></div>';
+
+    if (!window.Clerk?.user) {
+      body.innerHTML = '<div class="saved-empty"><p>Sign in to view saved vehicles.</p></div>';
+      return;
+    }
+    try {
+      const token = await window.Clerk.session.getToken();
+      const res   = await fetch('/api/user/favorites', { headers: { Authorization: `Bearer ${token}` } });
+      const rows  = res.ok ? await res.json() : [];
+
+      if (!rows.length) {
+        body.innerHTML = '<div class="saved-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.25"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><p>No saved vehicles yet.<br>Heart a listing to save it.</p></div>';
+        return;
+      }
+
+      const cards = rows.map(row => {
+        const d   = row.listingData || {};
+        const img = d.img || (Array.isArray(d.allPhotos) && d.allPhotos[0]) || null;
+        const name  = escHtml(d.year ? `${d.year} ${d.name||''}` : (d.name||'Vehicle'));
+        const trim  = escHtml(d.trim || '');
+        const price = d.msrp ? fmt(d.msrp) : 'Call for Price';
+        const dealer = escHtml(d.dealer || '');
+        const city   = escHtml(d.dealerCity || '');
+        const vin    = row.vin || '';
+        // Use a wrapper div so onerror can toggle visibility without quote conflicts
+        return `
+          <div class="saved-card">
+            <div class="saved-card-img-wrap">
+              ${img ? `<img class="saved-card-img" src="${escHtml(img)}" alt="${name}" onerror="this.style.display='none';this.parentElement.querySelector('.saved-card-img-ph').style.display='flex'">` : ''}
+              <div class="saved-card-img-ph" style="${img ? 'display:none' : 'display:flex'}">${NO_IMG_MD}</div>
+            </div>
+            <div class="saved-card-body">
+              <div class="saved-card-name">${name}</div>
+              <div class="saved-card-trim">${trim}</div>
+              <div class="saved-card-price">${price}</div>
+              <div class="saved-card-meta">${dealer}${city ? ' · '+city : ''}</div>
+              <div class="saved-card-actions">
+                <button class="saved-card-offer" onclick="openOfferFromSaved('${escHtml(vin)}')">✉ Offer</button>
+                <button class="saved-card-remove" onclick="removeSaved('${escHtml(vin)}',this)">Remove</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+      body.innerHTML = `<div class="saved-grid">${cards}</div>`;
+    } catch(e) {
+      body.innerHTML = '<div class="saved-empty"><p>Could not load saved vehicles.</p></div>';
+    }
+  };
+
+  window.removeSaved = async function(vin, btn) {
+    if (!window.Clerk?.user || !vin) return;
+    btn.textContent = '…';
+    btn.disabled = true;
+    try {
+      const token = await window.Clerk.session.getToken();
+      await fetch(`/api/user/favorites/${encodeURIComponent(vin)}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
+      });
+      btn.closest('.saved-card').remove();
+      const grid = document.querySelector('.saved-grid');
+      if (grid && !grid.children.length) {
+        document.getElementById('saved-modal-body').innerHTML =
+          '<div class="saved-empty"><p>No saved vehicles yet.</p></div>';
+      }
+    } catch(e) { btn.textContent = 'Remove'; btn.disabled = false; }
+  };
+
+  window.openOfferFromSaved = function(vin) {
+    document.getElementById('saved-overlay').classList.add('hidden');
+    const car = allCars.find(c => c.vin === vin);
+    if (car) openOffer(String(car.id));
+  };
+
+  window.openOfferHistory = async function() {
+    if (typeof closeProfileMenu === 'function') closeProfileMenu();
+    const overlay = document.getElementById('offers-overlay');
+    const body    = document.getElementById('offers-modal-body');
+    overlay.classList.remove('hidden');
+    body.innerHTML = '<div class="saved-empty"><p>Loading...</p></div>';
+
+    if (!window.Clerk?.user) {
+      body.innerHTML = '<div class="saved-empty"><p>Sign in to view offer history.</p></div>';
+      return;
+    }
+    try {
+      const token = await window.Clerk.session.getToken();
+      const res   = await fetch('/api/user/offers', { headers: { Authorization: `Bearer ${token}` } });
+      const rows  = res.ok ? await res.json() : [];
+
+      if (!rows.length) {
+        body.innerHTML = '<div class="saved-empty"><p>No offers submitted yet.</p></div>';
+        return;
+      }
+
+      const items = rows.map(row => {
+        const date = new Date(row.submittedAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+        return `<div style="padding:14px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--ink)">${escHtml(row.subject||'Offer')}</div>
+              <div style="font-size:12px;color:var(--ink3);margin-top:2px">${escHtml(row.dealerName||'')}${row.dealerEmail?' · '+escHtml(row.dealerEmail):''}</div>
+              ${row.vin ? `<div style="font-size:11px;color:var(--ink3);font-family:monospace;margin-top:2px">VIN: ${escHtml(row.vin)}</div>` : ''}
+            </div>
+            <div style="font-size:11px;color:var(--ink3);white-space:nowrap;flex-shrink:0">${date}</div>
+          </div>
+        </div>`;
+      }).join('');
+      body.innerHTML = `<div style="padding:0 2px">${items}</div>`;
+    } catch(e) {
+      body.innerHTML = '<div class="saved-empty"><p>Could not load offer history.</p></div>';
+    }
+  };
+
   // ── Multi-select ─────────────────────────────────────────────────────────
   window.selectedCars = new Set();
 
@@ -2248,38 +2375,66 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
     } else {
       window.selectedCars.add(id);
     }
-    // Update card border
-    const cards = document.querySelectorAll('.car-card');
-    cards.forEach(card => {
-      const cb = card.querySelector('.card-select-cb input');
-      if (cb) {
-        const cbId = cb.dataset.id;
-        card.classList.toggle('selected', window.selectedCars.has(cbId));
-        cb.checked = window.selectedCars.has(cbId);
+    // Update card border + heart icon
+    document.querySelectorAll('.car-card').forEach(card => {
+      const btn = card.querySelector('.card-heart-btn');
+      if (btn) {
+        const btnId = btn.dataset.id;
+        const sel = window.selectedCars.has(btnId);
+        card.classList.toggle('selected', sel);
+        btn.classList.toggle('selected', sel);
+        btn.innerHTML = sel ? '♥' : '♡';
+        btn.title = sel ? 'Remove from selection' : 'Add to selection';
       }
     });
     renderSelectionBar();
   };
 
   function renderSelectionBar() {
-    const bar = document.getElementById('selection-bar');
-    const cnt = document.getElementById('sel-count');
-    const n = window.selectedCars.size;
-    if (!bar) return;
-    if (n === 0) {
-      bar.classList.remove('visible');
-    } else {
-      cnt.textContent = `${n} vehicle${n > 1 ? 's' : ''} selected`;
-      bar.classList.add('visible');
-    }
+    const bar   = document.getElementById('selection-bar');
+    const chips = document.getElementById('sel-chips');
+    if (!bar || !chips) return;
+    const ids = Array.from(window.selectedCars);
+    if (!ids.length) { bar.classList.remove('visible'); return; }
+
+    chips.innerHTML = ids.map(id => {
+      const car = allCars.find(c => String(c.id) === id);
+      if (!car) return '';
+      const photo = car.allPhotos?.[0] || car.img;
+      const label = `${car.year} ${car.name}`.trim();
+      const imgHtml = photo
+        ? `<img class="sel-chip-img" src="${escHtml(photo)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : '';
+      return `<div class="sel-chip">
+        ${imgHtml}
+        <div class="sel-chip-img-ph" style="${photo ? 'display:none' : 'display:flex'}">🚗</div>
+        <span class="sel-chip-name">${escHtml(label)}</span>
+        <button class="sel-chip-remove" onclick="deselectCar('${escHtml(id)}')" title="Remove">✕</button>
+      </div>`;
+    }).join('');
+
+    bar.classList.add('visible');
   }
+
+  window.deselectCar = function(id) {
+    window.selectedCars.delete(String(id));
+    document.querySelectorAll('.car-card').forEach(card => {
+      const btn = card.querySelector('.card-heart-btn');
+      if (btn && btn.dataset.id === String(id)) {
+        card.classList.remove('selected');
+        btn.classList.remove('selected');
+        btn.innerHTML = '♡';
+      }
+    });
+    renderSelectionBar();
+  };
 
   window.clearSelection = function() {
     window.selectedCars.clear();
     document.querySelectorAll('.car-card').forEach(c => {
       c.classList.remove('selected');
-      const cb = c.querySelector('.card-select-cb input');
-      if (cb) cb.checked = false;
+      const btn = c.querySelector('.card-heart-btn');
+      if (btn) { btn.classList.remove('selected'); btn.innerHTML = '♡'; }
     });
     renderSelectionBar();
   };
@@ -2298,21 +2453,29 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
           const m = {great:'★ Great Deal',good:'✓ Good Deal',fair:'Fair Price',high:'↑ High Price'};
           return c.dealRating ? `<span class="cmp-deal ${c.dealRating}">${m[c.dealRating]||c.dealRating}</span>` : '—';
         }],
-        ['Condition', c => c.condition ? ({new:'New',used:'Used',certified:'CPO'}[c.condition]||c.condition) : '—'],
-        ['Mileage', c => c.mileageRaw ? Number(c.mileageRaw).toLocaleString()+' mi' : '—'],
-        ['Days on lot', c => c.daysOnLot != null ? c.daysOnLot+' days' : '—'],
-        ['Dealer', c => escHtml(c.dealer||'—')],
-        ['Location', c => escHtml(c.dealerCity||'—')],
-        ['VIN', c => c.vin ? `<span style="font-family:monospace;font-size:11px">${escHtml(c.vin)}</span>` : '—'],
+        ['Condition',    c => c.condition ? ({new:'New',used:'Used',certified:'CPO'}[c.condition]||c.condition) : '—'],
+        ['Mileage',      c => c.mileageRaw ? Number(c.mileageRaw).toLocaleString()+' mi' : (c.condition==='new' ? 'New' : '—')],
+        ['Days on lot',  c => c.daysOnLot != null ? c.daysOnLot+' days' : '—'],
+        ['Ext. Color',   c => escHtml(c.color||'—')],
+        ['Body Style',   c => escHtml(c.bodyStyle ? c.bodyStyle.charAt(0).toUpperCase()+c.bodyStyle.slice(1) : '—')],
+        ['Engine',       c => escHtml(c.engine||'—')],
+        ['Transmission', c => escHtml(c.transmission||'—')],
+        ['Drivetrain',   c => escHtml(c.drivetrain||'—')],
+        ['Fuel Type',    c => escHtml(c.fuel||'—')],
+        ['Distance',     c => c.distanceMi != null ? c.distanceMi+' mi away' : '—'],
+        ['Dealer',       c => escHtml(c.dealer||'—')],
+        ['Location',     c => escHtml(c.dealerCity||'—')],
+        ['Stock #',      c => escHtml(c.stock||'—')],
+        ['VIN',          c => c.vin ? `<span style="font-family:monospace;font-size:11px">${escHtml(c.vin)}</span>` : '—'],
       ];
 
-      const thead = `<thead><tr>${cars.map((c,i) => {
+      const thead = `<thead><tr><th style="min-width:110px;border-right:1px solid var(--border)"></th>${cars.map((c,i) => {
         const photo = (c.allPhotos?.[0] || c.img);
         return `<th>
           <button class="cmp-remove" onclick="removeCmpCar(${i})" title="Remove">×</button>
           ${photo
-            ? `<img class="cmp-photo" src="${escHtml(photo)}" alt="${escHtml(c.name)}" onerror="this.style.display='none'">`
-            : `<div class="cmp-photo-ph">${c.emoji||'🚗'}</div>`}
+            ? `<div style="position:relative"><img class="cmp-photo" src="${escHtml(photo)}" alt="${escHtml(c.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="cmp-photo-ph" style="display:none">${NO_IMG_MD}</div></div>`
+            : `<div class="cmp-photo-ph">${NO_IMG_MD}</div>`}
           <div class="cmp-vehicle-head">
             <div class="cmp-name">${escHtml(c.year+' '+c.name)}<br><span style="font-weight:400;color:var(--ink3)">${escHtml(c.trim||'')}</span></div>
             <div class="cmp-price">${c.msrp ? fmt(c.msrp) : 'Price N/A'}</div>
@@ -2347,6 +2510,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
     };
 
     window.cmpSaveCar = function(idx) {
+      if (!window.Clerk?.user) {
+        try { window.Clerk.openSignIn(); } catch(e) {}
+        return;
+      }
       const car = cars[idx];
       if (!car || savedSet.has(String(car.id))) return;
       savedSet.add(String(car.id));
@@ -2360,18 +2527,24 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   };
 
   window.saveAllSelected = function() {
+    if (!window.Clerk?.user) {
+      try { window.Clerk.openSignIn(); } catch(e) {}
+      return;
+    }
     const cars = Array.from(window.selectedCars)
       .map(id => allCars.find(c => String(c.id) === id))
       .filter(Boolean);
     cars.forEach(saveFavorite);
-    const bar = document.getElementById('selection-bar');
-    const cnt = document.getElementById('sel-count');
-    if (cnt) cnt.textContent = `${cars.length} saved ✓`;
+    const chips = document.getElementById('sel-chips');
+    if (chips) chips.querySelectorAll('.sel-chip-name').forEach(el => { el.textContent += ' ✓'; });
     setTimeout(clearSelection, 1500);
   };
 
   function saveFavorite(car) {
-    if (!window.Clerk?.user) return; // must be signed in
+    if (!window.Clerk?.user) {
+      try { window.Clerk.openSignIn(); } catch(e) {}
+      return;
+    }
     window.Clerk.session.getToken().then(token => {
       fetch('/api/user/favorites', {
         method: 'POST',
