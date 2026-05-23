@@ -1774,11 +1774,12 @@ function applyRecentSearch(idx) {
     makeEl.value = r.make || '';
     makeEl.dispatchEvent(new Event('change'));
   }
-  setTimeout(() => {
+  setTimeout(async () => {
     const modelEl = document.getElementById('search-model');
     if (modelEl && r.model) {
       modelEl.value = r.model;
-      modelEl.dispatchEvent(new Event('change')); // triggers trim population
+      // dispatch for any other listeners (e.g. UI state), but don't rely on it for trims
+      modelEl.dispatchEvent(new Event('change'));
     }
     if (r.body) {
       document.getElementById('search-body').value = r.body;
@@ -1788,15 +1789,12 @@ function applyRecentSearch(idx) {
       });
     }
     if (r.trim) {
-      // Trim options load async — wait for them before setting the value
-      setTimeout(() => {
-        const trimEl = document.getElementById('search-trim');
-        if (trimEl) trimEl.value = r.trim;
-        runSearch();
-      }, 600);
-    } else {
-      runSearch();
+      // Directly await populateTrims so we know it's finished before setting the value
+      await populateTrims();
+      const trimEl = document.getElementById('search-trim');
+      if (trimEl) trimEl.value = r.trim;
     }
+    runSearch();
   }, 150);
 }
 
@@ -2178,7 +2176,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   const makeEl = document.getElementById('search-make');
   if (makeEl) makeEl.addEventListener('change', populateModels);
   const modelEl = document.getElementById('search-model');
-  if (modelEl) modelEl.addEventListener('change', populateTrims);
+  if (modelEl) modelEl.addEventListener('change', () => { window._trimsPromise = populateTrims(); });
 
   renderRecentPreviews();
 

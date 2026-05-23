@@ -1,5 +1,5 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import { clerkMiddleware, getAuth } from "@clerk/express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { getAuth } from "@clerk/express";
 import { db, users, buyerProfiles, savedSearches, savedListings, offerHistory } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 
@@ -15,6 +15,13 @@ function requireAuth(req: Request, res: Response): string | null {
   return userId;
 }
 
+// Wrap async route handlers so errors are forwarded to Express error handler with details
+function wrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch(next);
+  };
+}
+
 // Upsert user record from Clerk session
 async function syncUser(clerkId: string, email: string, name?: string) {
   await db
@@ -27,7 +34,7 @@ async function syncUser(clerkId: string, email: string, name?: string) {
 }
 
 // ── Me ───────────────────────────────────────────────────────────────────────
-router.get("/user/me", clerkMiddleware(), async (req, res) => {
+router.get("/user/me", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -38,10 +45,10 @@ router.get("/user/me", clerkMiddleware(), async (req, res) => {
     .limit(1);
 
   res.json({ clerkId, profile: profile ?? null });
-});
+}));
 
 // ── Buyer profile ─────────────────────────────────────────────────────────────
-router.get("/user/profile", clerkMiddleware(), async (req, res) => {
+router.get("/user/profile", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -52,9 +59,9 @@ router.get("/user/profile", clerkMiddleware(), async (req, res) => {
     .limit(1);
 
   res.json(profile ?? {});
-});
+}));
 
-router.put("/user/profile", clerkMiddleware(), async (req, res) => {
+router.put("/user/profile", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -70,10 +77,10 @@ router.put("/user/profile", clerkMiddleware(), async (req, res) => {
     .returning();
 
   res.json(profile);
-});
+}));
 
 // ── Saved searches ────────────────────────────────────────────────────────────
-router.get("/user/searches", clerkMiddleware(), async (req, res) => {
+router.get("/user/searches", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -85,9 +92,9 @@ router.get("/user/searches", clerkMiddleware(), async (req, res) => {
     .limit(6);
 
   res.json(rows);
-});
+}));
 
-router.post("/user/searches", clerkMiddleware(), async (req, res) => {
+router.post("/user/searches", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -103,20 +110,21 @@ router.post("/user/searches", clerkMiddleware(), async (req, res) => {
   // Sync user record
   if (email) await syncUser(clerkId, email, name);
 
-  // Get current list, filter out duplicate label, prepend new entry, keep 6
+  // Get current list, filter out duplicate label, trim to 5 before inserting new
   const existing = await db
     .select()
     .from(savedSearches)
     .where(eq(savedSearches.clerkId, clerkId))
     .orderBy(desc(savedSearches.createdAt));
 
-  const deduped = existing.filter((r: typeof existing[0]) => r.label !== label);
-  const toDelete = deduped.slice(5); // keep only 5 after adding new one
-
-  for (const row of toDelete) {
+  // Delete rows with the same label (dedup)
+  for (const row of existing.filter((r: typeof existing[0]) => r.label === label)) {
     await db.delete(savedSearches).where(eq(savedSearches.id, row.id));
   }
-  for (const row of existing.filter((r: typeof existing[0]) => r.label === label)) {
+
+  // Keep only 5 so there's room for the new entry (max 6 total)
+  const deduped = existing.filter((r: typeof existing[0]) => r.label !== label);
+  for (const row of deduped.slice(5)) {
     await db.delete(savedSearches).where(eq(savedSearches.id, row.id));
   }
 
@@ -126,9 +134,9 @@ router.post("/user/searches", clerkMiddleware(), async (req, res) => {
     .returning();
 
   res.json(inserted);
-});
+}));
 
-router.patch("/user/searches/:id/images", clerkMiddleware(), async (req, res) => {
+router.patch("/user/searches/:id/images", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -142,9 +150,9 @@ router.patch("/user/searches/:id/images", clerkMiddleware(), async (req, res) =>
     .returning();
 
   res.json(updated ?? {});
-});
+}));
 
-router.delete("/user/searches/:id", clerkMiddleware(), async (req, res) => {
+router.delete("/user/searches/:id", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -153,10 +161,10 @@ router.delete("/user/searches/:id", clerkMiddleware(), async (req, res) => {
     .where(eq(savedSearches.id, Number(req.params.id)));
 
   res.json({ success: true });
-});
+}));
 
 // ── Saved listings (favorites) ────────────────────────────────────────────────
-router.get("/user/favorites", clerkMiddleware(), async (req, res) => {
+router.get("/user/favorites", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -167,9 +175,9 @@ router.get("/user/favorites", clerkMiddleware(), async (req, res) => {
     .orderBy(desc(savedListings.savedAt));
 
   res.json(rows);
-});
+}));
 
-router.post("/user/favorites", clerkMiddleware(), async (req, res) => {
+router.post("/user/favorites", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -186,9 +194,9 @@ router.post("/user/favorites", clerkMiddleware(), async (req, res) => {
     .returning();
 
   res.json(row);
-});
+}));
 
-router.delete("/user/favorites/:vin", clerkMiddleware(), async (req, res) => {
+router.delete("/user/favorites/:vin", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -197,10 +205,10 @@ router.delete("/user/favorites/:vin", clerkMiddleware(), async (req, res) => {
     .where(eq(savedListings.vin, req.params.vin));
 
   res.json({ success: true });
-});
+}));
 
 // ── Offer history ──────────────────────────────────────────────────────────────
-router.get("/user/offers", clerkMiddleware(), async (req, res) => {
+router.get("/user/offers", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -211,9 +219,9 @@ router.get("/user/offers", clerkMiddleware(), async (req, res) => {
     .orderBy(desc(offerHistory.submittedAt));
 
   res.json(rows);
-});
+}));
 
-router.post("/user/offers", clerkMiddleware(), async (req, res) => {
+router.post("/user/offers", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
 
@@ -228,6 +236,6 @@ router.post("/user/offers", clerkMiddleware(), async (req, res) => {
     .returning();
 
   res.json(row);
-});
+}));
 
 export default router;
