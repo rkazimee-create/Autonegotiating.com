@@ -175,8 +175,48 @@ main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 .sort-btn.active .sort-arrow{opacity:1}
 .sort-arrow{font-size:10px;opacity:0.6}
 .inventory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem;margin-bottom:2rem}
-.car-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s,box-shadow 0.2s;cursor:pointer;display:flex;flex-direction:column}
+.car-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color 0.2s,box-shadow 0.2s;cursor:pointer;display:flex;flex-direction:column;position:relative}
 .car-card:hover{border-color:var(--orange);box-shadow:0 4px 24px rgba(201,94,26,0.1)}
+.car-card.selected{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange),0 4px 24px rgba(201,94,26,0.15)}
+/* ── Card select checkbox ── */
+.card-select-wrap{position:absolute;top:8px;left:8px;z-index:10}
+.card-select-wrap input[type=checkbox]{appearance:none;-webkit-appearance:none;width:20px;height:20px;border:2px solid rgba(255,255,255,0.85);border-radius:5px;background:rgba(0,0,0,0.3);cursor:pointer;display:block;transition:all 0.15s;backdrop-filter:blur(2px)}
+.card-select-wrap input[type=checkbox]:checked{background:var(--orange);border-color:var(--orange)}
+.card-select-wrap input[type=checkbox]:checked::after{content:'✓';color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;height:100%}
+/* ── Selection bar ── */
+.selection-bar{position:fixed;bottom:0;left:0;right:0;background:var(--ink);color:#fff;padding:12px 2rem;display:flex;align-items:center;justify-content:space-between;z-index:150;box-shadow:0 -4px 20px rgba(0,0,0,0.2);transform:translateY(100%);transition:transform 0.25s ease}
+.selection-bar.visible{transform:translateY(0)}
+.sel-count{font-size:14px;font-weight:600}
+.sel-actions{display:flex;gap:8px}
+.sel-btn{font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;transition:all 0.15s}
+.sel-btn.compare{background:var(--orange);color:#fff}.sel-btn.compare:hover{background:var(--orange-dark)}
+.sel-btn.save{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff}.sel-btn.save:hover{background:rgba(255,255,255,0.1)}
+.sel-btn.clear{background:transparent;color:rgba(255,255,255,0.55);font-size:12px;padding:8px 10px}.sel-btn.clear:hover{color:#fff}
+/* ── Compare modal ── */
+.compare-modal{background:var(--white);border-radius:var(--radius);width:100%;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.compare-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.compare-header h2{font-family:'Playfair Display',serif;font-size:18px;font-weight:700}
+.compare-body{overflow-x:auto;overflow-y:auto;flex:1}
+.compare-table{width:100%;border-collapse:collapse;min-width:500px}
+.compare-table th{padding:0;vertical-align:top;min-width:200px;max-width:260px;border-right:1px solid var(--border)}
+.compare-table th:last-child{border-right:none}
+.cmp-vehicle-head{padding:1rem;text-align:left;position:relative}
+.cmp-photo{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;background:#f5f2ed}
+.cmp-photo-ph{width:100%;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:#f5f2ed}
+.cmp-name{font-size:13px;font-weight:700;color:var(--ink);margin-top:0.5rem;line-height:1.3}
+.cmp-price{font-size:16px;font-weight:700;color:var(--orange);margin-top:2px}
+.cmp-remove{position:absolute;top:6px;right:6px;background:var(--cream);border:1px solid var(--border);color:var(--ink3);width:24px;height:24px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.compare-table td{padding:10px 1rem;font-size:13px;border-top:1px solid var(--border);border-right:1px solid var(--border);vertical-align:middle;color:var(--ink2)}
+.compare-table td:last-child{border-right:none}
+.compare-table tr.row-label td:first-child{font-weight:600;color:var(--ink3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;background:var(--cream);width:120px}
+.cmp-deal{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;display:inline-block}
+.cmp-deal.great{background:var(--success-light);color:var(--success)}
+.cmp-deal.good{background:#e8f4fd;color:#1565c0}
+.cmp-deal.fair{background:var(--warning-light);color:var(--warning)}
+.cmp-deal.high{background:var(--danger-light);color:var(--danger)}
+.cmp-save-btn{width:100%;margin-top:0.5rem;background:var(--orange);color:#fff;border:none;padding:8px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;transition:background 0.15s}
+.cmp-save-btn:hover{background:var(--orange-dark)}
+.cmp-save-btn.saved{background:var(--success);cursor:default}
 .car-img{width:100%;aspect-ratio:16/10;overflow:hidden;background:#f5f2ed;position:relative;flex-shrink:0}
 .car-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.3s}
 .car-card:hover .car-img img{transform:scale(1.03)}
@@ -931,6 +971,29 @@ footer a{color:var(--orange);text-decoration:none}
 
 <footer><p>© 2026 <a href="/">AutoNegotiating.com</a> · Buyer's Agent Platform · <a href="mailto:offers@autonegotiating.com">offers@autonegotiating.com</a></p></footer>
 <div class="toast" id="toast">Copied!</div>
+
+<!-- ── Multi-select bar ── -->
+<div class="selection-bar" id="selection-bar">
+  <span class="sel-count" id="sel-count">0 selected</span>
+  <div class="sel-actions">
+    <button class="sel-btn compare" onclick="compareSelected()">⚖ Compare</button>
+    <button class="sel-btn save" onclick="saveAllSelected()">♡ Save All</button>
+    <button class="sel-btn clear" onclick="clearSelection()">✕ Clear</button>
+  </div>
+</div>
+
+<!-- ── Compare modal ── -->
+<div class="modal-overlay hidden" id="compare-overlay" onclick="handleOverlayClick(event,'compare-overlay')">
+  <div class="compare-modal" onclick="event.stopPropagation()">
+    <div class="compare-header">
+      <h2>Compare Vehicles</h2>
+      <button class="modal-close" onclick="document.getElementById('compare-overlay').classList.add('hidden')">×</button>
+    </div>
+    <div class="compare-body">
+      <table class="compare-table" id="compare-table"></table>
+    </div>
+  </div>
+</div>
 <script src="https://js.stripe.com/v3/"></script>
 <script
   async

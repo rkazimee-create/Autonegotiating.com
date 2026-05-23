@@ -625,6 +625,9 @@ async function runSearch(page = 1, forceParams = {}) {
   saveRecentSearch(make, model, trim, condition, zip, radius, bodyStyle);
 
   setLoading(true);
+  if (window.selectedCars) { window.selectedCars.clear(); }
+  const selBar = document.getElementById('selection-bar');
+  if (selBar) selBar.classList.remove('visible');
 
   clearError();
 
@@ -933,9 +936,15 @@ function renderGrid() {
     const dealBadgeHtml = dealBadgeData ? `<span class="deal-badge ${dealBadgeData[1]}">${dealBadgeData[0]}</span>` : '';
     const pmt = monthlyPayment(car.msrp);
     const pmtHtml = pmt ? `<div class="monthly-pay">~${fmt(pmt)}/mo est.</div>` : '';
+    const isSelected = window.selectedCars && window.selectedCars.has(String(car.id));
     return `
-    <div class="car-card" onclick="openDetail(${cid})">
-      <div class="car-img" style="overflow:hidden">${carouselHtml}${daysBadge}${dropBadge}</div>
+    <div class="car-card${isSelected?' selected':''}" onclick="openDetail(${cid})">
+      <div class="car-img" style="overflow:hidden">
+        <label class="card-select-wrap" onclick="event.stopPropagation()">
+          <input type="checkbox" data-id="${escHtml(String(car.id))}" ${isSelected?'checked':''} onchange="toggleSelect(event,'${escHtml(String(car.id))}')">
+        </label>
+        ${carouselHtml}${daysBadge}${dropBadge}
+      </div>
       <div class="car-body">
         <span class="src-tag ${car.isLive?'live':'demo'}">${car.isLive?' LIVE':' DEMO'}</span>
         ${dealBadgeHtml}
@@ -2226,6 +2235,150 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
     }
 
     runSearch(1, { make: makeParam, model: modelParam || '' });
+  }
+
+  // ── Multi-select ─────────────────────────────────────────────────────────
+  window.selectedCars = new Set();
+
+  window.toggleSelect = function(e, carId) {
+    e.stopPropagation();
+    const id = String(carId).replace(/^"|"$/g, '');
+    if (window.selectedCars.has(id)) {
+      window.selectedCars.delete(id);
+    } else {
+      window.selectedCars.add(id);
+    }
+    // Update card border
+    const cards = document.querySelectorAll('.car-card');
+    cards.forEach(card => {
+      const cb = card.querySelector('.card-select-cb input');
+      if (cb) {
+        const cbId = cb.dataset.id;
+        card.classList.toggle('selected', window.selectedCars.has(cbId));
+        cb.checked = window.selectedCars.has(cbId);
+      }
+    });
+    renderSelectionBar();
+  };
+
+  function renderSelectionBar() {
+    const bar = document.getElementById('selection-bar');
+    const cnt = document.getElementById('sel-count');
+    const n = window.selectedCars.size;
+    if (!bar) return;
+    if (n === 0) {
+      bar.classList.remove('visible');
+    } else {
+      cnt.textContent = `${n} vehicle${n > 1 ? 's' : ''} selected`;
+      bar.classList.add('visible');
+    }
+  }
+
+  window.clearSelection = function() {
+    window.selectedCars.clear();
+    document.querySelectorAll('.car-card').forEach(c => {
+      c.classList.remove('selected');
+      const cb = c.querySelector('.card-select-cb input');
+      if (cb) cb.checked = false;
+    });
+    renderSelectionBar();
+  };
+
+  window.compareSelected = function() {
+    const cars = Array.from(window.selectedCars)
+      .map(id => allCars.find(c => String(c.id) === id))
+      .filter(Boolean);
+    if (cars.length < 2) { alert('Select at least 2 vehicles to compare.'); return; }
+
+    const savedSet = new Set(); // track which have been saved this session
+
+    function buildTable() {
+      const rows = [
+        ['Deal', c => {
+          const m = {great:'★ Great Deal',good:'✓ Good Deal',fair:'Fair Price',high:'↑ High Price'};
+          return c.dealRating ? `<span class="cmp-deal ${c.dealRating}">${m[c.dealRating]||c.dealRating}</span>` : '—';
+        }],
+        ['Condition', c => c.condition ? ({new:'New',used:'Used',certified:'CPO'}[c.condition]||c.condition) : '—'],
+        ['Mileage', c => c.mileageRaw ? Number(c.mileageRaw).toLocaleString()+' mi' : '—'],
+        ['Days on lot', c => c.daysOnLot != null ? c.daysOnLot+' days' : '—'],
+        ['Dealer', c => escHtml(c.dealer||'—')],
+        ['Location', c => escHtml(c.dealerCity||'—')],
+        ['VIN', c => c.vin ? `<span style="font-family:monospace;font-size:11px">${escHtml(c.vin)}</span>` : '—'],
+      ];
+
+      const thead = `<thead><tr>${cars.map((c,i) => {
+        const photo = (c.allPhotos?.[0] || c.img);
+        return `<th>
+          <button class="cmp-remove" onclick="removeCmpCar(${i})" title="Remove">×</button>
+          ${photo
+            ? `<img class="cmp-photo" src="${escHtml(photo)}" alt="${escHtml(c.name)}" onerror="this.style.display='none'">`
+            : `<div class="cmp-photo-ph">${c.emoji||'🚗'}</div>`}
+          <div class="cmp-vehicle-head">
+            <div class="cmp-name">${escHtml(c.year+' '+c.name)}<br><span style="font-weight:400;color:var(--ink3)">${escHtml(c.trim||'')}</span></div>
+            <div class="cmp-price">${c.msrp ? fmt(c.msrp) : 'Price N/A'}</div>
+            <button class="cmp-save-btn${savedSet.has(String(c.id))?' saved':''}" onclick="cmpSaveCar(${i})" id="cmp-save-${i}">
+              ${savedSet.has(String(c.id)) ? '✓ Saved' : '♡ Save'}
+            </button>
+          </div>
+        </th>`;
+      }).join('')}</tr></thead>`;
+
+      const tbody = `<tbody>${rows.map(([label, fn]) =>
+        `<tr class="row-label">
+          <td>${label}</td>
+          ${cars.map(c => `<td>${fn(c)}</td>`).join('')}
+        </tr>`
+      ).join('')}</tbody>`;
+
+      document.getElementById('compare-table').innerHTML = thead + tbody;
+    }
+
+    window.removeCmpCar = function(idx) {
+      const car = cars[idx];
+      if (car) window.selectedCars.delete(String(car.id));
+      cars.splice(idx, 1);
+      if (cars.length < 1) {
+        document.getElementById('compare-overlay').classList.add('hidden');
+        renderSelectionBar();
+        return;
+      }
+      buildTable();
+      renderSelectionBar();
+    };
+
+    window.cmpSaveCar = function(idx) {
+      const car = cars[idx];
+      if (!car || savedSet.has(String(car.id))) return;
+      savedSet.add(String(car.id));
+      const btn = document.getElementById(`cmp-save-${idx}`);
+      if (btn) { btn.textContent = '✓ Saved'; btn.classList.add('saved'); }
+      saveFavorite(car);
+    };
+
+    buildTable();
+    document.getElementById('compare-overlay').classList.remove('hidden');
+  };
+
+  window.saveAllSelected = function() {
+    const cars = Array.from(window.selectedCars)
+      .map(id => allCars.find(c => String(c.id) === id))
+      .filter(Boolean);
+    cars.forEach(saveFavorite);
+    const bar = document.getElementById('selection-bar');
+    const cnt = document.getElementById('sel-count');
+    if (cnt) cnt.textContent = `${cars.length} saved ✓`;
+    setTimeout(clearSelection, 1500);
+  };
+
+  function saveFavorite(car) {
+    if (!window.Clerk?.user) return; // must be signed in
+    window.Clerk.session.getToken().then(token => {
+      fetch('/api/user/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ vin: car.vin || String(car.id), listingData: car })
+      }).catch(() => {});
+    }).catch(() => {});
   }
 
   // ── Clerk: sync user data when signed in ──────────────────────────────────
