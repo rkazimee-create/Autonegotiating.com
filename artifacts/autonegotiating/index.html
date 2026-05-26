@@ -233,6 +233,12 @@ main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 .sel-chip-name{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .sel-chip-remove{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding:0}
 .sel-chip-remove:hover{background:rgba(255,255,255,0.4)}
+.sel-chip-save{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding:0;transition:background 0.15s}
+.sel-chip-save:hover{background:var(--orange)}
+.sel-chip-save.saved{background:var(--success);cursor:default}
+.sel-count{font-size:11px;color:rgba(255,255,255,0.55);flex-shrink:0;white-space:nowrap}
+.save-toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--success);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:300;opacity:0;transition:opacity 0.2s;pointer-events:none}
+.save-toast.show{opacity:1}
 .sel-actions{display:flex;gap:8px;flex-shrink:0}
 .sel-btn{font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;transition:all 0.15s}
 .sel-btn.compare{background:var(--orange);color:#fff}.sel-btn.compare:hover{background:var(--orange-dark)}
@@ -1075,12 +1081,14 @@ footer a{color:var(--orange);text-decoration:none}
 </div>
 
 <!-- ── Multi-select bar ── -->
+<div class="save-toast" id="save-toast">✓ Saved to favorites</div>
 <div class="selection-bar" id="selection-bar">
   <div class="sel-chips" id="sel-chips"></div>
+  <span class="sel-count" id="sel-count"></span>
   <div class="sel-actions">
-    <button class="sel-btn compare" onclick="compareSelected()">⚖ Compare</button>
+    <button class="sel-btn compare" id="sel-compare-btn" onclick="compareSelected()">⚖ Compare</button>
     <button class="sel-btn save" onclick="saveAllSelected()">♡ Save All</button>
-    <button class="sel-btn clear" onclick="clearSelection()">✕ Clear all</button>
+    <button class="sel-btn clear" onclick="clearSelection()">✕ Clear</button>
   </div>
 </div>
 
@@ -1105,7 +1113,7 @@ footer a{color:var(--orange);text-decoration:none}
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
-<script src="/app.js?v=20260524a"></script>
+<script src="/app.js?v=20260524b"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────
 async function initClerk() {
