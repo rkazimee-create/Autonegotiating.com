@@ -49,7 +49,10 @@
 }
 </script>
 
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
+<link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACEElEQVR42s1Xu0oDQRTdlAZMRFLNbGwEESQgKCksbFSioEIIxERj8hG2VqLW2lqItUgsFcQ3vv5JGHN22Dg7O5OZTVY3CweW3TvnnvuYl+NITyqVGkunR2qZzOj+xITL4gC4wAlup9eTzWYO83n6HZdjGeCGD6XzXG786q8cy4CvUOT/5dxHNxOoS5S0z0xSVp2jbG+RsIMlDrzjG/5FKYfXE2gOmwGlAmWna4R9NXsDNrC14YRvx6bbEaXJsQyMsZkdjindF5th8ucdwl47+Nwl7KFO2Nk6/ybbYaypLD0FyM7bFcKaRRBSdlPlAq4rfqTU+wcbWURfAuS0H68Qz4n/PyzA7QqBrW05HF3DhZ0HbfQCOGQRusZUChC7vV0JRm4rAGPEcoDTSgCaRlTOa+72IcD1xopcqoYMCcCCIna7Knrgvs4FvHRsWkWqzYI4O8BtFIBVzR+A6aUibkmRAToR4PBtwG0UIHa/qvmAt0Z4zp9vmJtRNRsiCThZ5WkHZAH4drRMBhegKkGpQNh749e5TgDw0bErz5L+SyA2IRrsaTvo2I8SNUfaAbxfloN2dzXCFqZJ9CaUp6FPeLtFrHa4x7o+U1bTUF6IQIJIohw25qdot2SRFyLbpdiEgZZim81Ijxg2I5vtWOU41u3YdCDB9EKkwEAHksSPZIkfShM/lid+MRmKq9lQXE6Tup7/AP+L+sQgmML6AAAAAElFTkSuQmCC">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -233,6 +236,12 @@ main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 .sel-chip-name{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .sel-chip-remove{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding:0}
 .sel-chip-remove:hover{background:rgba(255,255,255,0.4)}
+.sel-chip-save{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding:0;transition:background 0.15s}
+.sel-chip-save:hover{background:var(--orange)}
+.sel-chip-save.saved{background:var(--success);cursor:default}
+.sel-count{font-size:11px;color:rgba(255,255,255,0.55);flex-shrink:0;white-space:nowrap}
+.save-toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--success);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:300;opacity:0;transition:opacity 0.2s;pointer-events:none}
+.save-toast.show{opacity:1}
 .sel-actions{display:flex;gap:8px;flex-shrink:0}
 .sel-btn{font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;transition:all 0.15s}
 .sel-btn.compare{background:var(--orange);color:#fff}.sel-btn.compare:hover{background:var(--orange-dark)}
@@ -1075,12 +1084,14 @@ footer a{color:var(--orange);text-decoration:none}
 </div>
 
 <!-- ── Multi-select bar ── -->
+<div class="save-toast" id="save-toast">✓ Saved to favorites</div>
 <div class="selection-bar" id="selection-bar">
   <div class="sel-chips" id="sel-chips"></div>
+  <span class="sel-count" id="sel-count"></span>
   <div class="sel-actions">
-    <button class="sel-btn compare" onclick="compareSelected()">⚖ Compare</button>
+    <button class="sel-btn compare" id="sel-compare-btn" onclick="compareSelected()">⚖ Compare</button>
     <button class="sel-btn save" onclick="saveAllSelected()">♡ Save All</button>
-    <button class="sel-btn clear" onclick="clearSelection()">✕ Clear all</button>
+    <button class="sel-btn clear" onclick="clearSelection()">✕ Clear</button>
   </div>
 </div>
 
@@ -1105,7 +1116,7 @@ footer a{color:var(--orange);text-decoration:none}
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
-<script src="/app.js?v=20260520c"></script>
+<script src="/app.js?v=20260524b"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────
 async function initClerk() {

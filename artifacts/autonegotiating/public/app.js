@@ -630,9 +630,6 @@ async function runSearch(page = 1, forceParams = {}) {
   saveRecentSearch(make, model, trim, condition, zip, radius, bodyStyle);
 
   setLoading(true);
-  if (window.selectedCars) { window.selectedCars.clear(); }
-  const selBar = document.getElementById('selection-bar');
-  if (selBar) selBar.classList.remove('visible');
 
   clearError();
 
@@ -745,6 +742,10 @@ async function runSearch(page = 1, forceParams = {}) {
   } finally {
     setLoading(false);
     applyFilter(currentFilter);
+    // Re-render selection bar so chips from previous searches stay visible
+    if (window.selectedCars && window.selectedCars.size > 0 && window.renderSelectionBar) {
+      window.renderSelectionBar();
+    }
   }
 }
 
@@ -2365,15 +2366,19 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   };
 
   // ── Multi-select ─────────────────────────────────────────────────────────
-  window.selectedCars = new Set();
+  window.selectedCars     = new Set();
+  window.selectedCarsData = new Map(); // id → car object, persists across searches
 
   window.toggleSelect = function(e, carId) {
     e.stopPropagation();
     const id = String(carId).replace(/^"|"$/g, '');
     if (window.selectedCars.has(id)) {
       window.selectedCars.delete(id);
+      window.selectedCarsData.delete(id);
     } else {
       window.selectedCars.add(id);
+      const carObj = allCars.find(c => String(c.id) === id);
+      if (carObj) window.selectedCarsData.set(id, carObj);
     }
     // Update card border + heart icon
     document.querySelectorAll('.car-card').forEach(card => {
@@ -2387,10 +2392,18 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
         btn.title = sel ? 'Remove from selection' : 'Add to selection';
       }
     });
-    renderSelectionBar();
+    window.renderSelectionBar();
   };
 
-  function renderSelectionBar() {
+  function showSaveToast(msg) {
+    const t = document.getElementById('save-toast');
+    if (!t) return;
+    t.textContent = msg || '✓ Saved to favorites';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  window.renderSelectionBar = function renderSelectionBar() {
     const bar   = document.getElementById('selection-bar');
     const chips = document.getElementById('sel-chips');
     if (!bar || !chips) return;
@@ -2398,26 +2411,41 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
     if (!ids.length) { bar.classList.remove('visible'); return; }
 
     chips.innerHTML = ids.map(id => {
-      const car = allCars.find(c => String(c.id) === id);
+      const car = window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id);
       if (!car) return '';
       const photo = car.allPhotos?.[0] || car.img;
       const label = `${car.year} ${car.name}`.trim();
       const imgHtml = photo
         ? `<img class="sel-chip-img" src="${escHtml(photo)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
         : '';
-      return `<div class="sel-chip">
+      return `<div class="sel-chip" id="sel-chip-${escHtml(id)}">
         ${imgHtml}
         <div class="sel-chip-img-ph" style="${photo ? 'display:none' : 'display:flex'}">🚗</div>
         <span class="sel-chip-name">${escHtml(label)}</span>
+        <button class="sel-chip-save" onclick="saveOneSelected('${escHtml(id)}')" title="Save to favorites">♡</button>
         <button class="sel-chip-remove" onclick="deselectCar('${escHtml(id)}')" title="Remove">✕</button>
       </div>`;
     }).join('');
+
+    // Update count label
+    const countEl = document.getElementById('sel-count');
+    if (countEl) countEl.textContent = ids.length === 1 ? '1 selected' : `${ids.length} selected`;
+
+    // Disable Compare button when fewer than 2 selected
+    const cmpBtn = document.getElementById('sel-compare-btn');
+    if (cmpBtn) {
+      cmpBtn.disabled = ids.length < 2;
+      cmpBtn.title = ids.length < 2 ? 'Select at least 2 vehicles to compare' : '';
+      cmpBtn.style.opacity = ids.length < 2 ? '0.45' : '';
+      cmpBtn.style.cursor  = ids.length < 2 ? 'not-allowed' : '';
+    }
 
     bar.classList.add('visible');
   }
 
   window.deselectCar = function(id) {
     window.selectedCars.delete(String(id));
+    window.selectedCarsData.delete(String(id));
     document.querySelectorAll('.car-card').forEach(card => {
       const btn = card.querySelector('.card-heart-btn');
       if (btn && btn.dataset.id === String(id)) {
@@ -2426,22 +2454,23 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
         btn.innerHTML = '♡';
       }
     });
-    renderSelectionBar();
+    window.renderSelectionBar();
   };
 
   window.clearSelection = function() {
     window.selectedCars.clear();
+    window.selectedCarsData.clear();
     document.querySelectorAll('.car-card').forEach(c => {
       c.classList.remove('selected');
       const btn = c.querySelector('.card-heart-btn');
       if (btn) { btn.classList.remove('selected'); btn.innerHTML = '♡'; }
     });
-    renderSelectionBar();
+    window.renderSelectionBar();
   };
 
   window.compareSelected = function() {
     const cars = Array.from(window.selectedCars)
-      .map(id => allCars.find(c => String(c.id) === id))
+      .map(id => window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id))
       .filter(Boolean);
     if (cars.length < 2) { alert('Select at least 2 vehicles to compare.'); return; }
 
@@ -2498,15 +2527,18 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
     window.removeCmpCar = function(idx) {
       const car = cars[idx];
-      if (car) window.selectedCars.delete(String(car.id));
+      if (car) {
+        window.selectedCars.delete(String(car.id));
+        window.selectedCarsData.delete(String(car.id));
+      }
       cars.splice(idx, 1);
       if (cars.length < 1) {
         document.getElementById('compare-overlay').classList.add('hidden');
-        renderSelectionBar();
+        window.renderSelectionBar();
         return;
       }
       buildTable();
-      renderSelectionBar();
+      window.renderSelectionBar();
     };
 
     window.cmpSaveCar = function(idx) {
@@ -2526,25 +2558,43 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
     document.getElementById('compare-overlay').classList.remove('hidden');
   };
 
-  window.saveAllSelected = function() {
-    if (!window.Clerk?.user) {
-      try { window.Clerk.openSignIn(); } catch(e) {}
-      return;
+  function requireSignIn() {
+    // Prompt sign-in; works whether Clerk is loaded or not
+    if (window.Clerk?.openSignIn) {
+      try { window.Clerk.openSignIn(); return true; } catch(e) {}
     }
+    alert('Please sign in to save vehicles to your favorites.');
+    return true;
+  }
+
+  window.saveOneSelected = function(id) {
+    const car = window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id);
+    if (!car) return;
+    if (!window.Clerk?.user) { requireSignIn(); return; }
+    const btn = document.querySelector(`#sel-chip-${CSS.escape(id)} .sel-chip-save`);
+    if (btn) { btn.textContent = '✓'; btn.classList.add('saved'); btn.disabled = true; }
+    saveFavorite(car);
+    showSaveToast(`✓ ${car.year} ${car.name} saved`);
+  };
+
+  window.saveAllSelected = function() {
+    if (!window.Clerk?.user) { requireSignIn(); return; }
     const cars = Array.from(window.selectedCars)
-      .map(id => allCars.find(c => String(c.id) === id))
+      .map(id => window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id))
       .filter(Boolean);
-    cars.forEach(saveFavorite);
-    const chips = document.getElementById('sel-chips');
-    if (chips) chips.querySelectorAll('.sel-chip-name').forEach(el => { el.textContent += ' ✓'; });
-    setTimeout(clearSelection, 1500);
+    if (!cars.length) return;
+    cars.forEach(car => {
+      saveFavorite(car);
+      const id = String(car.id);
+      const btn = document.querySelector(`#sel-chip-${CSS.escape(id)} .sel-chip-save`);
+      if (btn) { btn.textContent = '✓'; btn.classList.add('saved'); btn.disabled = true; }
+    });
+    showSaveToast(cars.length === 1 ? `✓ ${cars[0].year} ${cars[0].name} saved` : `✓ ${cars.length} vehicles saved`);
+    setTimeout(clearSelection, 1800);
   };
 
   function saveFavorite(car) {
-    if (!window.Clerk?.user) {
-      try { window.Clerk.openSignIn(); } catch(e) {}
-      return;
-    }
+    if (!window.Clerk?.user) { requireSignIn(); return; }
     window.Clerk.session.getToken().then(token => {
       fetch('/api/user/favorites', {
         method: 'POST',
