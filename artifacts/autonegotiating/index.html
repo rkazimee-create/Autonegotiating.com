@@ -535,6 +535,49 @@ footer a{color:var(--orange);text-decoration:none}
 /* Invoice / TMV row highlight */
 .detail-row-val.invoice{color:var(--success);font-weight:700}
 .invoice-note{font-size:10px;color:var(--ink3);margin-top:6px;padding:6px 8px;background:var(--success-light);border-radius:var(--radius-xs);border:1px solid rgba(29,158,117,0.2);line-height:1.5}
+
+/* Results layout: sidebar + content */
+#results-layout{display:flex;gap:20px;align-items:flex-start}
+#results-content{flex:1;min-width:0}
+.filter-sidebar{width:232px;flex-shrink:0;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:sticky;top:76px;max-height:calc(100vh - 96px);overflow-y:auto}
+.fsb-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--white);position:sticky;top:0;z-index:1}
+.fsb-title{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:0.2px}
+.fsb-clear-all{font-size:11px;font-weight:600;color:var(--orange);background:none;border:none;cursor:pointer;padding:0}
+.fsb-section{border-bottom:1px solid var(--border)}
+.fsb-section-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;font-size:12px;font-weight:600;color:var(--ink);letter-spacing:0.2px;text-transform:uppercase}
+.fsb-section-head:hover{background:var(--cream)}
+.fsb-chevron{font-size:10px;color:var(--ink3);transition:transform 0.15s}
+.fsb-section.open .fsb-chevron{transform:rotate(180deg)}
+.fsb-section-body{padding:4px 16px 12px;display:none}
+.fsb-section.open .fsb-section-body{display:block}
+.fsb-check-row{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer}
+.fsb-check-row input[type=checkbox]{width:14px;height:14px;accent-color:var(--orange);cursor:pointer;flex-shrink:0}
+.fsb-check-label{font-size:12px;color:var(--ink2);flex:1;cursor:pointer}
+.fsb-check-count{font-size:11px;color:var(--ink3)}
+.fsb-range-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+.fsb-range-input{flex:1;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 8px;font-size:12px;font-family:'Inter',sans-serif;color:var(--ink);background:var(--white);outline:none;min-width:0}
+.fsb-range-input:focus{border-color:var(--orange)}
+.fsb-range-sep{font-size:12px;color:var(--ink3);flex-shrink:0}
+.fsb-color-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.fsb-color-swatch{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;position:relative;transition:border-color 0.12s}
+.fsb-color-swatch:hover{border-color:var(--ink2)}
+.fsb-color-swatch.active{border-color:var(--orange)}
+.fsb-color-swatch[title="White"]{background:#fff;border-color:var(--border2)}
+.fsb-color-swatch[title="White"].active{border-color:var(--orange)}
+.fsb-color-count{font-size:10px;color:var(--ink3);text-align:center;margin-top:2px}
+/* Mobile filters button */
+.mobile-filter-btn{display:none}
+/* Mobile sidebar drawer */
+@media(max-width:768px){
+  #results-layout{flex-direction:column}
+  .filter-sidebar{display:none!important;width:100%;position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;border-radius:0;max-height:100vh}
+  .filter-sidebar.mobile-open{display:flex!important;flex-direction:column}
+  .mobile-filter-btn{display:flex;align-items:center;gap:6px;background:var(--white);border:1px solid var(--border2);color:var(--ink2);font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;margin-bottom:10px}
+  .fsb-mobile-close{display:flex}
+}
+@media(min-width:769px){
+  .fsb-mobile-close{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -726,38 +769,56 @@ footer a{color:var(--orange);text-decoration:none}
     <div class="empty-title">Search for vehicles</div>
     <div class="empty-sub">Enter a ZIP code, set your filters, and hit Search to find live dealer inventory near you.</div>
   </div>
-  <div class="section-label" id="grid-label" style="display:none">Live Inventory</div>
-  <div class="sort-bar" id="sort-bar" style="display:none">
-    <div class="sort-bar-left" id="sort-summary">—</div>
-    <div class="sort-controls">
-      <button class="sort-btn active" onclick="setSort('default',this)">Best Match</button>
-      <button class="sort-btn" onclick="setSort('price-asc',this)">Price <span class="sort-arrow">↑</span></button>
-      <button class="sort-btn" onclick="setSort('price-desc',this)">Price <span class="sort-arrow">↓</span></button>
-      <button class="sort-btn" onclick="setSort('year-desc',this)">Newest</button>
-      <button class="sort-btn" onclick="setSort('year-asc',this)">Oldest</button>
-      <button class="sort-btn" onclick="setSort('mileage-asc',this)">Lowest Miles</button>
-      <button class="sort-btn" onclick="setSort('distance-asc',this)">Nearest</button>
-      <select class="s-select" id="color-filter" onchange="applyColorFilter()" style="height:30px;font-size:12px;padding:4px 24px 4px 8px;border-radius:6px">
-        <option value="">All Colors</option>
-        <option value="White">White</option>
-        <option value="Black">Black</option>
-        <option value="Gray/Silver">Gray / Silver</option>
-        <option value="Red">Red</option>
-        <option value="Blue">Blue</option>
-        <option value="Green">Green</option>
-        <option value="Brown/Tan">Brown / Tan</option>
-        <option value="Orange">Orange</option>
-        <option value="Yellow">Yellow</option>
-        <option value="Purple">Purple</option>
-        <option value="Other">Other</option>
-      </select>
+  <button class="mobile-filter-btn" onclick="toggleMobileSidebar()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+    Filters
+  </button>
+  <div id="results-layout">
+    <aside id="filter-sidebar" class="filter-sidebar" style="display:none">
+      <div class="fsb-header">
+        <span class="fsb-title">Filters</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="fsb-clear-all" onclick="clearAllSidebarFilters()" style="display:none" id="fsb-clear-btn">Clear all</button>
+          <button class="fsb-mobile-close" onclick="toggleMobileSidebar()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink3)">×</button>
+        </div>
+      </div>
+      <div id="fsb-sections"></div>
+    </aside>
+    <div id="results-content">
+      <div class="section-label" id="grid-label" style="display:none">Live Inventory</div>
+      <div class="sort-bar" id="sort-bar" style="display:none">
+        <div class="sort-bar-left" id="sort-summary">—</div>
+        <div class="sort-controls">
+          <button class="sort-btn active" onclick="setSort('default',this)">Best Match</button>
+          <button class="sort-btn" onclick="setSort('price-asc',this)">Price <span class="sort-arrow">↑</span></button>
+          <button class="sort-btn" onclick="setSort('price-desc',this)">Price <span class="sort-arrow">↓</span></button>
+          <button class="sort-btn" onclick="setSort('year-desc',this)">Newest</button>
+          <button class="sort-btn" onclick="setSort('year-asc',this)">Oldest</button>
+          <button class="sort-btn" onclick="setSort('mileage-asc',this)">Lowest Miles</button>
+          <button class="sort-btn" onclick="setSort('distance-asc',this)">Nearest</button>
+          <select class="s-select" id="color-filter" onchange="applyColorFilter()" style="height:30px;font-size:12px;padding:4px 24px 4px 8px;border-radius:6px">
+            <option value="">All Colors</option>
+            <option value="White">White</option>
+            <option value="Black">Black</option>
+            <option value="Gray/Silver">Gray / Silver</option>
+            <option value="Red">Red</option>
+            <option value="Blue">Blue</option>
+            <option value="Green">Green</option>
+            <option value="Brown/Tan">Brown / Tan</option>
+            <option value="Orange">Orange</option>
+            <option value="Yellow">Yellow</option>
+            <option value="Purple">Purple</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="inventory-grid" id="inventory-grid" style="display:none"></div>
+      <div class="pagination hidden" id="pagination">
+        <button class="page-btn" id="prev-btn" onclick="changePage(-1)" disabled>← Prev</button>
+        <span class="page-info" id="page-info">Page 1</span>
+        <button class="page-btn" id="next-btn" onclick="changePage(1)">Next →</button>
+      </div>
     </div>
-  </div>
-  <div class="inventory-grid" id="inventory-grid" style="display:none"></div>
-  <div class="pagination hidden" id="pagination">
-    <button class="page-btn" id="prev-btn" onclick="changePage(-1)" disabled>← Prev</button>
-    <span class="page-info" id="page-info">Page 1</span>
-    <button class="page-btn" id="next-btn" onclick="changePage(1)">Next →</button>
   </div>
 </main>
 
@@ -1116,7 +1177,7 @@ footer a{color:var(--orange);text-decoration:none}
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
-<script src="/app.js?v=20260524b"></script>
+<script src="/app.js?v=20260528a"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────
 async function initClerk() {
