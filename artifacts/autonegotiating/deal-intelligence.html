@@ -43,6 +43,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://js.stripe.com/v3/"></script>
+<script src="/pro.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -536,6 +537,17 @@ footer a{color:var(--orange);text-decoration:none}
       Pay $9.99 — Generate My Report
     </button>
     <div class="modal-note">Secure payment via Stripe &middot; Instant delivery &middot; No subscription</div>
+    <div class="pro-upsell-wrap">
+      <div class="pro-divider">
+        <div class="pro-divider-line"></div>
+        <span class="pro-divider-text">or get unlimited with Pro</span>
+        <div class="pro-divider-line"></div>
+      </div>
+      <button class="pro-upsell-btn" onclick="window.openProModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Subscribe — Unlimited Reports from $20/mo
+      </button>
+    </div>
   </div>
 </div>
 
