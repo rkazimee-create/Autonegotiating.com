@@ -18,15 +18,6 @@ let totalResultCount = 0;
 let isLiveData = false;
 const PAGE_SIZE = 12;
 
-let sidebarFilters = {
-  minPrice: '', maxPrice: '',
-  bodyStyles: new Set(),
-  drivetrains: new Set(),
-  fuelTypes: new Set(),
-  transmissions: new Set(),
-  colors: new Set(),
-};
-
 //  HELPERS 
 const fmt = n => '$' + Math.round(n).toLocaleString();
 const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -751,7 +742,6 @@ async function runSearch(page = 1, forceParams = {}) {
   } finally {
     setLoading(false);
     applyFilter(currentFilter);
-    buildSidebar();
     // Re-render selection bar so chips from previous searches stay visible
     if (window.selectedCars && window.selectedCars.size > 0 && window.renderSelectionBar) {
       window.renderSelectionBar();
@@ -885,220 +875,12 @@ function applyFilter(type) {
   const minYear = parseInt(document.getElementById('search-min-year')?.value) || 0;
   const maxYear = parseInt(document.getElementById('search-max-year')?.value) || 9999;
   const colorSel = (document.getElementById('color-filter')?.value || '').trim();
-
-  // condition tab
-  let base = (type === 'all' || !type) ? allCars : allCars.filter(c => c.condition === type);
-
-  // year range (from existing more-filters)
+  let base = type === 'all' ? allCars : allCars.filter(c => c.type === type);
   if (minYear) base = base.filter(c => c.year >= minYear);
   if (maxYear < 9999) base = base.filter(c => c.year <= maxYear);
-
-  // color dropdown (sort bar)
   if (colorSel) base = base.filter(c => c.colorFamily === colorSel);
-
-  // ── Sidebar filters ──────────────────────────────────────
-  const sf = sidebarFilters;
-
-  if (sf.minPrice) base = base.filter(c => !c.msrp || c.msrp >= Number(sf.minPrice));
-  if (sf.maxPrice) base = base.filter(c => !c.msrp || c.msrp <= Number(sf.maxPrice));
-
-  if (sf.bodyStyles.size) {
-    base = base.filter(c => {
-      const bs = c.bodyStyle ? c.bodyStyle.charAt(0).toUpperCase()+c.bodyStyle.slice(1).toLowerCase() : '';
-      return sf.bodyStyles.has(bs);
-    });
-  }
-  if (sf.drivetrains.size) {
-    base = base.filter(c => sf.drivetrains.has((c.drivetrain||'').toUpperCase()));
-  }
-  if (sf.fuelTypes.size) {
-    base = base.filter(c => {
-      const f = (c.fuel||'').toLowerCase();
-      let normalized = '';
-      if (f.includes('electric') || f==='bev' || c.type==='ev') normalized = 'Electric';
-      else if (f.includes('plug') || f==='phev') normalized = 'Plug-in Hybrid';
-      else if (f.includes('hybrid')) normalized = 'Hybrid';
-      else if (f.includes('diesel')) normalized = 'Diesel';
-      else if (f.includes('gas') || f.includes('petrol')) normalized = 'Gas';
-      return sf.fuelTypes.has(normalized);
-    });
-  }
-  if (sf.transmissions.size) {
-    base = base.filter(c => {
-      const t = (c.transmission||'').toLowerCase();
-      let normalized = '';
-      if (t.includes('auto')) normalized = 'Automatic';
-      else if (t.includes('manual') || t.includes('stick')) normalized = 'Manual';
-      return sf.transmissions.has(normalized);
-    });
-  }
-  if (sf.colors.size) {
-    base = base.filter(c => sf.colors.has(c.colorFamily||''));
-  }
-
   filteredCars = sortCars(base);
   renderGrid();
-}
-
-function makeColorSection(colorMap) {
-  const COLOR_SWATCHES = {
-    'White':'#FFFFFF','Black':'#1A1A1A','Gray/Silver':'#A0A0A0',
-    'Red':'#C0392B','Blue':'#2471A3','Green':'#1E8449',
-    'Brown/Tan':'#8B6914','Orange':'#E67E22','Yellow':'#F1C40F',
-    'Purple':'#7D3C98','Other':'#D0D0C8'
-  };
-  const entries = Object.entries(colorMap).filter(([k])=>k&&colorMap[k]>0);
-  if (!entries.length) return '';
-  const swatches = entries.map(([val,cnt]) => {
-    const hex = COLOR_SWATCHES[val] || '#D0D0C8';
-    const active = sidebarFilters.colors.has(val) ? 'active' : '';
-    return `<div style="text-align:center">
-      <div class="fsb-color-swatch ${active}" title="${escHtml(val)}" style="background:${hex}" onclick="toggleSidebarFilter('colors','${escHtml(val)}',!${sidebarFilters.colors.has(val)})"></div>
-      <div class="fsb-color-count">${cnt}</div>
-    </div>`;
-  }).join('');
-  return `<div class="fsb-section open" id="fsb-color">
-    <div class="fsb-section-head" onclick="toggleFsbSection('fsb-color')">
-      <span>Exterior Color</span><span class="fsb-chevron">▾</span>
-    </div>
-    <div class="fsb-section-body">
-      <div class="fsb-color-grid">${swatches}</div>
-    </div>
-  </div>`;
-}
-
-function buildSidebar() {
-  const sidebar = document.getElementById('filter-sidebar');
-  const sectionsEl = document.getElementById('fsb-sections');
-  if (!sidebar || !sectionsEl) return;
-
-  sidebar.style.display = '';
-
-  // Count helpers
-  function counts(getter) {
-    const map = {};
-    allCars.forEach(c => {
-      const val = getter(c);
-      if (val) map[val] = (map[val]||0) + 1;
-    });
-    return map;
-  }
-
-  const pricesWithVal = allCars.filter(c=>c.msrp>0).map(c=>c.msrp);
-  const priceMin = pricesWithVal.length ? Math.min(...pricesWithVal) : 0;
-  const priceMax = pricesWithVal.length ? Math.max(...pricesWithVal) : 0;
-
-  const bodyMap = counts(c => c.bodyStyle ? c.bodyStyle.charAt(0).toUpperCase()+c.bodyStyle.slice(1).toLowerCase() : '');
-  const driveMap = counts(c => (c.drivetrain||'').toUpperCase());
-  const fuelMap  = counts(c => {
-    const f = (c.fuel||'').toLowerCase();
-    if (f.includes('electric') || f==='bev' || c.type==='ev') return 'Electric';
-    if (f.includes('plug') || f==='phev') return 'Plug-in Hybrid';
-    if (f.includes('hybrid')) return 'Hybrid';
-    if (f.includes('diesel')) return 'Diesel';
-    if (f.includes('gas') || f.includes('petrol')) return 'Gas';
-    return '';
-  });
-  const transMap = counts(c => {
-    const t = (c.transmission||'').toLowerCase();
-    if (t.includes('auto')) return 'Automatic';
-    if (t.includes('manual') || t.includes('stick')) return 'Manual';
-    return '';
-  });
-  const colorMap = counts(c => c.colorFamily||'');
-
-  function makeCheckSection(id, title, dataMap, filterKey, openByDefault) {
-    const entries = Object.entries(dataMap).filter(([k])=>k).sort((a,b)=>b[1]-a[1]);
-    if (!entries.length) return '';
-    const rows = entries.map(([val, cnt]) => {
-      const checked = sidebarFilters[filterKey].has(val) ? 'checked' : '';
-      return `<label class="fsb-check-row">
-        <input type="checkbox" ${checked} onchange="toggleSidebarFilter('${filterKey}','${escHtml(val)}',this.checked)">
-        <span class="fsb-check-label">${escHtml(val)}</span>
-        <span class="fsb-check-count">${cnt}</span>
-      </label>`;
-    }).join('');
-    return `<div class="fsb-section${openByDefault?' open':''}" id="fsb-${id}">
-      <div class="fsb-section-head" onclick="toggleFsbSection('fsb-${id}')">
-        <span>${title}</span><span class="fsb-chevron">▾</span>
-      </div>
-      <div class="fsb-section-body">${rows}</div>
-    </div>`;
-  }
-
-  const priceHint = pricesWithVal.length ?
-    `<div style="font-size:10px;color:var(--ink3);margin-bottom:6px">Range: $${Math.round(priceMin/1000)}k – $${Math.round(priceMax/1000)}k</div>` : '';
-
-  const priceSection = `<div class="fsb-section open" id="fsb-price">
-    <div class="fsb-section-head" onclick="toggleFsbSection('fsb-price')">
-      <span>Price</span><span class="fsb-chevron">▾</span>
-    </div>
-    <div class="fsb-section-body">
-      ${priceHint}
-      <div class="fsb-range-row">
-        <input class="fsb-range-input" type="number" id="fsb-min-price" placeholder="Min $" value="${sidebarFilters.minPrice}" oninput="setSidebarRange('minPrice',this.value)">
-        <span class="fsb-range-sep">–</span>
-        <input class="fsb-range-input" type="number" id="fsb-max-price" placeholder="Max $" value="${sidebarFilters.maxPrice}" oninput="setSidebarRange('maxPrice',this.value)">
-      </div>
-    </div>
-  </div>`;
-
-  sectionsEl.innerHTML =
-    priceSection +
-    makeCheckSection('body','Body Style', bodyMap, 'bodyStyles', true) +
-    makeCheckSection('drive','Drivetrain', driveMap, 'drivetrains', true) +
-    makeCheckSection('fuel','Fuel Type', fuelMap, 'fuelTypes', true) +
-    makeCheckSection('trans','Transmission', transMap, 'transmissions', false) +
-    makeColorSection(colorMap);
-
-  updateFsbClearBtn();
-}
-
-function toggleFsbSection(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.toggle('open');
-}
-
-function toggleSidebarFilter(key, val, checked) {
-  if (checked) sidebarFilters[key].add(val);
-  else sidebarFilters[key].delete(val);
-  updateFsbClearBtn();
-  applyFilter(currentFilter);
-  // Rebuild to update counts
-  buildSidebar();
-}
-
-function setSidebarRange(key, val) {
-  sidebarFilters[key] = val;
-  updateFsbClearBtn();
-  // Debounce apply
-  clearTimeout(window._priceDebounce);
-  window._priceDebounce = setTimeout(() => applyFilter(currentFilter), 400);
-}
-
-function updateFsbClearBtn() {
-  const btn = document.getElementById('fsb-clear-btn');
-  if (!btn) return;
-  const hasFilters = sidebarFilters.minPrice || sidebarFilters.maxPrice ||
-    sidebarFilters.bodyStyles.size || sidebarFilters.drivetrains.size ||
-    sidebarFilters.fuelTypes.size || sidebarFilters.transmissions.size ||
-    sidebarFilters.colors.size;
-  btn.style.display = hasFilters ? '' : 'none';
-}
-
-function clearAllSidebarFilters() {
-  sidebarFilters = {
-    minPrice:'', maxPrice:'',
-    bodyStyles: new Set(), drivetrains: new Set(),
-    fuelTypes: new Set(), transmissions: new Set(), colors: new Set()
-  };
-  buildSidebar();
-  applyFilter(currentFilter);
-}
-
-function toggleMobileSidebar() {
-  const sidebar = document.getElementById('filter-sidebar');
-  if (sidebar) sidebar.classList.toggle('mobile-open');
 }
 
 function renderGrid() {
