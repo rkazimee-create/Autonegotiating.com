@@ -2332,6 +2332,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
       .catch(() => {});
   }
 
+  // Auto-open subscribe modal if ?subscribe=1
+  if (urlParams.get('subscribe') === '1') {
+    history.replaceState({}, '', location.origin + location.pathname);
+    if (!_subscriptionActive) openSubscribeModal();
+  }
+
   // Handle subscription checkout return
   const subSuccess = urlParams.get('sub_success');
   if (subSuccess) {
