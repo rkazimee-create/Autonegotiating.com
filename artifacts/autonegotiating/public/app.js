@@ -1494,12 +1494,13 @@ let _selectedSubPlan = 'annual';
 function activateSubscription(email) {
   _subscriptionActive = true;
   if (email) sessionStorage.setItem('subEmail', email);
-  const btn = document.getElementById('nav-pro-btn');
-  if (btn) {
-    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Pro ✓';
-    btn.style.background = 'var(--orange)';
-    btn.style.color = '#fff';
-    btn.onclick = null;
+  const badge = document.getElementById('nav-pro-btn');
+  if (badge) {
+    badge.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Pro ✓';
+    badge.style.background = 'var(--orange)';
+    badge.style.color = '#fff';
+    badge.style.display = 'flex';
+    badge.style.cursor = 'default';
   }
 }
 
@@ -1542,7 +1543,7 @@ function selectSubPlan(plan) {
   document.getElementById('sub-plan-monthly').classList.toggle('selected', plan === 'monthly');
   document.getElementById('sub-plan-annual').classList.toggle('selected', plan === 'annual');
   const btn = document.getElementById('sub-start-btn');
-  if (btn) btn.textContent = plan === 'annual' ? 'Start Annual Plan — $200/yr' : 'Start Monthly Plan — $20/mo';
+  if (btn) btn.textContent = plan === 'annual' ? 'Start Free Trial — Annual $200/yr' : 'Start Free Trial — Monthly $20/mo';
 }
 async function startSubscription() {
   const btn = document.getElementById('sub-start-btn');
@@ -1574,6 +1575,43 @@ async function promptCheckSubscription() {
   } else {
     alert('No active subscription found for that email. Please subscribe or contact support.');
   }
+}
+
+function applySubPromoCode() {
+  const input = document.getElementById('sub-promo-input');
+  const btn   = document.getElementById('sub-promo-btn');
+  const msgEl = document.getElementById('sub-promo-msg');
+  const code  = input.value.trim();
+  if (!code) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Please enter a promo code.'; return;
+  }
+  btn.disabled = true; btn.textContent = 'Checking…';
+  msgEl.style.display = 'none';
+  fetch('/api/promo/validate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false; btn.textContent = 'Apply';
+    if (data.valid) {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--success)';
+      msgEl.textContent = '✓ Promo applied — Pro access unlocked!';
+      setTimeout(() => {
+        closeSubscribeModal();
+        activateSubscription(null);
+      }, 800);
+    } else {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+      msgEl.textContent = data.message || 'Invalid promo code.';
+    }
+  })
+  .catch(() => {
+    btn.disabled = false; btn.textContent = 'Apply';
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Could not validate code. Please try again.';
+  });
 }
 
 function showOfferVerifyStep(carId) {
