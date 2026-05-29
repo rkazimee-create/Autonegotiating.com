@@ -1,6 +1,11 @@
 // AutoNegotiating.com  app.js
 
-//  STATE 
+// Shared "no image" placeholder — used everywhere a photo is unavailable
+const NO_IMG_SM  = `<span class="rp-ph-logo">Auto<em>Negotiating</em>.com</span><span class="rp-ph-sub">Image not available</span>`;
+const NO_IMG_MD  = `<span style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ink3);letter-spacing:-0.2px">Auto<em style="color:var(--orange);font-style:normal">Negotiating</em>.com</span><span style="font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:0.3px;text-transform:uppercase;opacity:0.7">Image not available</span>`;
+const NO_IMG_LG  = `<span class="ph-logo">Auto<em>Negotiating</em>.com</span><span class="ph-sub">Image not available</span>`;
+
+//  STATE
 let allCars = [];
 let filteredCars = [];
 let currentCar = null;
@@ -622,9 +627,10 @@ async function runSearch(page = 1, forceParams = {}) {
   if (fuel)      params['fuelType']  = fuel;
   if (drive)     params['driveType'] = drive;
 
-  saveRecentSearch(make, model, condition, zip, bodyStyle);
+  saveRecentSearch(make, model, trim, condition, zip, radius, bodyStyle);
 
   setLoading(true);
+
   clearError();
 
   try {
@@ -717,6 +723,7 @@ async function runSearch(page = 1, forceParams = {}) {
       computeDealRatings(normalized);
 
       allCars = normalized;
+      patchRecentSearchImages(allCars);
       isLiveData = true;
       populateYearFilters(allCars);
       const badge = document.getElementById('api-status-badge');
@@ -735,6 +742,10 @@ async function runSearch(page = 1, forceParams = {}) {
   } finally {
     setLoading(false);
     applyFilter(currentFilter);
+    // Re-render selection bar so chips from previous searches stay visible
+    if (window.selectedCars && window.selectedCars.size > 0 && window.renderSelectionBar) {
+      window.renderSelectionBar();
+    }
   }
 }
 
@@ -909,7 +920,7 @@ function renderGrid() {
     const cid = escHtml(JSON.stringify(String(car.id)));
     let carouselHtml;
     if (photos.length === 0) {
-      carouselHtml = `<div class="car-emoji-ph">${car.emoji}</div>`;
+      carouselHtml = `<div class="car-emoji-ph">${NO_IMG_MD}</div>`;
     } else {
       const imgs = photos.map((url, i) =>
         `<img src="${escHtml(url)}" alt="${escHtml(car.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:${i===0?1:0};transition:opacity 0.25s" onerror="this.style.display='none'">`
@@ -931,9 +942,17 @@ function renderGrid() {
     const dealBadgeHtml = dealBadgeData ? `<span class="deal-badge ${dealBadgeData[1]}">${dealBadgeData[0]}</span>` : '';
     const pmt = monthlyPayment(car.msrp);
     const pmtHtml = pmt ? `<div class="monthly-pay">~${fmt(pmt)}/mo est.</div>` : '';
+    const isSelected = window.selectedCars && window.selectedCars.has(String(car.id));
     return `
-    <div class="car-card" onclick="openDetail(${cid})">
-      <div class="car-img" style="overflow:hidden">${carouselHtml}${daysBadge}${dropBadge}</div>
+    <div class="car-card${isSelected?' selected':''}" onclick="openDetail(${cid})">
+      <div class="car-img" style="overflow:hidden">
+        <div class="card-select-wrap" onclick="event.stopPropagation()">
+          <button class="card-heart-btn${isSelected?' selected':''}" data-id="${escHtml(String(car.id))}" onclick="toggleSelect(event,'${escHtml(String(car.id))}')" title="${isSelected?'Remove from selection':'Add to selection'}">
+            ${isSelected ? '♥' : '♡'}
+          </button>
+        </div>
+        ${carouselHtml}${daysBadge}${dropBadge}
+      </div>
       <div class="car-body">
         <span class="src-tag ${car.isLive?'live':'demo'}">${car.isLive?' LIVE':' DEMO'}</span>
         ${dealBadgeHtml}
@@ -1001,7 +1020,7 @@ async function openDetail(carId) {
   if (!detailCar) return;
 
   // Reset modal
-  document.getElementById('gallery-main').innerHTML = '<div class="no-img"></div>';
+  document.getElementById('gallery-main').innerHTML = `<div class="no-img">${NO_IMG_LG}</div>`;
   document.getElementById('gallery-thumbs').innerHTML = '';
   document.getElementById('detail-title').textContent = `${detailCar.year} ${detailCar.name}`;
   document.getElementById('detail-subtitle').textContent = [detailCar.trim, detailCar.dealer, detailCar.dealerCity].filter(Boolean).join('  ');
@@ -1469,9 +1488,31 @@ function saveBuyerProfile() {
 let _offerUnlocked = false;
 let _offerConfig = null;
 let _offerStripeInstance = null;
+let _subscriptionActive = false;
+let _selectedSubPlan = 'annual';
+
+function activateSubscription(email) {
+  _subscriptionActive = true;
+  if (email) sessionStorage.setItem('subEmail', email);
+  const btn = document.getElementById('nav-pro-btn');
+  if (btn) {
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Pro ✓';
+    btn.style.background = 'var(--orange)';
+    btn.style.color = '#fff';
+    btn.onclick = null;
+  }
+}
+
+async function verifySubscriptionByEmail(email) {
+  try {
+    const data = await fetch(`/api/stripe/subscription-status?email=${encodeURIComponent(email)}`).then(r => r.json());
+    if (data.active) activateSubscription(email);
+    return data.active;
+  } catch { return false; }
+}
 
 function checkOfferPaywall(carId) {
-  if (_offerUnlocked) {
+  if (_subscriptionActive || _offerUnlocked) {
     openOfferModal(carId);
     return;
   }
@@ -1484,6 +1525,55 @@ function checkOfferPaywall(carId) {
   _pendingOfferCarId = carId;
   document.getElementById('offer-pay-overlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+}
+
+// ── Subscription modal ────────────────────────────────────────────────────────
+function openSubscribeModal() {
+  if (_subscriptionActive) return;
+  document.getElementById('subscribe-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeSubscribeModal() {
+  document.getElementById('subscribe-overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+function selectSubPlan(plan) {
+  _selectedSubPlan = plan;
+  document.getElementById('sub-plan-monthly').classList.toggle('selected', plan === 'monthly');
+  document.getElementById('sub-plan-annual').classList.toggle('selected', plan === 'annual');
+  const btn = document.getElementById('sub-start-btn');
+  if (btn) btn.textContent = plan === 'annual' ? 'Start Annual Plan — $200/yr' : 'Start Monthly Plan — $20/mo';
+}
+async function startSubscription() {
+  const btn = document.getElementById('sub-start-btn');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    const cfg = await fetch('/api/stripe/config').then(r => r.json());
+    const priceId = _selectedSubPlan === 'annual' ? cfg.annualPriceId : cfg.monthlyPriceId;
+    const baseUrl = window.location.origin;
+    const returnUrl = `${baseUrl}/?sub_success={CHECKOUT_SESSION_ID}`;
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId, successUrl: returnUrl, cancelUrl: baseUrl + '/' }),
+    }).then(r => r.json());
+    if (res.url) window.location.href = res.url;
+    else { btn.disabled = false; btn.textContent = orig; }
+  } catch {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+async function promptCheckSubscription() {
+  const email = window.prompt('Enter your subscription email to restore access:');
+  if (!email) return;
+  const active = await verifySubscriptionByEmail(email);
+  if (active) {
+    closeSubscribeModal();
+    alert('✓ Subscription active! All paywalls are now bypassed.');
+  } else {
+    alert('No active subscription found for that email. Please subscribe or contact support.');
+  }
 }
 
 function showOfferVerifyStep(carId) {
@@ -1685,34 +1775,70 @@ function toggleMoreFilters() {
 const RS_KEY = 'recentSearches';
 const RS_MAX = 6;
 
-function saveRecentSearch(make, model, condition, zip, body) {
+function saveRecentSearch(make, model, trim, condition, zip, radius, body) {
   if (!make && !model && !body) return; // don't save blank searches
   const label = [
     make || 'Any Make',
     model || '',
+    trim || '',
     condition ? ({new:'New',used:'Used',certified:'CPO'}[condition] || condition) : '',
     body || ''
   ].filter(Boolean).join(' ');
-  const entry = { make, model, condition, zip, body, label, ts: Date.now() };
+  // Save without images first — images are patched in after results load
+  const entry = { make, model, trim, condition, zip, radius, body, label, ts: Date.now(), imgs: [] };
   let list = loadRecentSearches();
   list = list.filter(r => r.label !== label); // dedupe
   list.unshift(entry);
   list = list.slice(0, RS_MAX);
   try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
-  renderRecentSearches();
+  renderRecentPreviews();
+  // Persist to DB if signed in
+  if (window.Clerk?.user) {
+    window.Clerk.session.getToken().then(token => {
+      const user = window.Clerk.user;
+      return fetch('/api/user/searches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ make, model, trim, condition, zip, radius, body, label,
+          email: user.primaryEmailAddress?.emailAddress,
+          name: user.fullName })
+      }).then(r => r.ok ? r.json() : null).then(row => {
+        if (row?.id) {
+          // Backfill DB id into localStorage entry
+          let ls = loadRecentSearches();
+          if (ls[0] && ls[0].label === label) { ls[0]._dbId = row.id; }
+          try { localStorage.setItem(RS_KEY, JSON.stringify(ls)); } catch(_) {}
+        }
+      });
+    }).catch(() => {});
+  }
+}
+
+function patchRecentSearchImages(cars) {
+  const imgs = (cars || []).slice(0, 4).map(c => c.img).filter(Boolean);
+  if (!imgs.length) return;
+  let list = loadRecentSearches();
+  if (!list.length) return;
+  list[0] = { ...list[0], imgs }; // update the most recent entry
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentPreviews();
+  // Patch images in DB if signed in
+  if (window.Clerk?.user && list[0]._dbId) {
+    const dbId = list[0]._dbId;
+    window.Clerk.session.getToken().then(token => {
+      fetch(`/api/user/searches/${dbId}/images`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ imgs })
+      }).catch(() => {});
+    }).catch(() => {});
+  }
 }
 
 function loadRecentSearches() {
   try { return JSON.parse(localStorage.getItem(RS_KEY) || '[]'); } catch(e) { return []; }
 }
 
-function removeRecentSearch(e, idx) {
-  e.stopPropagation();
-  let list = loadRecentSearches();
-  list.splice(idx, 1);
-  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
-  renderRecentSearches();
-}
 
 function applyRecentSearch(idx) {
   const list = loadRecentSearches();
@@ -1722,6 +1848,10 @@ function applyRecentSearch(idx) {
   const condEl = document.getElementById('search-condition');
   const zipEl  = document.getElementById('search-zip');
   if (r.zip) zipEl.value = r.zip;
+  if (r.radius) {
+    const radiusEl = document.getElementById('search-radius');
+    if (radiusEl) radiusEl.value = r.radius;
+  }
   if (condEl) condEl.value = r.condition || '';
   // sync cond tab
   document.querySelectorAll('.cond-tab').forEach(t => {
@@ -1732,9 +1862,13 @@ function applyRecentSearch(idx) {
     makeEl.value = r.make || '';
     makeEl.dispatchEvent(new Event('change'));
   }
-  setTimeout(() => {
+  setTimeout(async () => {
     const modelEl = document.getElementById('search-model');
-    if (modelEl && r.model) modelEl.value = r.model;
+    if (modelEl && r.model) {
+      modelEl.value = r.model;
+      // dispatch for any other listeners (e.g. UI state), but don't rely on it for trims
+      modelEl.dispatchEvent(new Event('change'));
+    }
     if (r.body) {
       document.getElementById('search-body').value = r.body;
       document.querySelectorAll('.bs-pill').forEach(p => {
@@ -1742,22 +1876,67 @@ function applyRecentSearch(idx) {
         p.classList.toggle('active', v === r.body);
       });
     }
+    if (r.trim) {
+      // Directly await populateTrims so we know it's finished before setting the value
+      await populateTrims();
+      const trimEl = document.getElementById('search-trim');
+      if (trimEl) trimEl.value = r.trim;
+    }
     runSearch();
   }, 150);
 }
 
-function renderRecentSearches() {
-  const bar = document.getElementById('recent-bar');
-  const chips = document.getElementById('rs-chips');
-  if (!bar || !chips) return;
+
+function renderRecentPreviews() {
+  const section = document.getElementById('recent-previews');
+  if (!section) return;
   const list = loadRecentSearches();
-  if (!list.length) { bar.style.display = 'none'; return; }
-  bar.style.display = 'flex';
-  chips.innerHTML = list.map((r, i) => `
-    <button class="rs-chip" onclick="applyRecentSearch(${i})">
-      ${escHtml(r.label)}
-      <span class="rs-chip-x" onclick="removeRecentSearch(event,${i})" title="Remove">×</span>
-    </button>`).join('');
+  if (!list.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const cards = list.map((r, i) => {
+    const imgs = r.imgs || [];
+    // Build a 2x2 photo collage if we have multiple images, otherwise single image
+    let photoHtml;
+    if (imgs.length >= 4) {
+      photoHtml = `<div class="rp-collage">
+        ${imgs.slice(0,4).map(url => `<img src="${escHtml(url)}" alt="" loading="lazy" onerror="this.style.display='none'">`).join('')}
+      </div>`;
+    } else if (imgs.length >= 1) {
+      photoHtml = `<img class="rp-single-img" src="${escHtml(imgs[0])}" alt="" loading="lazy" onerror="this.parentElement.querySelector('.rp-placeholder').style.display='flex';this.style.display='none'">
+        <div class="rp-placeholder" style="display:none"><span class="rp-ph-logo">Auto<em>Negotiating</em>.com</span><span class="rp-ph-sub">Image not available</span></div>`;
+    } else {
+      photoHtml = `<div class="rp-placeholder"><span class="rp-ph-logo">Auto<em>Negotiating</em>.com</span><span class="rp-ph-sub">Image not available</span></div>`;
+    }
+    const condLabel = r.condition ? ({new:'New',used:'Used',certified:'CPO'}[r.condition] || r.condition) : 'All';
+    return `
+      <div class="rp-card" onclick="applyRecentSearch(${i})">
+        <div class="rp-img-wrap">${photoHtml}</div>
+        <div class="rp-info">
+          <div class="rp-label">${escHtml(r.label)}</div>
+          <div class="rp-meta">${escHtml(condLabel)}${r.zip ? ' · ' + escHtml(r.zip) : ''}</div>
+        </div>
+        <button class="rp-remove" onclick="removeRecentPreview(event,${i})" title="Remove">×</button>
+      </div>`;
+  }).join('');
+  section.querySelector('.rp-grid').innerHTML = cards;
+}
+
+function removeRecentPreview(e, idx) {
+  e.stopPropagation();
+  let list = loadRecentSearches();
+  const removed = list[idx];
+  list.splice(idx, 1);
+  try { localStorage.setItem(RS_KEY, JSON.stringify(list)); } catch(e) {}
+  renderRecentPreviews();
+  // Remove from DB if signed in and we have a DB id
+  if (window.Clerk?.user && removed?._dbId) {
+    window.Clerk.session.getToken().then(token => {
+      fetch(`/api/user/searches/${removed._dbId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    }).catch(() => {});
+  }
 }
 
 // ── Card carousel ─────────────────────────────────────────────────────────────
@@ -2085,9 +2264,13 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   const makeEl = document.getElementById('search-make');
   if (makeEl) makeEl.addEventListener('change', populateModels);
   const modelEl = document.getElementById('search-model');
-  if (modelEl) modelEl.addEventListener('change', populateTrims);
+  if (modelEl) modelEl.addEventListener('change', () => { window._trimsPromise = populateTrims(); });
 
-  renderRecentSearches();
+  renderRecentPreviews();
+
+  // Restore subscription from sessionStorage
+  const savedSubEmail = sessionStorage.getItem('subEmail');
+  if (savedSubEmail) verifySubscriptionByEmail(savedSubEmail);
 
   // Handle Stripe offer payment return
   const urlParams = new URLSearchParams(window.location.search);
@@ -2106,6 +2289,20 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
             allCars.push(savedCar);
           }
           if (offerCarId) showOfferVerifyStep(offerCarId);
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Handle subscription checkout return
+  const subSuccess = urlParams.get('sub_success');
+  if (subSuccess) {
+    history.replaceState({}, '', location.origin + location.pathname);
+    fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(subSuccess)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.paid && data.email) {
+          activateSubscription(data.email);
         }
       })
       .catch(() => {});
@@ -2136,4 +2333,427 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
     runSearch(1, { make: makeParam, model: modelParam || '' });
   }
+
+  // ── Saved vehicles & offer history ───────────────────────────────────────
+  window.openSavedVehicles = async function() {
+    if (typeof closeProfileMenu === 'function') closeProfileMenu();
+    const overlay = document.getElementById('saved-overlay');
+    const body    = document.getElementById('saved-modal-body');
+    overlay.classList.remove('hidden');
+    body.innerHTML = '<div class="saved-empty"><p>Loading...</p></div>';
+
+    if (!window.Clerk?.user) {
+      body.innerHTML = '<div class="saved-empty"><p>Sign in to view saved vehicles.</p></div>';
+      return;
+    }
+    try {
+      const token = await window.Clerk.session.getToken();
+      const res   = await fetch('/api/user/favorites', { headers: { Authorization: `Bearer ${token}` } });
+      const rows  = res.ok ? await res.json() : [];
+
+      if (!rows.length) {
+        body.innerHTML = '<div class="saved-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.25"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><p>No saved vehicles yet.<br>Heart a listing to save it.</p></div>';
+        return;
+      }
+
+      const cards = rows.map(row => {
+        const d   = row.listingData || {};
+        const img = d.img || (Array.isArray(d.allPhotos) && d.allPhotos[0]) || null;
+        const name  = escHtml(d.year ? `${d.year} ${d.name||''}` : (d.name||'Vehicle'));
+        const trim  = escHtml(d.trim || '');
+        const price = d.msrp ? fmt(d.msrp) : 'Call for Price';
+        const dealer = escHtml(d.dealer || '');
+        const city   = escHtml(d.dealerCity || '');
+        const vin    = row.vin || '';
+        // Use a wrapper div so onerror can toggle visibility without quote conflicts
+        return `
+          <div class="saved-card">
+            <div class="saved-card-img-wrap">
+              ${img ? `<img class="saved-card-img" src="${escHtml(img)}" alt="${name}" onerror="this.style.display='none';this.parentElement.querySelector('.saved-card-img-ph').style.display='flex'">` : ''}
+              <div class="saved-card-img-ph" style="${img ? 'display:none' : 'display:flex'}">${NO_IMG_MD}</div>
+            </div>
+            <div class="saved-card-body">
+              <div class="saved-card-name">${name}</div>
+              <div class="saved-card-trim">${trim}</div>
+              <div class="saved-card-price">${price}</div>
+              <div class="saved-card-meta">${dealer}${city ? ' · '+city : ''}</div>
+              <div class="saved-card-actions">
+                <button class="saved-card-offer" onclick="openOfferFromSaved('${escHtml(vin)}')">✉ Offer</button>
+                <button class="saved-card-remove" onclick="removeSaved('${escHtml(vin)}',this)">Remove</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+      body.innerHTML = `<div class="saved-grid">${cards}</div>`;
+    } catch(e) {
+      body.innerHTML = '<div class="saved-empty"><p>Could not load saved vehicles.</p></div>';
+    }
+  };
+
+  window.removeSaved = async function(vin, btn) {
+    if (!window.Clerk?.user || !vin) return;
+    btn.textContent = '…';
+    btn.disabled = true;
+    try {
+      const token = await window.Clerk.session.getToken();
+      await fetch(`/api/user/favorites/${encodeURIComponent(vin)}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
+      });
+      btn.closest('.saved-card').remove();
+      const grid = document.querySelector('.saved-grid');
+      if (grid && !grid.children.length) {
+        document.getElementById('saved-modal-body').innerHTML =
+          '<div class="saved-empty"><p>No saved vehicles yet.</p></div>';
+      }
+    } catch(e) { btn.textContent = 'Remove'; btn.disabled = false; }
+  };
+
+  window.openOfferFromSaved = function(vin) {
+    document.getElementById('saved-overlay').classList.add('hidden');
+    const car = allCars.find(c => c.vin === vin);
+    if (car) openOffer(String(car.id));
+  };
+
+  window.openOfferHistory = async function() {
+    if (typeof closeProfileMenu === 'function') closeProfileMenu();
+    const overlay = document.getElementById('offers-overlay');
+    const body    = document.getElementById('offers-modal-body');
+    overlay.classList.remove('hidden');
+    body.innerHTML = '<div class="saved-empty"><p>Loading...</p></div>';
+
+    if (!window.Clerk?.user) {
+      body.innerHTML = '<div class="saved-empty"><p>Sign in to view offer history.</p></div>';
+      return;
+    }
+    try {
+      const token = await window.Clerk.session.getToken();
+      const res   = await fetch('/api/user/offers', { headers: { Authorization: `Bearer ${token}` } });
+      const rows  = res.ok ? await res.json() : [];
+
+      if (!rows.length) {
+        body.innerHTML = '<div class="saved-empty"><p>No offers submitted yet.</p></div>';
+        return;
+      }
+
+      const items = rows.map(row => {
+        const date = new Date(row.submittedAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+        return `<div style="padding:14px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--ink)">${escHtml(row.subject||'Offer')}</div>
+              <div style="font-size:12px;color:var(--ink3);margin-top:2px">${escHtml(row.dealerName||'')}${row.dealerEmail?' · '+escHtml(row.dealerEmail):''}</div>
+              ${row.vin ? `<div style="font-size:11px;color:var(--ink3);font-family:monospace;margin-top:2px">VIN: ${escHtml(row.vin)}</div>` : ''}
+            </div>
+            <div style="font-size:11px;color:var(--ink3);white-space:nowrap;flex-shrink:0">${date}</div>
+          </div>
+        </div>`;
+      }).join('');
+      body.innerHTML = `<div style="padding:0 2px">${items}</div>`;
+    } catch(e) {
+      body.innerHTML = '<div class="saved-empty"><p>Could not load offer history.</p></div>';
+    }
+  };
+
+  // ── Multi-select ─────────────────────────────────────────────────────────
+  window.selectedCars     = new Set();
+  window.selectedCarsData = new Map(); // id → car object, persists across searches
+
+  window.toggleSelect = function(e, carId) {
+    e.stopPropagation();
+    const id = String(carId).replace(/^"|"$/g, '');
+    if (window.selectedCars.has(id)) {
+      window.selectedCars.delete(id);
+      window.selectedCarsData.delete(id);
+    } else {
+      window.selectedCars.add(id);
+      const carObj = allCars.find(c => String(c.id) === id);
+      if (carObj) window.selectedCarsData.set(id, carObj);
+    }
+    // Update card border + heart icon
+    document.querySelectorAll('.car-card').forEach(card => {
+      const btn = card.querySelector('.card-heart-btn');
+      if (btn) {
+        const btnId = btn.dataset.id;
+        const sel = window.selectedCars.has(btnId);
+        card.classList.toggle('selected', sel);
+        btn.classList.toggle('selected', sel);
+        btn.innerHTML = sel ? '♥' : '♡';
+        btn.title = sel ? 'Remove from selection' : 'Add to selection';
+      }
+    });
+    window.renderSelectionBar();
+  };
+
+  function showSaveToast(msg) {
+    const t = document.getElementById('save-toast');
+    if (!t) return;
+    t.textContent = msg || '✓ Saved to favorites';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  window.renderSelectionBar = function renderSelectionBar() {
+    const bar   = document.getElementById('selection-bar');
+    const chips = document.getElementById('sel-chips');
+    if (!bar || !chips) return;
+    const ids = Array.from(window.selectedCars);
+    if (!ids.length) { bar.classList.remove('visible'); return; }
+
+    chips.innerHTML = ids.map(id => {
+      const car = window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id);
+      if (!car) return '';
+      const photo = car.allPhotos?.[0] || car.img;
+      const label = `${car.year} ${car.name}`.trim();
+      const imgHtml = photo
+        ? `<img class="sel-chip-img" src="${escHtml(photo)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : '';
+      return `<div class="sel-chip" id="sel-chip-${escHtml(id)}">
+        ${imgHtml}
+        <div class="sel-chip-img-ph" style="${photo ? 'display:none' : 'display:flex'}">🚗</div>
+        <span class="sel-chip-name">${escHtml(label)}</span>
+        <button class="sel-chip-save" onclick="saveOneSelected('${escHtml(id)}')" title="Save to favorites">♡</button>
+        <button class="sel-chip-remove" onclick="deselectCar('${escHtml(id)}')" title="Remove">✕</button>
+      </div>`;
+    }).join('');
+
+    // Update count label
+    const countEl = document.getElementById('sel-count');
+    if (countEl) countEl.textContent = ids.length === 1 ? '1 selected' : `${ids.length} selected`;
+
+    // Disable Compare button when fewer than 2 selected
+    const cmpBtn = document.getElementById('sel-compare-btn');
+    if (cmpBtn) {
+      cmpBtn.disabled = ids.length < 2;
+      cmpBtn.title = ids.length < 2 ? 'Select at least 2 vehicles to compare' : '';
+      cmpBtn.style.opacity = ids.length < 2 ? '0.45' : '';
+      cmpBtn.style.cursor  = ids.length < 2 ? 'not-allowed' : '';
+    }
+
+    bar.classList.add('visible');
+  }
+
+  window.deselectCar = function(id) {
+    window.selectedCars.delete(String(id));
+    window.selectedCarsData.delete(String(id));
+    document.querySelectorAll('.car-card').forEach(card => {
+      const btn = card.querySelector('.card-heart-btn');
+      if (btn && btn.dataset.id === String(id)) {
+        card.classList.remove('selected');
+        btn.classList.remove('selected');
+        btn.innerHTML = '♡';
+      }
+    });
+    window.renderSelectionBar();
+  };
+
+  window.clearSelection = function() {
+    window.selectedCars.clear();
+    window.selectedCarsData.clear();
+    document.querySelectorAll('.car-card').forEach(c => {
+      c.classList.remove('selected');
+      const btn = c.querySelector('.card-heart-btn');
+      if (btn) { btn.classList.remove('selected'); btn.innerHTML = '♡'; }
+    });
+    window.renderSelectionBar();
+  };
+
+  window.compareSelected = function() {
+    const cars = Array.from(window.selectedCars)
+      .map(id => window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id))
+      .filter(Boolean);
+    if (cars.length < 2) { alert('Select at least 2 vehicles to compare.'); return; }
+
+    const savedSet = new Set(); // track which have been saved this session
+
+    function buildTable() {
+      const rows = [
+        ['Deal', c => {
+          const m = {great:'★ Great Deal',good:'✓ Good Deal',fair:'Fair Price',high:'↑ High Price'};
+          return c.dealRating ? `<span class="cmp-deal ${c.dealRating}">${m[c.dealRating]||c.dealRating}</span>` : '—';
+        }],
+        ['Condition',    c => c.condition ? ({new:'New',used:'Used',certified:'CPO'}[c.condition]||c.condition) : '—'],
+        ['Mileage',      c => c.mileageRaw ? Number(c.mileageRaw).toLocaleString()+' mi' : (c.condition==='new' ? 'New' : '—')],
+        ['Days on lot',  c => c.daysOnLot != null ? c.daysOnLot+' days' : '—'],
+        ['Ext. Color',   c => escHtml(c.color||'—')],
+        ['Body Style',   c => escHtml(c.bodyStyle ? c.bodyStyle.charAt(0).toUpperCase()+c.bodyStyle.slice(1) : '—')],
+        ['Engine',       c => escHtml(c.engine||'—')],
+        ['Transmission', c => escHtml(c.transmission||'—')],
+        ['Drivetrain',   c => escHtml(c.drivetrain||'—')],
+        ['Fuel Type',    c => escHtml(c.fuel||'—')],
+        ['Distance',     c => c.distanceMi != null ? c.distanceMi+' mi away' : '—'],
+        ['Dealer',       c => escHtml(c.dealer||'—')],
+        ['Location',     c => escHtml(c.dealerCity||'—')],
+        ['Stock #',      c => escHtml(c.stock||'—')],
+        ['VIN',          c => c.vin ? `<span style="font-family:monospace;font-size:11px">${escHtml(c.vin)}</span>` : '—'],
+      ];
+
+      const thead = `<thead><tr><th style="min-width:110px;border-right:1px solid var(--border)"></th>${cars.map((c,i) => {
+        const photo = (c.allPhotos?.[0] || c.img);
+        return `<th>
+          <button class="cmp-remove" onclick="removeCmpCar(${i})" title="Remove">×</button>
+          ${photo
+            ? `<div style="position:relative"><img class="cmp-photo" src="${escHtml(photo)}" alt="${escHtml(c.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="cmp-photo-ph" style="display:none">${NO_IMG_MD}</div></div>`
+            : `<div class="cmp-photo-ph">${NO_IMG_MD}</div>`}
+          <div class="cmp-vehicle-head">
+            <div class="cmp-name">${escHtml(c.year+' '+c.name)}<br><span style="font-weight:400;color:var(--ink3)">${escHtml(c.trim||'')}</span></div>
+            <div class="cmp-price">${c.msrp ? fmt(c.msrp) : 'Price N/A'}</div>
+            <button class="cmp-save-btn${savedSet.has(String(c.id))?' saved':''}" onclick="cmpSaveCar(${i})" id="cmp-save-${i}">
+              ${savedSet.has(String(c.id)) ? '✓ Saved' : '♡ Save'}
+            </button>
+          </div>
+        </th>`;
+      }).join('')}</tr></thead>`;
+
+      const tbody = `<tbody>${rows.map(([label, fn]) =>
+        `<tr class="row-label">
+          <td>${label}</td>
+          ${cars.map(c => `<td>${fn(c)}</td>`).join('')}
+        </tr>`
+      ).join('')}</tbody>`;
+
+      document.getElementById('compare-table').innerHTML = thead + tbody;
+    }
+
+    window.removeCmpCar = function(idx) {
+      const car = cars[idx];
+      if (car) {
+        window.selectedCars.delete(String(car.id));
+        window.selectedCarsData.delete(String(car.id));
+      }
+      cars.splice(idx, 1);
+      if (cars.length < 1) {
+        document.getElementById('compare-overlay').classList.add('hidden');
+        window.renderSelectionBar();
+        return;
+      }
+      buildTable();
+      window.renderSelectionBar();
+    };
+
+    window.cmpSaveCar = function(idx) {
+      if (!window.Clerk?.user) {
+        try { window.Clerk.openSignIn(); } catch(e) {}
+        return;
+      }
+      const car = cars[idx];
+      if (!car || savedSet.has(String(car.id))) return;
+      savedSet.add(String(car.id));
+      const btn = document.getElementById(`cmp-save-${idx}`);
+      if (btn) { btn.textContent = '✓ Saved'; btn.classList.add('saved'); }
+      saveFavorite(car);
+    };
+
+    buildTable();
+    document.getElementById('compare-overlay').classList.remove('hidden');
+  };
+
+  function requireSignIn() {
+    // Prompt sign-in; works whether Clerk is loaded or not
+    if (window.Clerk?.openSignIn) {
+      try { window.Clerk.openSignIn(); return true; } catch(e) {}
+    }
+    alert('Please sign in to save vehicles to your favorites.');
+    return true;
+  }
+
+  window.saveOneSelected = function(id) {
+    const car = window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id);
+    if (!car) return;
+    if (!window.Clerk?.user) { requireSignIn(); return; }
+    const btn = document.querySelector(`#sel-chip-${CSS.escape(id)} .sel-chip-save`);
+    if (btn) { btn.textContent = '✓'; btn.classList.add('saved'); btn.disabled = true; }
+    saveFavorite(car);
+    showSaveToast(`✓ ${car.year} ${car.name} saved`);
+  };
+
+  window.saveAllSelected = function() {
+    if (!window.Clerk?.user) { requireSignIn(); return; }
+    const cars = Array.from(window.selectedCars)
+      .map(id => window.selectedCarsData.get(id) || allCars.find(c => String(c.id) === id))
+      .filter(Boolean);
+    if (!cars.length) return;
+    cars.forEach(car => {
+      saveFavorite(car);
+      const id = String(car.id);
+      const btn = document.querySelector(`#sel-chip-${CSS.escape(id)} .sel-chip-save`);
+      if (btn) { btn.textContent = '✓'; btn.classList.add('saved'); btn.disabled = true; }
+    });
+    showSaveToast(cars.length === 1 ? `✓ ${cars[0].year} ${cars[0].name} saved` : `✓ ${cars.length} vehicles saved`);
+    setTimeout(clearSelection, 1800);
+  };
+
+  function saveFavorite(car) {
+    if (!window.Clerk?.user) { requireSignIn(); return; }
+    window.Clerk.session.getToken().then(token => {
+      fetch('/api/user/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ vin: car.vin || String(car.id), listingData: car })
+      }).catch(() => {});
+    }).catch(() => {});
+  }
+
+  // ── Clerk: sync user data when signed in ──────────────────────────────────
+  window.addEventListener('clerk:signed-in', async (e) => {
+    try {
+      const token = await window.Clerk.session.getToken();
+      // Fetch saved searches from DB and merge into localStorage
+      const res = await fetch('/api/user/searches', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const dbSearches = await res.json();
+        if (dbSearches.length) {
+          // DB is source of truth when logged in — replace localStorage
+          const merged = dbSearches.map(r => ({
+            make: r.make, model: r.model, trim: r.trim,
+            condition: r.condition, zip: r.zip, radius: r.radius,
+            body: r.body, label: r.label, ts: new Date(r.createdAt).getTime(),
+            imgs: Array.isArray(r.imgs) ? r.imgs : [],
+            _dbId: r.id
+          }));
+          try { localStorage.setItem(RS_KEY, JSON.stringify(merged)); } catch(_) {}
+          renderRecentPreviews();
+        } else {
+          // No DB records yet — push local searches to DB
+          const localSearches = loadRecentSearches();
+          for (const s of localSearches.slice().reverse()) {
+            const t = await window.Clerk.session.getToken();
+            await fetch('/api/user/searches', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+              body: JSON.stringify({ ...s, email: e.detail?.user?.primaryEmailAddress?.emailAddress, name: e.detail?.user?.fullName })
+            }).catch(() => {});
+          }
+          // Re-fetch to get IDs
+          const res2 = await fetch('/api/user/searches', { headers: { Authorization: `Bearer ${await window.Clerk.session.getToken()}` } });
+          if (res2.ok) {
+            const rows = await res2.json();
+            const merged = rows.map(r => ({
+              make: r.make, model: r.model, trim: r.trim,
+              condition: r.condition, zip: r.zip, radius: r.radius,
+              body: r.body, label: r.label, ts: new Date(r.createdAt).getTime(),
+              imgs: Array.isArray(r.imgs) ? r.imgs : [],
+              _dbId: r.id
+            }));
+            try { localStorage.setItem(RS_KEY, JSON.stringify(merged)); } catch(_) {}
+            renderRecentPreviews();
+          }
+        }
+      }
+
+      // Sync buyer profile to/from DB
+      const profRes = await fetch('/api/user/profile', {
+        headers: { Authorization: `Bearer ${await window.Clerk.session.getToken()}` }
+      });
+      if (profRes.ok) {
+        const dbProfile = await profRes.json();
+        if (dbProfile && dbProfile.email) {
+          try { localStorage.setItem('buyerProfile', JSON.stringify(dbProfile)); } catch(_) {}
+        }
+      }
+    } catch (err) {
+      console.warn('[Clerk sync]', err);
+    }
+  });
 })();
