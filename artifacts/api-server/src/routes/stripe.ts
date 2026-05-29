@@ -242,6 +242,10 @@ router.post("/stripe/checkout", async (req, res) => {
       cancel_url: cancelUrl ?? `${baseUrl}/deal-intelligence?payment=cancelled`,
       ...(email ? { customer_email: email } : {}),
       metadata: { price_id: priceId },
+      ...(mode === "subscription" ? {
+        payment_method_collection: "always",
+        subscription_data: { trial_period_days: 30 },
+      } : {}),
     });
 
     res.json({ url: session.url });
