@@ -7,9 +7,12 @@ const router: IRouter = Router();
 const DEAL_INTEL_METADATA_KEY = "autonegotiating_product";
 const DEAL_INTEL_METADATA_VAL = "deal-intelligence";
 const OFFER_ACCESS_METADATA_VAL = "offer-access";
+const SUBSCRIPTION_METADATA_VAL = "subscription";
 
 let cachedDealIntelPriceId: string | null = null;
 let cachedOfferPriceId: string | null = null;
+let cachedMonthlyPriceId: string | null = null;
+let cachedAnnualPriceId: string | null = null;
 
 async function ensureDealIntelPrice(): Promise<string> {
   if (cachedDealIntelPriceId) return cachedDealIntelPriceId;
@@ -93,14 +96,72 @@ async function ensureOfferAccessPrice(): Promise<string> {
   return priceId;
 }
 
+async function ensureSubscriptionPrices(): Promise<{ monthlyPriceId: string; annualPriceId: string }> {
+  if (cachedMonthlyPriceId && cachedAnnualPriceId) {
+    return { monthlyPriceId: cachedMonthlyPriceId, annualPriceId: cachedAnnualPriceId };
+  }
+
+  const stripe = await getUncachableStripeClient();
+
+  const products = await stripe.products.search({
+    query: `metadata["${DEAL_INTEL_METADATA_KEY}"]:"${SUBSCRIPTION_METADATA_VAL}"`,
+  });
+
+  let productId: string;
+  if (products.data.length > 0) {
+    productId = products.data[0].id;
+  } else {
+    const product = await stripe.products.create({
+      name: "AutoNegotiating Pro",
+      description: "Unlimited deal intelligence reports, offer submissions, and negotiation tools — all paywalls bypassed while your subscription is active.",
+      metadata: { [DEAL_INTEL_METADATA_KEY]: SUBSCRIPTION_METADATA_VAL },
+    });
+    productId = product.id;
+  }
+
+  const prices = await stripe.prices.list({ product: productId, active: true, limit: 20 });
+
+  let monthlyPriceId = prices.data.find(
+    (p) => p.recurring?.interval === "month" && p.unit_amount === 2000
+  )?.id ?? null;
+  let annualPriceId = prices.data.find(
+    (p) => p.recurring?.interval === "year" && p.unit_amount === 20000
+  )?.id ?? null;
+
+  if (!monthlyPriceId) {
+    const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: 2000,
+      currency: "usd",
+      recurring: { interval: "month" },
+    });
+    monthlyPriceId = price.id;
+  }
+
+  if (!annualPriceId) {
+    const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: 20000,
+      currency: "usd",
+      recurring: { interval: "year" },
+    });
+    annualPriceId = price.id;
+  }
+
+  cachedMonthlyPriceId = monthlyPriceId;
+  cachedAnnualPriceId = annualPriceId;
+  return { monthlyPriceId, annualPriceId };
+}
+
 router.get("/stripe/config", async (req, res) => {
   try {
-    const [publishableKey, priceId, offerPriceId] = await Promise.all([
+    const [publishableKey, priceId, offerPriceId, { monthlyPriceId, annualPriceId }] = await Promise.all([
       getStripePublishableKey(),
       ensureDealIntelPrice(),
       ensureOfferAccessPrice(),
+      ensureSubscriptionPrices(),
     ]);
-    res.json({ publishableKey, priceId, offerPriceId });
+    res.json({ publishableKey, priceId, offerPriceId, monthlyPriceId, annualPriceId });
   } catch (err: any) {
     req.log.error({ err }, "Failed to get Stripe config");
     res.status(500).json({ error: "Stripe not configured" });
@@ -217,6 +278,41 @@ router.post("/stripe/embedded-checkout", async (req, res) => {
   } catch (err: any) {
     req.log.error({ err }, "Failed to create embedded checkout session");
     res.status(500).json({ error: "Failed to create checkout session" });
+  }
+});
+
+router.get("/stripe/subscription-status", async (req, res) => {
+  try {
+    const { email } = req.query as { email?: string };
+    if (!email) {
+      res.status(400).json({ error: "email is required" });
+      return;
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const customers = await stripe.customers.list({ email: email.toLowerCase(), limit: 5 });
+
+    let active = false;
+    for (const customer of customers.data) {
+      const subs = await stripe.subscriptions.list({
+        customer: customer.id,
+        status: "active",
+        limit: 1,
+      });
+      if (subs.data.length > 0) { active = true; break; }
+
+      const trialing = await stripe.subscriptions.list({
+        customer: customer.id,
+        status: "trialing",
+        limit: 1,
+      });
+      if (trialing.data.length > 0) { active = true; break; }
+    }
+
+    res.json({ active });
+  } catch (err: any) {
+    req.log.error({ err }, "Failed to check subscription status");
+    res.status(500).json({ error: "Failed to check subscription" });
   }
 });
 
