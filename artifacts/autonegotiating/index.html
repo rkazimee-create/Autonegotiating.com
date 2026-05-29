@@ -576,10 +576,10 @@ footer a{color:var(--orange);text-decoration:none}
       <span>Trade Intelligence</span>
     </a>
     <span class="live-badge" id="api-status-badge" style="display:none"></span>
-    <button class="nav-pro-btn" id="nav-pro-btn" onclick="openSubscribeModal()">
+    <div class="nav-pro-btn" id="nav-pro-btn" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      Go Pro
-    </button>
+      Pro
+    </div>
     <button id="auth-btn" class="nav-auth-btn" style="display:none">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Sign In
@@ -1151,6 +1151,19 @@ footer a{color:var(--orange);text-decoration:none}
     <button class="modal-close" onclick="closeSubscribeModal()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,0.9);border:1px solid var(--border)">×</button>
     <div class="sub-modal-title">AutoNegotiating Pro</div>
     <div class="sub-modal-sub">Unlimited reports, offer submissions, and negotiation tools — all in one plan</div>
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.25rem">
+      <div style="background:var(--success-light);border-bottom:1px solid rgba(29,158,117,0.2);padding:10px 14px;display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--success);text-transform:uppercase">Have a promo code?</span>
+      </div>
+      <div style="padding:12px 14px;background:var(--white)">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="sub-promo-input" placeholder="Enter promo code" class="s-input" style="flex:1;text-transform:uppercase;letter-spacing:1px;height:38px;font-size:13px" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')applySubPromoCode()">
+          <button onclick="applySubPromoCode()" id="sub-promo-btn" style="background:var(--success);color:white;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border:none;padding:0 18px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:background 0.15s">Apply</button>
+        </div>
+        <div id="sub-promo-msg" style="font-size:12px;margin-top:7px;display:none"></div>
+      </div>
+    </div>
     <div class="sub-plans">
       <div class="sub-plan" id="sub-plan-monthly" onclick="selectSubPlan('monthly')">
         <div class="sub-plan-name">Monthly</div>
@@ -1171,7 +1184,8 @@ footer a{color:var(--orange);text-decoration:none}
       <li>Trade Intelligence tool — full access</li>
       <li>Priority support</li>
     </ul>
-    <button class="sub-start-btn" id="sub-start-btn" onclick="startSubscription()">Start Annual Plan — $200/yr</button>
+    <button class="sub-start-btn" id="sub-start-btn" onclick="startSubscription()">Start Free Trial — Annual $200/yr</button>
+    <div style="text-align:center;font-size:11px;color:var(--ink3);margin-top:8px;margin-bottom:4px">30-day free trial · Card required · Cancel anytime</div>
     <div class="sub-already">Already subscribed? <a onclick="promptCheckSubscription()">Restore access</a></div>
   </div>
 </div>
