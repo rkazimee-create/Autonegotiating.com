@@ -255,6 +255,36 @@ router.post("/stripe/checkout", async (req, res) => {
   }
 });
 
+router.post("/stripe/embedded-subscription", async (req, res) => {
+  try {
+    const { priceId, returnUrl } = req.body as {
+      priceId: string;
+      returnUrl: string;
+    };
+
+    if (!priceId || !returnUrl) {
+      res.status(400).json({ error: "priceId and returnUrl are required" });
+      return;
+    }
+
+    const stripe = await getUncachableStripeClient();
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: "subscription",
+      ui_mode: "embedded",
+      return_url: returnUrl,
+      subscription_data: { trial_period_days: 30 },
+    });
+
+    res.json({ clientSecret: session.client_secret });
+  } catch (err: any) {
+    req.log.error({ err }, "Failed to create embedded subscription session");
+    res.status(500).json({ error: "Failed to create subscription session" });
+  }
+});
+
 router.post("/stripe/embedded-checkout", async (req, res) => {
   try {
     const { priceId, returnUrl } = req.body as {
