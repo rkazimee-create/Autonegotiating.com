@@ -1493,6 +1493,7 @@ let _selectedSubPlan = 'annual';
 
 function activateSubscription(email) {
   _subscriptionActive = true;
+  window._proSubscriptionActive = true;
   if (email) {
     try { localStorage.setItem('subEmail', email); } catch (_) {}
     sessionStorage.setItem('subEmail', email);
@@ -1527,9 +1528,66 @@ async function openManageSubscription() {
   } catch { alert('Could not open subscription portal. Please try again.'); }
 }
 
+function buildPlanModal() {
+  if (document.getElementById('plan-modal-overlay')) return;
+  const el = document.createElement('div');
+  el.id = 'plan-modal-overlay';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px';
+  el.onclick = e => { if (e.target === el) closePlanModal(); };
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;padding:2rem 2rem 1.5rem;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.18)">
+    <button onclick="closePlanModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:22px;color:#8A8A84;cursor:pointer;line-height:1;padding:2px 6px">&#x2715;</button>
+    <div style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:#1A1A18;letter-spacing:-0.3px;margin-bottom:4px">Get Started</div>
+    <div style="font-size:13px;color:#4A4A46;margin-bottom:1.75rem">Choose the plan that's right for you. Upgrade or cancel anytime.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem">
+      <div onclick="selectPlanAndContinue('free')" style="border:2px solid #E8E8E2;border-radius:12px;padding:1.25rem;cursor:pointer;display:flex;flex-direction:column" onmouseover="this.style.borderColor='#D0D0C8'" onmouseout="this.style.borderColor='#E8E8E2'">
+        <div style="font-size:14px;font-weight:700;color:#1A1A18;margin-bottom:4px">Free</div>
+        <div style="font-size:28px;font-weight:700;color:#1A1A18;line-height:1;margin-bottom:2px">$0</div>
+        <div style="font-size:11px;color:#8A8A84;margin-bottom:14px">forever</div>
+        <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:#4A4A46;display:flex;flex-direction:column;gap:7px;flex:1">
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>3 Deal Intelligence reports/mo</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>3 Trade Intelligence reports/mo</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#D0D0C8;flex-shrink:0">–</span>Offer submissions to dealers</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#D0D0C8;flex-shrink:0">–</span>Priority support</li>
+        </ul>
+        <button style="width:100%;background:transparent;border:1.5px solid #D0D0C8;color:#4A4A46;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;margin-top:16px">Continue Free</button>
+      </div>
+      <div onclick="selectPlanAndContinue('pro')" style="border:2px solid #C95E1A;border-radius:12px;padding:1.25rem;cursor:pointer;background:#FBF0E8;position:relative;display:flex;flex-direction:column" onmouseover="this.style.background='#f5e8d8'" onmouseout="this.style.background='#FBF0E8'">
+        <div style="position:absolute;top:-1px;right:14px;background:#C95E1A;color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;letter-spacing:0.8px">BEST VALUE</div>
+        <div style="font-size:14px;font-weight:700;color:#1A1A18;margin-bottom:4px">Pro</div>
+        <div style="font-size:28px;font-weight:700;color:#C95E1A;line-height:1;margin-bottom:2px">$20<span style="font-size:13px;font-weight:400;color:#D97230">/mo</span></div>
+        <div style="font-size:11px;color:#D97230;margin-bottom:14px">or $200/yr · 30-day free trial</div>
+        <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:#4A4A46;display:flex;flex-direction:column;gap:7px;flex:1">
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Unlimited Deal Intelligence reports</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Unlimited Trade Intelligence reports</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Unlimited offer submissions to dealers</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Priority support</li>
+        </ul>
+        <button style="width:100%;background:#C95E1A;border:none;color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;margin-top:16px">Start Free Trial</button>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:#8A8A84">Already have an account? <a href="#" onclick="closePlanModal();try{window.Clerk.openSignIn();}catch(e){}return false" style="color:#C95E1A;text-decoration:none;font-weight:500">Sign in</a></div>
+  </div>`;
+  document.body.appendChild(el);
+}
+function openPlanModal() { buildPlanModal(); document.getElementById('plan-modal-overlay').style.display = 'flex'; }
+function closePlanModal() { const el = document.getElementById('plan-modal-overlay'); if (el) el.style.display = 'none'; }
+function selectPlanAndContinue(plan) {
+  closePlanModal();
+  if (plan === 'pro') { try { localStorage.setItem('pendingProUpgrade', '1'); } catch(_) {} }
+  try { window.Clerk.openSignIn(); } catch(e) {}
+}
+
 function _showSubStatus(data) {
   const el = document.getElementById('pd-sub-status');
-  if (!el || !data || !data.active) return;
+  if (!el) return;
+  if (!data || !data.active) {
+    el.textContent = 'Free Plan';
+    el.style.display = 'inline-flex';
+    el.style.color = '#6A6A64';
+    el.style.background = '#F0F0EA';
+    el.style.border = '1px solid #D0D0C8';
+    return;
+  }
   const plan = data.planInterval === 'year' ? 'Annual' : data.planInterval === 'month' ? 'Monthly' : 'Pro';
   let text;
   if (data.status === 'trialing' && data.trialEnd) {
@@ -1543,6 +1601,9 @@ function _showSubStatus(data) {
   }
   el.textContent = text;
   el.style.display = 'inline-flex';
+  el.style.color = 'var(--orange, #C95E1A)';
+  el.style.background = 'var(--orange-light, #FBF0E8)';
+  el.style.border = '1px solid rgba(201,94,26,0.2)';
 }
 
 async function verifySubscriptionByEmail(email) {
@@ -2842,6 +2903,13 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
     if (clerkEmail && !_subscriptionActive) {
       verifySubscriptionByEmail(clerkEmail);
     }
+    // Check if user chose Pro during sign-up flow
+    try {
+      if (localStorage.getItem('pendingProUpgrade') === '1') {
+        localStorage.removeItem('pendingProUpgrade');
+        setTimeout(() => { try { openSubscribeModal(); } catch(e2) {} }, 700);
+      }
+    } catch(_) {}
     } catch (err) {
       console.warn('[Clerk sync]', err);
     }
