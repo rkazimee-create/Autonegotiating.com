@@ -1527,10 +1527,28 @@ async function openManageSubscription() {
   } catch { alert('Could not open subscription portal. Please try again.'); }
 }
 
+function _showSubStatus(data) {
+  const el = document.getElementById('pd-sub-status');
+  if (!el || !data || !data.active) return;
+  const plan = data.planInterval === 'year' ? 'Annual' : data.planInterval === 'month' ? 'Monthly' : 'Pro';
+  let text;
+  if (data.status === 'trialing' && data.trialEnd) {
+    const days = Math.ceil((data.trialEnd * 1000 - Date.now()) / 86400000);
+    text = `⭐ Pro Trial · ${Math.max(0, days)} day${days !== 1 ? 's' : ''} left`;
+  } else if (data.currentPeriodEnd) {
+    const date = new Date(data.currentPeriodEnd * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    text = `⭐ Pro ${plan} · renews ${date}`;
+  } else {
+    text = `⭐ Pro ${plan}`;
+  }
+  el.textContent = text;
+  el.style.display = 'inline-flex';
+}
+
 async function verifySubscriptionByEmail(email) {
   try {
     const data = await fetch(`/api/stripe/subscription-status?email=${encodeURIComponent(email)}`).then(r => r.json());
-    if (data.active) activateSubscription(email);
+    if (data.active) { activateSubscription(email); _showSubStatus(data); }
     return data.active;
   } catch { return false; }
 }
