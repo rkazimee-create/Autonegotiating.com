@@ -275,6 +275,20 @@ footer a{color:var(--orange);text-decoration:none}
 .modal-pay-btn{width:100%;background:var(--orange);color:white;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;border:none;padding:14px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:0.75rem}
 .modal-pay-btn:hover{background:var(--orange-dark)}
 .modal-note{text-align:center;font-size:11px;color:var(--ink3)}
+.nav-auth-btn{font-size:13px;font-weight:500;color:var(--ink2);background:transparent;border:1px solid var(--border2);padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:'Inter',sans-serif;transition:all 0.15s}
+.nav-auth-btn:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-light)}
+.profile-menu-wrap{position:relative}
+.profile-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.12);min-width:200px;z-index:200;overflow:hidden;opacity:0;pointer-events:none;transform:translateY(-6px);transition:opacity 0.15s,transform 0.15s}
+.profile-dropdown.open{opacity:1;pointer-events:all;transform:translateY(0)}
+.profile-dropdown-header{padding:12px 14px;border-bottom:1px solid var(--border);background:var(--cream)}
+.profile-dropdown-name{font-size:13px;font-weight:600;color:var(--ink)}
+.profile-dropdown-email{font-size:11px;color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.profile-dropdown-item{display:flex;align-items:center;gap:9px;padding:10px 14px;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;transition:background 0.12s;border:none;background:none;width:100%;text-align:left;font-family:'Inter',sans-serif}
+.profile-dropdown-item:hover{background:var(--cream);color:var(--orange)}
+.profile-dropdown-item svg{flex-shrink:0;opacity:0.6}
+.profile-dropdown-item:hover svg{opacity:1}
+.profile-dropdown-divider{height:1px;background:var(--border);margin:2px 0}
+.profile-dropdown-item.signout{color:var(--ink3)}
 </style>
 </head>
 <body>
@@ -287,6 +301,34 @@ footer a{color:var(--orange);text-decoration:none}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
       Trade Intelligence
     </a>
+    <div id="nav-pro-btn" style="display:none;font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-light);border:1.5px solid var(--orange-border);padding:4px 9px;border-radius:var(--radius-sm);align-items:center;gap:4px">⭐ Pro ✓</div>
+    <button id="auth-btn" class="nav-auth-btn" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Sign In
+    </button>
+    <div class="profile-menu-wrap" id="profile-menu-wrap" style="display:none">
+      <div id="auth-avatar" style="display:flex;align-items:center;cursor:pointer"></div>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <div class="profile-dropdown-header">
+          <div class="profile-dropdown-name" id="pd-name"></div>
+          <div class="profile-dropdown-email" id="pd-email"></div>
+        </div>
+        <button class="profile-dropdown-item" id="manage-sub-btn" style="display:none;color:var(--orange)" onclick="openManageSubscription();document.getElementById('profile-dropdown').classList.remove('open')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Manage Subscription
+        </button>
+        <div class="profile-dropdown-divider" id="manage-sub-divider" style="display:none"></div>
+        <button class="profile-dropdown-item" onclick="window.Clerk.openUserProfile();document.getElementById('profile-dropdown').classList.remove('open')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Account Settings
+        </button>
+        <div class="profile-dropdown-divider"></div>
+        <button class="profile-dropdown-item signout" onclick="window.Clerk.signOut()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </button>
+      </div>
+    </div>
   </div>
 </nav>
 
@@ -603,7 +645,7 @@ function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 let _sessionUnlocked = false;
 
 function isUnlocked() {
-  return _sessionUnlocked;
+  return _sessionUnlocked || !!window._proSubscriptionActive;
 }
 
 function unlock() {
@@ -782,6 +824,7 @@ async function applyPromoCode() {
 }
 
 async function runAnalysis() {
+  if (window._proSubscriptionCheckPromise) await window._proSubscriptionCheckPromise;
   if (!isUnlocked()) {
     openPaywallModal();
     return;
@@ -2522,6 +2565,73 @@ async function generatePDF() {
     runAnalysis();
   }
 })();
+</script>
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_test_b3B0aW1hbC11bmljb3JuLTMyLmNsZXJrLmFjY291bnRzLmRldiQ"
+  src="https://optimal-unicorn-32.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+  onload="initClerkOnPage()"
+></script>
+<script>
+async function initClerkOnPage() {
+  try {
+    await window.Clerk.load();
+    var authBtn = document.getElementById('auth-btn');
+    var profileWrap = document.getElementById('profile-menu-wrap');
+    var avatar = document.getElementById('auth-avatar');
+    function renderAuth() {
+      var user = window.Clerk.user;
+      if (user) {
+        var img = user.imageUrl;
+        var initials = (((user.firstName||'')[0]||'') + ((user.lastName||'')[0]||'')).toUpperCase()
+                     || ((user.primaryEmailAddress||{}).emailAddress||'')[0]?.toUpperCase() || '?';
+        avatar.innerHTML = img
+          ? '<img src="' + img + '" alt="Profile" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--orange)">'
+          : '<span style="width:32px;height:32px;border-radius:50%;background:var(--orange);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center">' + initials + '</span>';
+        var name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        var email = (user.primaryEmailAddress||{}).emailAddress || '';
+        document.getElementById('pd-name').textContent = name || email;
+        document.getElementById('pd-email').textContent = name ? email : '';
+        if (authBtn) authBtn.style.display = 'none';
+        if (profileWrap) profileWrap.style.display = 'flex';
+        avatar.onclick = function() { document.getElementById('profile-dropdown').classList.toggle('open'); };
+        if (email && !window._proSubscriptionActive) {
+          fetch('/api/stripe/subscription-status?email=' + encodeURIComponent(email))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.active) {
+                window._proSubscriptionActive = true;
+                if (typeof unlock === 'function') unlock();
+                try { localStorage.setItem('subEmail', email); } catch(_) {}
+                sessionStorage.setItem('subEmail', email);
+                var badge = document.getElementById('nav-pro-btn');
+                if (badge) { badge.style.display = 'flex'; badge.innerHTML = '⭐ Pro ✓'; }
+                var manageBtn = document.getElementById('manage-sub-btn');
+                var manageDivider = document.getElementById('manage-sub-divider');
+                if (manageBtn) manageBtn.style.display = 'flex';
+                if (manageDivider) manageDivider.style.display = 'block';
+              }
+            }).catch(function() {});
+        } else if (window._proSubscriptionActive) {
+          var manageBtn = document.getElementById('manage-sub-btn');
+          var manageDivider = document.getElementById('manage-sub-divider');
+          if (manageBtn) manageBtn.style.display = 'flex';
+          if (manageDivider) manageDivider.style.display = 'block';
+        }
+      } else {
+        if (authBtn) { authBtn.style.display = 'flex'; authBtn.onclick = function() { try { window.Clerk.openSignIn(); } catch(e) {} }; }
+        if (profileWrap) profileWrap.style.display = 'none';
+      }
+    }
+    document.addEventListener('click', function(e) {
+      var dd = document.getElementById('profile-dropdown');
+      if (profileWrap && dd && !profileWrap.contains(e.target)) dd.classList.remove('open');
+    });
+    renderAuth();
+    window.Clerk.addListener(renderAuth);
+  } catch(e) {}
+}
 </script>
 </body>
 </html>
