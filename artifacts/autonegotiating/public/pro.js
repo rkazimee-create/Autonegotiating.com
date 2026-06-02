@@ -300,6 +300,25 @@
     } catch (e) { alert('Could not verify subscription. Please try again.'); }
   };
 
+  window._showProSubStatus = function (data) {
+    var el = document.getElementById('pd-sub-status');
+    if (!el || !data || !data.active) return;
+    var plan = data.planInterval === 'year' ? 'Annual' : data.planInterval === 'month' ? 'Monthly' : 'Pro';
+    var text;
+    if (data.status === 'trialing' && data.trialEnd) {
+      var days = Math.ceil((data.trialEnd * 1000 - Date.now()) / 86400000);
+      text = '⭐ Pro Trial · ' + Math.max(0, days) + ' day' + (days !== 1 ? 's' : '') + ' left';
+    } else if (data.currentPeriodEnd) {
+      var d = new Date(data.currentPeriodEnd * 1000);
+      var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      text = '⭐ Pro ' + plan + ' · renews ' + dateStr;
+    } else {
+      text = '⭐ Pro ' + plan;
+    }
+    el.textContent = text;
+    el.style.display = 'inline-flex';
+  };
+
   window.openManageSubscription = async function () {
     var email = (function () { try { return localStorage.getItem('subEmail'); } catch (_) {} })()
       || sessionStorage.getItem('subEmail')
@@ -325,7 +344,7 @@
     window._proSubscriptionCheckPromise = email
       ? fetch('/api/stripe/subscription-status?email=' + encodeURIComponent(email))
           .then(function (r) { return r.json(); })
-          .then(function (data) { if (data.active) proActivateSubscription(email); })
+          .then(function (data) { if (data.active) { proActivateSubscription(email); window._showProSubStatus(data); } })
           .catch(function () {})
       : Promise.resolve();
     /* Handle ?sub_success= redirect back from Stripe (works on any page) */
