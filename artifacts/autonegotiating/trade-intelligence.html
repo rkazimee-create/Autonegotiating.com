@@ -304,6 +304,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
         <div class="profile-dropdown-header">
           <div class="profile-dropdown-name" id="pd-name"></div>
           <div class="profile-dropdown-email" id="pd-email"></div>
+          <div id="pd-sub-status" style="display:none;margin-top:7px;font-size:10px;font-weight:700;letter-spacing:0.2px;color:var(--orange);background:var(--orange-light);border:1px solid var(--orange-border);padding:2px 8px;border-radius:100px;line-height:1.5;width:fit-content"></div>
         </div>
         <button class="profile-dropdown-item" id="manage-sub-btn" style="display:none;color:var(--orange)" onclick="openManageSubscription();document.getElementById('profile-dropdown').classList.remove('open')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
@@ -1630,6 +1631,7 @@ async function initClerkOnPage() {
                 var manageDivider = document.getElementById('manage-sub-divider');
                 if (manageBtn) manageBtn.style.display = 'flex';
                 if (manageDivider) manageDivider.style.display = 'block';
+                if (typeof window._showProSubStatus === 'function') window._showProSubStatus(data);
               }
             }).catch(function() {});
         } else if (window._proSubscriptionActive) {
