@@ -361,8 +361,13 @@ router.get("/stripe/verify-session", async (req, res) => {
     const stripe = await getUncachableStripeClient();
     const session = await stripe.checkout.sessions.retrieve(session_id);
 
-    if (session.payment_status === "paid") {
-      res.json({ paid: true, email: session.customer_email });
+    const email = session.customer_email || session.customer_details?.email || null;
+    const isPaid = session.payment_status === "paid";
+    // Trial subscriptions have payment_status "no_payment_required" but are still valid
+    const isSubscription = session.mode === "subscription" && !!session.subscription;
+
+    if (isPaid || isSubscription) {
+      res.json({ paid: true, email });
     } else {
       res.json({ paid: false });
     }
