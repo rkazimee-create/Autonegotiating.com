@@ -165,7 +165,10 @@
 
   function proActivateSubscription(email) {
     window._proSubscriptionActive = true;
-    if (email) sessionStorage.setItem('subEmail', email);
+    if (email) {
+      try { localStorage.setItem('subEmail', email); } catch (_) {}
+      sessionStorage.setItem('subEmail', email);
+    }
     if (typeof window.unlock === 'function') window.unlock();
     var pm = document.getElementById('paywall-modal');
     if (pm) { pm.classList.remove('visible'); setTimeout(function () { pm.style.display = 'none'; }, 200); }
@@ -295,8 +298,8 @@
   document.addEventListener('DOMContentLoaded', function () {
     buildModal();
 
-    /* Restore session subscription */
-    var email = sessionStorage.getItem('subEmail');
+    /* Restore subscription — localStorage persists across sessions */
+    var email = (function () { try { return localStorage.getItem('subEmail'); } catch (_) {} })() || sessionStorage.getItem('subEmail');
     if (email) {
       fetch('/api/stripe/subscription-status?email=' + encodeURIComponent(email))
         .then(function (r) { return r.json(); })
