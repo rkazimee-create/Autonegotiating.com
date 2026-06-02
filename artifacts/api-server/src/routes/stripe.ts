@@ -351,23 +351,32 @@ router.get("/stripe/subscription-status", async (req, res) => {
     const customers = await stripe.customers.list({ email: email.toLowerCase(), limit: 5 });
 
     let active = false;
-    for (const customer of customers.data) {
-      const subs = await stripe.subscriptions.list({
-        customer: customer.id,
-        status: "active",
-        limit: 1,
-      });
-      if (subs.data.length > 0) { active = true; break; }
+    let status = "none";
+    let planInterval: string | null = null;
+    let currentPeriodEnd: number | null = null;
+    let trialEnd: number | null = null;
 
-      const trialing = await stripe.subscriptions.list({
-        customer: customer.id,
-        status: "trialing",
-        limit: 1,
-      });
-      if (trialing.data.length > 0) { active = true; break; }
+    for (const customer of customers.data) {
+      const subs = await stripe.subscriptions.list({ customer: customer.id, status: "active", limit: 1 });
+      if (subs.data.length > 0) {
+        const sub = subs.data[0];
+        active = true; status = "active";
+        planInterval = sub.items.data[0]?.plan?.interval ?? null;
+        currentPeriodEnd = sub.current_period_end;
+        break;
+      }
+      const trialing = await stripe.subscriptions.list({ customer: customer.id, status: "trialing", limit: 1 });
+      if (trialing.data.length > 0) {
+        const sub = trialing.data[0];
+        active = true; status = "trialing";
+        planInterval = sub.items.data[0]?.plan?.interval ?? null;
+        currentPeriodEnd = sub.current_period_end;
+        trialEnd = sub.trial_end;
+        break;
+      }
     }
 
-    res.json({ active });
+    res.json({ active, status, planInterval, currentPeriodEnd, trialEnd });
   } catch (err: any) {
     req.log.error({ err }, "Failed to check subscription status");
     res.status(500).json({ error: "Failed to check subscription" });
