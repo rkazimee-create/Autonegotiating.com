@@ -173,6 +173,12 @@
     var pm = document.getElementById('paywall-modal');
     if (pm) { pm.classList.remove('visible'); setTimeout(function () { pm.style.display = 'none'; }, 200); }
     window.closeProModal();
+    var badge = document.getElementById('nav-pro-btn');
+    if (badge) { badge.style.display = 'flex'; badge.innerHTML = '⭐ Pro ✓'; }
+    var manageBtn = document.getElementById('manage-sub-btn');
+    var manageDivider = document.getElementById('manage-sub-divider');
+    if (manageBtn) manageBtn.style.display = 'flex';
+    if (manageDivider) manageDivider.style.display = 'block';
   }
 
   /* ── Public API ───────────────────────────────────────────────────── */
@@ -294,19 +300,34 @@
     } catch (e) { alert('Could not verify subscription. Please try again.'); }
   };
 
+  window.openManageSubscription = async function () {
+    var email = (function () { try { return localStorage.getItem('subEmail'); } catch (_) {} })()
+      || sessionStorage.getItem('subEmail')
+      || (window.Clerk && window.Clerk.user && window.Clerk.user.primaryEmailAddress && window.Clerk.user.primaryEmailAddress.emailAddress);
+    if (!email) { alert('No subscription found for your account.'); return; }
+    try {
+      var res = await fetch('/api/stripe/portal-session', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, returnUrl: window.location.href })
+      });
+      var data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert(data.error || 'Could not open subscription portal. Please try again.');
+    } catch (e) { alert('Could not open subscription portal. Please try again.'); }
+  };
+
   /* ── On load ──────────────────────────────────────────────────────── */
   document.addEventListener('DOMContentLoaded', function () {
     buildModal();
 
     /* Restore subscription — localStorage persists across sessions */
     var email = (function () { try { return localStorage.getItem('subEmail'); } catch (_) {} })() || sessionStorage.getItem('subEmail');
-    if (email) {
-      fetch('/api/stripe/subscription-status?email=' + encodeURIComponent(email))
-        .then(function (r) { return r.json(); })
-        .then(function (data) { if (data.active) proActivateSubscription(email); })
-        .catch(function () {});
-    }
-
+    window._proSubscriptionCheckPromise = email
+      ? fetch('/api/stripe/subscription-status?email=' + encodeURIComponent(email))
+          .then(function (r) { return r.json(); })
+          .then(function (data) { if (data.active) proActivateSubscription(email); })
+          .catch(function () {})
+      : Promise.resolve();
     /* Handle ?sub_success= redirect back from Stripe (works on any page) */
     var urlParams = new URLSearchParams(window.location.search);
     var subSuccess = urlParams.get('sub_success');
