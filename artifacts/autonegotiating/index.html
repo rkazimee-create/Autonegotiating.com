@@ -1230,6 +1230,14 @@ async function initClerk() {
         const email = user.primaryEmailAddress?.emailAddress || "";
         document.getElementById("pd-name").textContent  = name || email;
         document.getElementById("pd-email").textContent = name ? email : "";
+        const subEl = document.getElementById('pd-sub-status');
+        if (subEl && !window._proSubscriptionActive) {
+          subEl.textContent = 'Free Plan';
+          subEl.style.display = 'inline-flex';
+          subEl.style.color = '#6A6A64';
+          subEl.style.background = '#F0F0EA';
+          subEl.style.border = '1px solid #D0D0C8';
+        }
         btn.style.display  = "none";
         wrap.style.display = "flex";
         avatar.onclick = () => document.getElementById("profile-dropdown").classList.toggle("open");
@@ -1237,7 +1245,7 @@ async function initClerk() {
       } else {
         btn.style.display  = "flex";
         wrap.style.display = "none";
-        btn.onclick = () => { try { window.Clerk.openSignIn(); } catch(e) {} };
+        btn.onclick = () => { try { openPlanModal(); } catch(e2) { try { window.Clerk.openSignIn(); } catch(e3) {} } };
       }
     }
 
