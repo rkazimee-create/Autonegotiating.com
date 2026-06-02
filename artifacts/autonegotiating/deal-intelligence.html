@@ -2594,6 +2594,14 @@ async function initClerkOnPage() {
         var email = (user.primaryEmailAddress||{}).emailAddress || '';
         document.getElementById('pd-name').textContent = name || email;
         document.getElementById('pd-email').textContent = name ? email : '';
+        var subEl = document.getElementById('pd-sub-status');
+        if (subEl && !window._proSubscriptionActive) {
+          subEl.textContent = 'Free Plan';
+          subEl.style.display = 'inline-flex';
+          subEl.style.color = '#6A6A64';
+          subEl.style.background = '#F0F0EA';
+          subEl.style.border = '1px solid #D0D0C8';
+        }
         if (authBtn) authBtn.style.display = 'none';
         if (profileWrap) profileWrap.style.display = 'flex';
         avatar.onclick = function() { document.getElementById('profile-dropdown').classList.toggle('open'); };
@@ -2612,8 +2620,14 @@ async function initClerkOnPage() {
                 var manageDivider = document.getElementById('manage-sub-divider');
                 if (manageBtn) manageBtn.style.display = 'flex';
                 if (manageDivider) manageDivider.style.display = 'block';
-                if (typeof window._showProSubStatus === 'function') window._showProSubStatus(data);
               }
+              if (typeof window._showProSubStatus === 'function') window._showProSubStatus(data);
+              try {
+                if (localStorage.getItem('pendingProUpgrade') === '1') {
+                  localStorage.removeItem('pendingProUpgrade');
+                  setTimeout(function() { try { if (typeof window.openProModal === 'function') window.openProModal(); } catch(e) {} }, 700);
+                }
+              } catch(_) {}
             }).catch(function() {});
         } else if (window._proSubscriptionActive) {
           var manageBtn = document.getElementById('manage-sub-btn');
@@ -2622,7 +2636,7 @@ async function initClerkOnPage() {
           if (manageDivider) manageDivider.style.display = 'block';
         }
       } else {
-        if (authBtn) { authBtn.style.display = 'flex'; authBtn.onclick = function() { try { window.Clerk.openSignIn(); } catch(e) {} }; }
+        if (authBtn) { authBtn.style.display = 'flex'; authBtn.onclick = function() { try { window.openPlanModal(); } catch(e) { try { window.Clerk.openSignIn(); } catch(e2) {} } }; }
         if (profileWrap) profileWrap.style.display = 'none';
       }
     }
