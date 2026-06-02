@@ -1493,7 +1493,10 @@ let _selectedSubPlan = 'annual';
 
 function activateSubscription(email) {
   _subscriptionActive = true;
-  if (email) sessionStorage.setItem('subEmail', email);
+  if (email) {
+    try { localStorage.setItem('subEmail', email); } catch (_) {}
+    sessionStorage.setItem('subEmail', email);
+  }
   const badge = document.getElementById('nav-pro-btn');
   if (badge) {
     badge.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Pro ✓';
@@ -2306,8 +2309,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
   renderRecentPreviews();
 
-  // Restore subscription from sessionStorage
-  const savedSubEmail = sessionStorage.getItem('subEmail');
+  // Restore subscription from localStorage (persists) or sessionStorage
+  const savedSubEmail = (() => { try { return localStorage.getItem('subEmail'); } catch(_) {} })() || sessionStorage.getItem('subEmail');
   if (savedSubEmail) verifySubscriptionByEmail(savedSubEmail);
 
   // Handle Stripe offer payment return
@@ -2796,6 +2799,11 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
           try { localStorage.setItem('buyerProfile', JSON.stringify(dbProfile)); } catch(_) {}
         }
       }
+    // Auto-check subscription for signed-in Clerk user
+    const clerkEmail = e.detail?.user?.primaryEmailAddress?.emailAddress;
+    if (clerkEmail && !_subscriptionActive) {
+      verifySubscriptionByEmail(clerkEmail);
+    }
     } catch (err) {
       console.warn('[Clerk sync]', err);
     }
