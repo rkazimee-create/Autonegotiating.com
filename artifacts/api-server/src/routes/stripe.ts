@@ -255,6 +255,30 @@ router.post("/stripe/checkout", async (req, res) => {
   }
 });
 
+router.post("/stripe/portal-session", async (req, res) => {
+  try {
+    const { email, returnUrl } = req.body as { email: string; returnUrl: string };
+    if (!email || !returnUrl) {
+      res.status(400).json({ error: "email and returnUrl are required" });
+      return;
+    }
+    const stripe = await getUncachableStripeClient();
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    if (!customers.data.length) {
+      res.status(404).json({ error: "No subscription found for this email" });
+      return;
+    }
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customers.data[0].id,
+      return_url: returnUrl,
+    });
+    res.json({ url: session.url });
+  } catch (err: any) {
+    req.log.error({ err }, "Failed to create portal session");
+    res.status(500).json({ error: "Failed to open subscription portal" });
+  }
+});
+
 router.post("/stripe/embedded-subscription", async (req, res) => {
   try {
     const { priceId, returnUrl } = req.body as {
