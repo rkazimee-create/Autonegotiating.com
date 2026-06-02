@@ -1505,6 +1505,26 @@ function activateSubscription(email) {
     badge.style.display = 'flex';
     badge.style.cursor = 'default';
   }
+  const manageBtn = document.getElementById('manage-sub-btn');
+  const manageDivider = document.getElementById('manage-sub-divider');
+  if (manageBtn) manageBtn.style.display = 'flex';
+  if (manageDivider) manageDivider.style.display = 'block';
+}
+
+async function openManageSubscription() {
+  const email = (() => { try { return localStorage.getItem('subEmail'); } catch(_) {} })()
+    || sessionStorage.getItem('subEmail')
+    || window.Clerk?.user?.primaryEmailAddress?.emailAddress;
+  if (!email) { alert('No subscription found for your account.'); return; }
+  try {
+    const res = await fetch('/api/stripe/portal-session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, returnUrl: window.location.href })
+    });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else alert(data.error || 'Could not open subscription portal. Please try again.');
+  } catch { alert('Could not open subscription portal. Please try again.'); }
 }
 
 async function verifySubscriptionByEmail(email) {
