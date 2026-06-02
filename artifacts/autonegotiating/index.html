@@ -106,6 +106,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .profile-dropdown-header{padding:12px 14px;border-bottom:1px solid var(--border);background:var(--cream)}
 .profile-dropdown-name{font-size:13px;font-weight:600;color:var(--ink)}
 .profile-dropdown-email{font-size:11px;color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.pd-sub-badge{display:inline-flex;align-items:center;gap:4px;margin-top:7px;font-size:10px;font-weight:700;letter-spacing:0.2px;color:var(--orange);background:var(--orange-light);border:1px solid var(--orange-border);padding:2px 8px;border-radius:100px;line-height:1.5}
 .profile-dropdown-item{display:flex;align-items:center;gap:9px;padding:10px 14px;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;transition:background 0.12s;border:none;background:none;width:100%;text-align:left}
 .profile-dropdown-item:hover{background:var(--cream);color:var(--orange)}
 .profile-dropdown-item svg{flex-shrink:0;opacity:0.6}
@@ -591,6 +592,7 @@ footer a{color:var(--orange);text-decoration:none}
         <div class="profile-dropdown-header">
           <div class="profile-dropdown-name" id="pd-name"></div>
           <div class="profile-dropdown-email" id="pd-email"></div>
+          <div class="pd-sub-badge" id="pd-sub-status" style="display:none"></div>
         </div>
         <button class="profile-dropdown-item" onclick="openSavedVehicles()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
