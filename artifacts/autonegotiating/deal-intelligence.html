@@ -301,7 +301,7 @@ footer a{color:var(--orange);text-decoration:none}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
       Trade Intelligence
     </a>
-    <div id="nav-pro-btn" style="display:none;font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-light);border:1.5px solid var(--orange-border);padding:4px 9px;border-radius:var(--radius-sm);align-items:center;gap:4px">⭐ Pro ✓</div>
+
     <button id="auth-btn" class="nav-auth-btn" style="display:none">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Sign In
@@ -2614,8 +2614,7 @@ async function initClerkOnPage() {
                 if (typeof unlock === 'function') unlock();
                 try { localStorage.setItem('subEmail', email); } catch(_) {}
                 sessionStorage.setItem('subEmail', email);
-                var badge = document.getElementById('nav-pro-btn');
-                if (badge) { badge.style.display = 'flex'; badge.innerHTML = '⭐ Pro ✓'; }
+
                 var manageBtn = document.getElementById('manage-sub-btn');
                 var manageDivider = document.getElementById('manage-sub-divider');
                 if (manageBtn) manageBtn.style.display = 'flex';
