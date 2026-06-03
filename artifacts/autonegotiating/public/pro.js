@@ -173,8 +173,7 @@
     var pm = document.getElementById('paywall-modal');
     if (pm) { pm.classList.remove('visible'); setTimeout(function () { pm.style.display = 'none'; }, 200); }
     window.closeProModal();
-    var badge = document.getElementById('nav-pro-btn');
-    if (badge) { badge.style.display = 'flex'; badge.innerHTML = '⭐ Pro ✓'; }
+
     var manageBtn = document.getElementById('manage-sub-btn');
     var manageDivider = document.getElementById('manage-sub-divider');
     if (manageBtn) manageBtn.style.display = 'flex';
