@@ -2413,6 +2413,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   const savedSubEmail = (() => { try { return localStorage.getItem('subEmail'); } catch(_) {} })() || sessionStorage.getItem('subEmail');
   if (savedSubEmail) verifySubscriptionByEmail(savedSubEmail);
 
+  renderRecentPreviews();
+
   // Handle Stripe offer payment return
   const urlParams = new URLSearchParams(window.location.search);
   const offerSuccess = urlParams.get('offer_success');

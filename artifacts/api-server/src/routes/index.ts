@@ -11,6 +11,7 @@ import promoRouter from "./promo";
 import stripeRouter from "./stripe";
 import sendOfferRouter from "./send-offer";
 import vehicleFeaturesRouter from "./vehicle-features";
+import userRouter from "./user";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(promoRouter);
 router.use(stripeRouter);
 router.use(sendOfferRouter);
 router.use(vehicleFeaturesRouter);
+router.use(userRouter);
 
 export default router;

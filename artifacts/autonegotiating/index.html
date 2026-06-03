@@ -587,6 +587,7 @@ footer a{color:var(--orange);text-decoration:none}
           <div class="profile-dropdown-name" id="pd-name"></div>
           <div class="profile-dropdown-email" id="pd-email"></div>
           <div class="pd-sub-badge" id="pd-sub-status" style="display:none"></div>
+
         </div>
         <button class="profile-dropdown-item" onclick="openSavedVehicles()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -1197,6 +1198,8 @@ footer a{color:var(--orange);text-decoration:none}
   crossorigin="anonymous"
   data-clerk-publishable-key="pk_live_Y2xlcmsuYXV0b25lZ290aWF0aW5nLmNvbSQ"
   src="https://clerk.autonegotiating.com/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+  data-clerk-publishable-key="pk_test_b3B0aW1hbC11bmljb3JuLTMyLmNsZXJrLmFjY291bnRzLmRldiQ"
+  src="https://optimal-unicorn-32.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
@@ -1240,6 +1243,7 @@ async function initClerk() {
         btn.style.display  = "flex";
         wrap.style.display = "none";
         btn.onclick = () => { try { openPlanModal(); } catch(e2) { try { window.Clerk.openSignIn(); } catch(e3) {} } };
+        btn.onclick = () => { try { window.Clerk.openSignIn(); } catch(e) {} };
       }
     }
 
