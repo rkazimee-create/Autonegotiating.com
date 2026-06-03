@@ -74,8 +74,6 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .nav-intel:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-light)}
 .nav-auth-btn{font-size:13px;font-weight:500;color:var(--white);background:var(--orange);border:none;padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:5px;transition:background 0.15s}
 .nav-auth-btn:hover{background:var(--orange-dark)}
-.nav-pro-btn{font-size:13px;font-weight:600;color:var(--orange);background:transparent;border:1.5px solid var(--orange);padding:5px 13px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.15s;text-decoration:none}
-.nav-pro-btn:hover{background:var(--orange);color:#fff}
 .sub-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1100;display:flex;align-items:center;justify-content:center;padding:1rem}
 .sub-modal{background:var(--white);border-radius:16px;padding:2rem;max-width:560px;width:100%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.18)}
 .sub-modal-title{font-size:22px;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px}
@@ -578,10 +576,6 @@ footer a{color:var(--orange);text-decoration:none}
       <span>Trade Intelligence</span>
     </a>
     <span class="live-badge" id="api-status-badge" style="display:none"></span>
-    <div class="nav-pro-btn" id="nav-pro-btn" style="display:none">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      Pro
-    </div>
     <button id="auth-btn" class="nav-auth-btn" style="display:none">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Sign In
