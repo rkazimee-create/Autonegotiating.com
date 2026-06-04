@@ -41,22 +41,41 @@ function guessEmail(name) {
   return 'internet@' + name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,20) + '.com';
 }
 
+// Known dealer group domains that use platform-specific deeplinks
+const DEALER_GROUP_PATTERNS = [
+  // Lithia / Driveway — huge group, own platform
+  { match: /lithia\.com|driveway\.com/,          url: (vin) => `https://www.lithia.com/catcher.esl?vin=${vin}&utm_source=autonegotiating&utm_medium=referral` },
+  // AutoNation
+  { match: /autonation\.com/,                     url: (vin) => `https://www.autonation.com/cars-for-sale/detail?vin=${vin}` },
+  // Penske
+  { match: /penskeautomotive\.com/,               url: (vin) => `https://www.penskeautomotive.com/vehicles/details?vin=${vin}` },
+  // Asbury
+  { match: /asburyauto\.com/,                     url: (vin) => `https://www.asburyauto.com/vehicles/details?vin=${vin}` },
+  // Sonic
+  { match: /sonicautomotive\.com/,                url: (vin) => `https://www.sonicautomotive.com/cars-for-sale?vin=${vin}` },
+  // Group 1
+  { match: /group1auto\.com/,                     url: (vin) => `https://www.group1auto.com/vehicles/details?vin=${vin}` },
+];
+
 function dealerSearchUrl(car) {
-  // 1. Use clickoffUrl (direct dealer VDP link from API) if available
+  // 1. Use clickoffUrl (direct dealer VDP link from auto.dev API) if available
   if (car.listingUrl) return car.listingUrl;
   const domain = car.dealerDomain;
   if (!domain || domain === 'dealer.com') return null;
-  if (!car.vin) return `https://${domain}`;
-  // 2. Try common dealer DMS VIN search URL patterns:
-  //    - /inventory?vin=  (DealerInspire, VinSolutions, Tekion, most modern platforms)
-  //    - /routevin.aspx?vin=  (CDK — very common for franchise dealers)
-  //    We default to /inventory?vin= which is the most broadly supported
-  return `https://${domain}/inventory?vin=${encodeURIComponent(car.vin)}`;
-}
+  const vin = car.vin;
+  if (!vin) return `https://${domain}`;
 
-// CDK-style dealers use /routevin.aspx — detectable if domain ends in common CDK patterns
-// For now /inventory?vin= works for the majority; if a dealer's site returns a 404
-// the user lands on the inventory page and can search manually.
+  // 2. Check if dealer belongs to a known group with a predictable deeplink format
+  for (const pattern of DEALER_GROUP_PATTERNS) {
+    if (pattern.match.test(domain)) return pattern.url(vin);
+  }
+
+  // 3. Most modern dealer platforms (DealerInspire/cars.com, VinSolutions/Cox,
+  //    Tekion, DealerSocket/Solera) support /inventory?vin= for VIN search.
+  //    CDK-powered sites use /routevin.aspx?vin= — but /inventory?vin= also
+  //    works as a search on CDK sites that have an inventory search page.
+  return `https://${domain}/inventory?vin=${encodeURIComponent(vin)}`;
+}
 
 //  NORMALIZE AUTO.DEV V1 LISTING 
 function colorFamily(colorStr) {
@@ -121,8 +140,9 @@ function normalizeListing(l, idx) {
     floor:       Math.round(displayMsrp * 0.91),
     incentives:  [],
     specs:       specs.slice(0, 4),
-    stock:       l.vin ? l.vin.slice(-8) : 'N/A',
+    stock:       l.trackingParams?.remoteSku || (l.vin ? l.vin.slice(-8) : 'N/A'),
     vin:         l.vin || null,
+    providerGroupId: l.providerGroupId || null,
     mileageRaw:  l.mileageUnformatted || 0,
     condition:   l.condition || 'used',
     distanceMi:  l.distanceFromOrigin ? Math.round(l.distanceFromOrigin / 1609) : null,
@@ -1088,6 +1108,7 @@ async function openDetail(carId) {
     ['Dealer',   detailCar.dealer],
     ['Location', detailCar.dealerCity || ''],
     ['Distance', detailCar.distanceMi ? detailCar.distanceMi + ' miles' : ''],
+    ['Stock #',  detailCar.stock && detailCar.stock !== 'N/A' ? detailCar.stock : ''],
     ['Days on Lot', daysOnLotStr],
   ].filter(([,v]) => v).map(([l,v]) =>
     `<div class="detail-row"><span class="detail-row-label">${l}</span><span class="detail-row-val">${escHtml(String(v))}</span></div>`
