@@ -44,14 +44,19 @@ function guessEmail(name) {
 function dealerSearchUrl(car) {
   // 1. Use clickoffUrl (direct dealer VDP link from API) if available
   if (car.listingUrl) return car.listingUrl;
-  // 2. Fall back to Google site: search using dealer domain + VIN — works for any dealer website
   const domain = car.dealerDomain;
   if (!domain || domain === 'dealer.com') return null;
-  if (car.vin) {
-    return `https://www.google.com/search?q=${encodeURIComponent(car.vin)}+site:${encodeURIComponent(domain)}`;
-  }
-  return `https://${domain}`;
+  if (!car.vin) return `https://${domain}`;
+  // 2. Try common dealer DMS VIN search URL patterns:
+  //    - /inventory?vin=  (DealerInspire, VinSolutions, Tekion, most modern platforms)
+  //    - /routevin.aspx?vin=  (CDK — very common for franchise dealers)
+  //    We default to /inventory?vin= which is the most broadly supported
+  return `https://${domain}/inventory?vin=${encodeURIComponent(car.vin)}`;
 }
+
+// CDK-style dealers use /routevin.aspx — detectable if domain ends in common CDK patterns
+// For now /inventory?vin= works for the majority; if a dealer's site returns a 404
+// the user lands on the inventory page and can search manually.
 
 //  NORMALIZE AUTO.DEV V1 LISTING 
 function colorFamily(colorStr) {
@@ -1098,7 +1103,7 @@ async function openDetail(carId) {
           ${escHtml(dealerDomainDisplay)}
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
-        ${!detailCar.listingUrl && detailCar.vin ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">searches for VIN on dealer site</span>` : ''}
+        ${!detailCar.listingUrl && detailCar.vin ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">search by VIN</span>` : ''}
       </span>
     </div>` : '';
 
