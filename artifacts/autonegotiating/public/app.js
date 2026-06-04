@@ -41,6 +41,18 @@ function guessEmail(name) {
   return 'internet@' + name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,20) + '.com';
 }
 
+function dealerSearchUrl(car) {
+  // 1. Use clickoffUrl (direct dealer VDP link from API) if available
+  if (car.listingUrl) return car.listingUrl;
+  // 2. Fall back to Google site: search using dealer domain + VIN — works for any dealer website
+  const domain = car.dealerDomain;
+  if (!domain || domain === 'dealer.com') return null;
+  if (car.vin) {
+    return `https://www.google.com/search?q=${encodeURIComponent(car.vin)}+site:${encodeURIComponent(domain)}`;
+  }
+  return `https://${domain}`;
+}
+
 //  NORMALIZE AUTO.DEV V1 LISTING 
 function colorFamily(colorStr) {
   const c = (colorStr || '').toLowerCase();
@@ -97,6 +109,7 @@ function normalizeListing(l, idx) {
     trimRaw:     trim, // raw trim without color for filtering
     dealer,
     dealerEmail: guessEmail(dealer),
+    dealerDomain: guessEmail(dealer).split('@')[1],
     dealerCity,
     msrp:        displayMsrp,
     priceLabel:  msrp ? null : 'Call for Price',
@@ -1064,6 +1077,8 @@ async function openDetail(carId) {
   const daysOnLotStr = detailCar.daysOnLot !== null && detailCar.daysOnLot >= 0
     ? (detailCar.daysOnLot === 0 ? 'Listed today' : detailCar.daysOnLot + ' days' + (detailCar.daysOnLot >= 60 ? ' ⏰ motivated seller' : detailCar.daysOnLot >= 30 ? ' — price negotiable' : ''))
     : '';
+  const dealerSiteLink = dealerSearchUrl(detailCar);
+  const dealerDomainDisplay = detailCar.dealerDomain && detailCar.dealerDomain !== 'dealer.com' ? detailCar.dealerDomain : null;
   const dealerRows = [
     ['Dealer',   detailCar.dealer],
     ['Location', detailCar.dealerCity || ''],
@@ -1072,19 +1087,35 @@ async function openDetail(carId) {
   ].filter(([,v]) => v).map(([l,v]) =>
     `<div class="detail-row"><span class="detail-row-label">${l}</span><span class="detail-row-val">${escHtml(String(v))}</span></div>`
   ).join('');
+
+  // Dealer website link row
+  const dealerWebRow = dealerSiteLink && dealerDomainDisplay ? `
+    <div class="detail-row">
+      <span class="detail-row-label">Website</span>
+      <span class="detail-row-val">
+        <a href="${escHtml(dealerSiteLink)}" target="_blank" rel="noopener"
+           style="color:var(--orange);text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:4px">
+          ${escHtml(dealerDomainDisplay)}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+        ${!detailCar.listingUrl && detailCar.vin ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">searches for VIN on dealer site</span>` : ''}
+      </span>
+    </div>` : '';
+
   const historyBtns = detailCar.vin ? `
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <a href="${escHtml(detailCar.carfaxUrl)}" target="_blank" rel="noopener" class="history-report-btn carfax-btn">
         <img src="https://static.carfax.com/global-header/imgs/logo.svg" alt="Carfax" height="14" style="display:block" onerror="this.outerHTML='Carfax Report'">
       </a>
     </div>` : '';
-  document.getElementById('detail-dealer-rows').innerHTML = dealerRows + historyBtns;
+  document.getElementById('detail-dealer-rows').innerHTML = dealerRows + dealerWebRow + historyBtns;
 
-  // View Listing button
+  // View Listing button — show whenever we have any dealer link
   const listingBtn = document.getElementById('btn-detail-listing');
   if (listingBtn) {
-    if (detailCar.listingUrl) {
-      listingBtn.href = detailCar.listingUrl;
+    if (dealerSiteLink) {
+      listingBtn.href = dealerSiteLink;
+      listingBtn.textContent = detailCar.listingUrl ? 'View Listing' : 'Find on Dealer Site';
       listingBtn.style.display = '';
     } else {
       listingBtn.style.display = 'none';
