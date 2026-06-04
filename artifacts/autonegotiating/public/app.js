@@ -211,12 +211,20 @@ const MODELS_BY_MAKE = {
     "i5",
     "i7",
     "iX",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M8",
     "X1",
     "X2",
     "X3",
+    "X3 M",
     "X4",
     "X5",
+    "X5 M",
     "X6",
+    "X6 M",
     "X7",
     "XM",
     "Z4"
@@ -1488,9 +1496,127 @@ function saveBuyerProfile() {
 let _offerUnlocked = false;
 let _offerConfig = null;
 let _offerStripeInstance = null;
+let _subscriptionActive = false;
+let _selectedSubPlan = 'annual';
+
+function activateSubscription(email) {
+  _subscriptionActive = true;
+  window._proSubscriptionActive = true;
+  if (email) {
+    try { localStorage.setItem('subEmail', email); } catch (_) {}
+    sessionStorage.setItem('subEmail', email);
+  }
+  const manageBtn = document.getElementById('manage-sub-btn');
+  const manageDivider = document.getElementById('manage-sub-divider');
+  if (manageBtn) manageBtn.style.display = 'flex';
+  if (manageDivider) manageDivider.style.display = 'block';
+}
+
+async function openManageSubscription() {
+  const email = (() => { try { return localStorage.getItem('subEmail'); } catch(_) {} })()
+    || sessionStorage.getItem('subEmail')
+    || window.Clerk?.user?.primaryEmailAddress?.emailAddress;
+  if (!email) { alert('No subscription found for your account.'); return; }
+  try {
+    const res = await fetch('/api/stripe/portal-session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, returnUrl: window.location.href })
+    });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else alert(data.error || 'Could not open subscription portal. Please try again.');
+  } catch { alert('Could not open subscription portal. Please try again.'); }
+}
+
+function buildPlanModal() {
+  if (document.getElementById('plan-modal-overlay')) return;
+  const el = document.createElement('div');
+  el.id = 'plan-modal-overlay';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px';
+  el.onclick = e => { if (e.target === el) closePlanModal(); };
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;padding:2rem 2rem 1.5rem;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.18)">
+    <button onclick="closePlanModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:22px;color:#8A8A84;cursor:pointer;line-height:1;padding:2px 6px">&#x2715;</button>
+    <div style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:#1A1A18;letter-spacing:-0.3px;margin-bottom:4px">Get Started</div>
+    <div style="font-size:13px;color:#4A4A46;margin-bottom:1.75rem">Choose the plan that's right for you. Upgrade or cancel anytime.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem">
+      <div onclick="selectPlanAndContinue('free')" style="border:2px solid #E8E8E2;border-radius:12px;padding:1.25rem;cursor:pointer;display:flex;flex-direction:column" onmouseover="this.style.borderColor='#D0D0C8'" onmouseout="this.style.borderColor='#E8E8E2'">
+        <div style="font-size:14px;font-weight:700;color:#1A1A18;margin-bottom:4px">Free</div>
+        <div style="font-size:28px;font-weight:700;color:#1A1A18;line-height:1;margin-bottom:2px">$0</div>
+        <div style="font-size:11px;color:#8A8A84;margin-bottom:14px">forever</div>
+        <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:#4A4A46;display:flex;flex-direction:column;gap:7px;flex:1">
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Live inventory searches</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Market intelligence</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#D0D0C8;flex-shrink:0">–</span>Deal Intelligence reports ($9.99 ea.)</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#D0D0C8;flex-shrink:0">–</span>Trade Intelligence reports ($9.99 ea.)</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#D0D0C8;flex-shrink:0">–</span>Offer submissions ($9.99 ea.)</li>
+        </ul>
+        <button style="width:100%;background:transparent;border:1.5px solid #D0D0C8;color:#4A4A46;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;margin-top:16px">Continue Free</button>
+      </div>
+      <div onclick="selectPlanAndContinue('pro')" style="border:2px solid #C95E1A;border-radius:12px;padding:1.25rem;cursor:pointer;background:#FBF0E8;position:relative;display:flex;flex-direction:column" onmouseover="this.style.background='#f5e8d8'" onmouseout="this.style.background='#FBF0E8'">
+        <div style="position:absolute;top:-1px;right:14px;background:#C95E1A;color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;letter-spacing:0.8px">BEST VALUE</div>
+        <div style="font-size:14px;font-weight:700;color:#1A1A18;margin-bottom:4px">Pro</div>
+        <div style="font-size:28px;font-weight:700;color:#C95E1A;line-height:1;margin-bottom:2px">$20<span style="font-size:13px;font-weight:400;color:#D97230">/mo</span></div>
+        <div style="font-size:11px;color:#D97230;margin-bottom:14px">or $200/yr · 30-day free trial</div>
+        <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:#4A4A46;display:flex;flex-direction:column;gap:7px;flex:1">
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Unlimited Deal Intelligence reports</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Unlimited Trade Intelligence reports</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Unlimited offer submissions to dealers</li>
+          <li style="display:flex;align-items:flex-start;gap:6px"><span style="color:#1D9E75;font-weight:700;flex-shrink:0">✓</span>Priority support</li>
+        </ul>
+        <button style="width:100%;background:#C95E1A;border:none;color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;margin-top:16px">Start Free Trial</button>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:#8A8A84">Already have an account? <a href="#" onclick="closePlanModal();try{window.Clerk.openSignIn();}catch(e){}return false" style="color:#C95E1A;text-decoration:none;font-weight:500">Sign in</a></div>
+  </div>`;
+  document.body.appendChild(el);
+}
+function openPlanModal() { buildPlanModal(); document.getElementById('plan-modal-overlay').style.display = 'flex'; }
+function closePlanModal() { const el = document.getElementById('plan-modal-overlay'); if (el) el.style.display = 'none'; }
+function selectPlanAndContinue(plan) {
+  closePlanModal();
+  if (plan === 'pro') { try { localStorage.setItem('pendingProUpgrade', '1'); } catch(_) {} }
+  try { window.Clerk.openSignIn(); } catch(e) {}
+}
+
+function _showSubStatus(data) {
+  const el = document.getElementById('pd-sub-status');
+  if (!el) return;
+  if (!data || !data.active) {
+    el.textContent = 'Free Plan';
+    el.style.display = 'inline-flex';
+    el.style.color = '#6A6A64';
+    el.style.background = '#F0F0EA';
+    el.style.border = '1px solid #D0D0C8';
+    return;
+  }
+  const plan = data.planInterval === 'year' ? 'Annual' : data.planInterval === 'month' ? 'Monthly' : 'Pro';
+  let text;
+  if (data.status === 'trialing' && data.trialEnd) {
+    const days = Math.ceil((data.trialEnd * 1000 - Date.now()) / 86400000);
+    text = `⭐ Pro Trial · ${Math.max(0, days)} day${days !== 1 ? 's' : ''} left`;
+  } else if (data.currentPeriodEnd) {
+    const date = new Date(data.currentPeriodEnd * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    text = `⭐ Pro ${plan} · renews ${date}`;
+  } else {
+    text = `⭐ Pro ${plan}`;
+  }
+  el.textContent = text;
+  el.style.display = 'inline-flex';
+  el.style.color = 'var(--orange, #C95E1A)';
+  el.style.background = 'var(--orange-light, #FBF0E8)';
+  el.style.border = '1px solid rgba(201,94,26,0.2)';
+}
+
+async function verifySubscriptionByEmail(email) {
+  try {
+    const data = await fetch(`/api/stripe/subscription-status?email=${encodeURIComponent(email)}`).then(r => r.json());
+    if (data.active) { activateSubscription(email); _showSubStatus(data); }
+    return data.active;
+  } catch { return false; }
+}
 
 function checkOfferPaywall(carId) {
-  if (_offerUnlocked) {
+  if (_subscriptionActive || _offerUnlocked) {
     openOfferModal(carId);
     return;
   }
@@ -1503,6 +1629,92 @@ function checkOfferPaywall(carId) {
   _pendingOfferCarId = carId;
   document.getElementById('offer-pay-overlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+}
+
+// ── Subscription modal ────────────────────────────────────────────────────────
+function openSubscribeModal() {
+  if (_subscriptionActive) return;
+  document.getElementById('subscribe-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeSubscribeModal() {
+  document.getElementById('subscribe-overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+function selectSubPlan(plan) {
+  _selectedSubPlan = plan;
+  document.getElementById('sub-plan-monthly').classList.toggle('selected', plan === 'monthly');
+  document.getElementById('sub-plan-annual').classList.toggle('selected', plan === 'annual');
+  const btn = document.getElementById('sub-start-btn');
+  if (btn) btn.textContent = plan === 'annual' ? 'Start Free Trial — Annual $200/yr' : 'Start Free Trial — Monthly $20/mo';
+}
+async function startSubscription() {
+  const btn = document.getElementById('sub-start-btn');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    const cfg = await fetch('/api/stripe/config').then(r => r.json());
+    const priceId = _selectedSubPlan === 'annual' ? cfg.annualPriceId : cfg.monthlyPriceId;
+    const baseUrl = window.location.origin;
+    const returnUrl = `${baseUrl}/?sub_success={CHECKOUT_SESSION_ID}`;
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId, successUrl: returnUrl, cancelUrl: baseUrl + '/' }),
+    }).then(r => r.json());
+    if (res.url) window.location.href = res.url;
+    else { btn.disabled = false; btn.textContent = orig; }
+  } catch {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+async function promptCheckSubscription() {
+  const email = window.prompt('Enter your subscription email to restore access:');
+  if (!email) return;
+  const active = await verifySubscriptionByEmail(email);
+  if (active) {
+    closeSubscribeModal();
+    alert('✓ Subscription active! All paywalls are now bypassed.');
+  } else {
+    alert('No active subscription found for that email. Please subscribe or contact support.');
+  }
+}
+
+function applySubPromoCode() {
+  const input = document.getElementById('sub-promo-input');
+  const btn   = document.getElementById('sub-promo-btn');
+  const msgEl = document.getElementById('sub-promo-msg');
+  const code  = input.value.trim();
+  if (!code) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Please enter a promo code.'; return;
+  }
+  btn.disabled = true; btn.textContent = 'Checking…';
+  msgEl.style.display = 'none';
+  fetch('/api/promo/validate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false; btn.textContent = 'Apply';
+    if (data.valid) {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--success)';
+      msgEl.textContent = '✓ Promo applied — Pro access unlocked!';
+      setTimeout(() => {
+        closeSubscribeModal();
+        activateSubscription(null);
+      }, 800);
+    } else {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+      msgEl.textContent = data.message || 'Invalid promo code.';
+    }
+  })
+  .catch(() => {
+    btn.disabled = false; btn.textContent = 'Apply';
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = 'Could not validate code. Please try again.';
+  });
 }
 
 function showOfferVerifyStep(carId) {
@@ -2197,6 +2409,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
   renderRecentPreviews();
 
+  // Restore subscription from localStorage (persists) or sessionStorage
+  const savedSubEmail = (() => { try { return localStorage.getItem('subEmail'); } catch(_) {} })() || sessionStorage.getItem('subEmail');
+  if (savedSubEmail) verifySubscriptionByEmail(savedSubEmail);
+
+  renderRecentPreviews();
+
   // Handle Stripe offer payment return
   const urlParams = new URLSearchParams(window.location.search);
   const offerSuccess = urlParams.get('offer_success');
@@ -2214,6 +2432,26 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
             allCars.push(savedCar);
           }
           if (offerCarId) showOfferVerifyStep(offerCarId);
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Auto-open subscribe modal if ?subscribe=1
+  if (urlParams.get('subscribe') === '1') {
+    history.replaceState({}, '', location.origin + location.pathname);
+    if (!_subscriptionActive) openSubscribeModal();
+  }
+
+  // Handle subscription checkout return
+  const subSuccess = urlParams.get('sub_success');
+  if (subSuccess) {
+    history.replaceState({}, '', location.origin + location.pathname);
+    fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(subSuccess)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.paid && data.email) {
+          activateSubscription(data.email);
         }
       })
       .catch(() => {});
@@ -2663,6 +2901,18 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
           try { localStorage.setItem('buyerProfile', JSON.stringify(dbProfile)); } catch(_) {}
         }
       }
+    // Auto-check subscription for signed-in Clerk user
+    const clerkEmail = e.detail?.user?.primaryEmailAddress?.emailAddress;
+    if (clerkEmail && !_subscriptionActive) {
+      verifySubscriptionByEmail(clerkEmail);
+    }
+    // Check if user chose Pro during sign-up flow
+    try {
+      if (localStorage.getItem('pendingProUpgrade') === '1') {
+        localStorage.removeItem('pendingProUpgrade');
+        setTimeout(() => { try { openSubscribeModal(); } catch(e2) {} }, 700);
+      }
+    } catch(_) {}
     } catch (err) {
       console.warn('[Clerk sync]', err);
     }
