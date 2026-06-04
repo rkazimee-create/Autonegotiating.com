@@ -7,9 +7,12 @@ const router: IRouter = Router();
 const DEAL_INTEL_METADATA_KEY = "autonegotiating_product";
 const DEAL_INTEL_METADATA_VAL = "deal-intelligence";
 const OFFER_ACCESS_METADATA_VAL = "offer-access";
+const SUBSCRIPTION_METADATA_VAL = "subscription";
 
 let cachedDealIntelPriceId: string | null = null;
 let cachedOfferPriceId: string | null = null;
+let cachedMonthlyPriceId: string | null = null;
+let cachedAnnualPriceId: string | null = null;
 
 async function ensureDealIntelPrice(): Promise<string> {
   if (cachedDealIntelPriceId) return cachedDealIntelPriceId;
@@ -93,14 +96,72 @@ async function ensureOfferAccessPrice(): Promise<string> {
   return priceId;
 }
 
+async function ensureSubscriptionPrices(): Promise<{ monthlyPriceId: string; annualPriceId: string }> {
+  if (cachedMonthlyPriceId && cachedAnnualPriceId) {
+    return { monthlyPriceId: cachedMonthlyPriceId, annualPriceId: cachedAnnualPriceId };
+  }
+
+  const stripe = await getUncachableStripeClient();
+
+  const products = await stripe.products.search({
+    query: `metadata["${DEAL_INTEL_METADATA_KEY}"]:"${SUBSCRIPTION_METADATA_VAL}"`,
+  });
+
+  let productId: string;
+  if (products.data.length > 0) {
+    productId = products.data[0].id;
+  } else {
+    const product = await stripe.products.create({
+      name: "AutoNegotiating Pro",
+      description: "Unlimited deal intelligence reports, offer submissions, and negotiation tools — all paywalls bypassed while your subscription is active.",
+      metadata: { [DEAL_INTEL_METADATA_KEY]: SUBSCRIPTION_METADATA_VAL },
+    });
+    productId = product.id;
+  }
+
+  const prices = await stripe.prices.list({ product: productId, active: true, limit: 20 });
+
+  let monthlyPriceId = prices.data.find(
+    (p) => p.recurring?.interval === "month" && p.unit_amount === 2000
+  )?.id ?? null;
+  let annualPriceId = prices.data.find(
+    (p) => p.recurring?.interval === "year" && p.unit_amount === 20000
+  )?.id ?? null;
+
+  if (!monthlyPriceId) {
+    const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: 2000,
+      currency: "usd",
+      recurring: { interval: "month" },
+    });
+    monthlyPriceId = price.id;
+  }
+
+  if (!annualPriceId) {
+    const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: 20000,
+      currency: "usd",
+      recurring: { interval: "year" },
+    });
+    annualPriceId = price.id;
+  }
+
+  cachedMonthlyPriceId = monthlyPriceId;
+  cachedAnnualPriceId = annualPriceId;
+  return { monthlyPriceId, annualPriceId };
+}
+
 router.get("/stripe/config", async (req, res) => {
   try {
-    const [publishableKey, priceId, offerPriceId] = await Promise.all([
+    const [publishableKey, priceId, offerPriceId, { monthlyPriceId, annualPriceId }] = await Promise.all([
       getStripePublishableKey(),
       ensureDealIntelPrice(),
       ensureOfferAccessPrice(),
+      ensureSubscriptionPrices(),
     ]);
-    res.json({ publishableKey, priceId, offerPriceId });
+    res.json({ publishableKey, priceId, offerPriceId, monthlyPriceId, annualPriceId });
   } catch (err: any) {
     req.log.error({ err }, "Failed to get Stripe config");
     res.status(500).json({ error: "Stripe not configured" });
@@ -181,12 +242,70 @@ router.post("/stripe/checkout", async (req, res) => {
       cancel_url: cancelUrl ?? `${baseUrl}/deal-intelligence?payment=cancelled`,
       ...(email ? { customer_email: email } : {}),
       metadata: { price_id: priceId },
+      ...(mode === "subscription" ? {
+        payment_method_collection: "always",
+        subscription_data: { trial_period_days: 30 },
+      } : {}),
     });
 
     res.json({ url: session.url });
   } catch (err: any) {
     req.log.error({ err }, "Failed to create checkout session");
     res.status(500).json({ error: "Failed to create checkout session" });
+  }
+});
+
+router.post("/stripe/portal-session", async (req, res) => {
+  try {
+    const { email, returnUrl } = req.body as { email: string; returnUrl: string };
+    if (!email || !returnUrl) {
+      res.status(400).json({ error: "email and returnUrl are required" });
+      return;
+    }
+    const stripe = await getUncachableStripeClient();
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    if (!customers.data.length) {
+      res.status(404).json({ error: "No subscription found for this email" });
+      return;
+    }
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customers.data[0].id,
+      return_url: returnUrl,
+    });
+    res.json({ url: session.url });
+  } catch (err: any) {
+    req.log.error({ err }, "Failed to create portal session");
+    res.status(500).json({ error: "Failed to open subscription portal" });
+  }
+});
+
+router.post("/stripe/embedded-subscription", async (req, res) => {
+  try {
+    const { priceId, returnUrl } = req.body as {
+      priceId: string;
+      returnUrl: string;
+    };
+
+    if (!priceId || !returnUrl) {
+      res.status(400).json({ error: "priceId and returnUrl are required" });
+      return;
+    }
+
+    const stripe = await getUncachableStripeClient();
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: "subscription",
+      ui_mode: "embedded",
+      return_url: returnUrl,
+      subscription_data: { trial_period_days: 30 },
+    });
+
+    res.json({ clientSecret: session.client_secret });
+  } catch (err: any) {
+    req.log.error({ err }, "Failed to create embedded subscription session");
+    res.status(500).json({ error: "Failed to create subscription session" });
   }
 });
 
@@ -220,6 +339,50 @@ router.post("/stripe/embedded-checkout", async (req, res) => {
   }
 });
 
+router.get("/stripe/subscription-status", async (req, res) => {
+  try {
+    const { email } = req.query as { email?: string };
+    if (!email) {
+      res.status(400).json({ error: "email is required" });
+      return;
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const customers = await stripe.customers.list({ email: email.toLowerCase(), limit: 5 });
+
+    let active = false;
+    let status = "none";
+    let planInterval: string | null = null;
+    let currentPeriodEnd: number | null = null;
+    let trialEnd: number | null = null;
+
+    for (const customer of customers.data) {
+      const subs = await stripe.subscriptions.list({ customer: customer.id, status: "active", limit: 1 });
+      if (subs.data.length > 0) {
+        const sub = subs.data[0];
+        active = true; status = "active";
+        planInterval = sub.items.data[0]?.plan?.interval ?? null;
+        currentPeriodEnd = sub.current_period_end;
+        break;
+      }
+      const trialing = await stripe.subscriptions.list({ customer: customer.id, status: "trialing", limit: 1 });
+      if (trialing.data.length > 0) {
+        const sub = trialing.data[0];
+        active = true; status = "trialing";
+        planInterval = sub.items.data[0]?.plan?.interval ?? null;
+        currentPeriodEnd = sub.current_period_end;
+        trialEnd = sub.trial_end;
+        break;
+      }
+    }
+
+    res.json({ active, status, planInterval, currentPeriodEnd, trialEnd });
+  } catch (err: any) {
+    req.log.error({ err }, "Failed to check subscription status");
+    res.status(500).json({ error: "Failed to check subscription" });
+  }
+});
+
 router.get("/stripe/verify-session", async (req, res) => {
   try {
     const { session_id } = req.query as { session_id?: string };
@@ -231,8 +394,13 @@ router.get("/stripe/verify-session", async (req, res) => {
     const stripe = await getUncachableStripeClient();
     const session = await stripe.checkout.sessions.retrieve(session_id);
 
-    if (session.payment_status === "paid") {
-      res.json({ paid: true, email: session.customer_email });
+    const email = session.customer_email || session.customer_details?.email || null;
+    const isPaid = session.payment_status === "paid";
+    // Trial subscriptions have payment_status "no_payment_required" but are still valid
+    const isSubscription = session.mode === "subscription" && !!session.subscription;
+
+    if (isPaid || isSubscription) {
+      res.json({ paid: true, email });
     } else {
       res.json({ paid: false });
     }

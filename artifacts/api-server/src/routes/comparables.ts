@@ -61,7 +61,8 @@ router.get("/comparables", async (req, res): Promise<void> => {
     if (year) params.year_min = year;
     if (year) params.year_max = year;
     if (trim) params.trim = trim;
-    if (condition) params.condition = condition;
+    // AutoDev doesn't recognise "cpo" — treat it as "used" for comparable searches
+    if (condition) params.condition = condition === "cpo" ? "used" : condition;
 
     const data = (await autodevGet("/listings", params)) as {
       records?: Record<string, unknown>[];

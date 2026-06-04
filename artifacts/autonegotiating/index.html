@@ -74,6 +74,29 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .nav-intel:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-light)}
 .nav-auth-btn{font-size:13px;font-weight:500;color:var(--white);background:var(--orange);border:none;padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:5px;transition:background 0.15s}
 .nav-auth-btn:hover{background:var(--orange-dark)}
+.sub-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1100;display:flex;align-items:center;justify-content:center;padding:1rem}
+.sub-modal{background:var(--white);border-radius:16px;padding:2rem;max-width:560px;width:100%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.18)}
+.sub-modal-title{font-size:22px;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px}
+.sub-modal-sub{font-size:14px;color:var(--ink2);text-align:center;margin-bottom:1.5rem}
+.sub-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+.sub-plan{border:2px solid var(--border2);border-radius:12px;padding:1.25rem;cursor:pointer;transition:all 0.15s;position:relative;background:var(--bg)}
+.sub-plan:hover{border-color:var(--orange)}
+.sub-plan.selected{border-color:var(--orange);background:var(--orange-light)}
+.sub-plan-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--orange);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;white-space:nowrap;letter-spacing:0.3px}
+.sub-plan-name{font-size:12px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.sub-plan-price{font-size:28px;font-weight:800;color:var(--ink);line-height:1}
+.sub-plan-price span{font-size:14px;font-weight:500;color:var(--ink2)}
+.sub-plan-note{font-size:11px;color:var(--ink2);margin-top:4px}
+.sub-features{list-style:none;padding:0;margin:0 0 1.5rem;display:flex;flex-direction:column;gap:7px}
+.sub-features li{font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:8px}
+.sub-features li::before{content:"✓";color:var(--orange);font-weight:700;flex-shrink:0}
+.sub-start-btn{width:100%;padding:13px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:background 0.15s}
+.sub-start-btn:hover{background:var(--orange-dark)}
+.sub-start-btn:disabled{opacity:0.6;cursor:default}
+.sub-already{text-align:center;margin-top:12px;font-size:12px;color:var(--ink2)}
+.sub-already a{color:var(--orange);cursor:pointer;text-decoration:underline}
+.sub-success-badge{display:inline-flex;align-items:center;gap:6px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#2e7d32;margin-left:8px}
+@media(max-width:480px){.sub-plans{grid-template-columns:1fr}}
 /* ── Profile dropdown ── */
 .profile-menu-wrap{position:relative}
 .profile-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.12);min-width:200px;z-index:200;overflow:hidden;opacity:0;pointer-events:none;transform:translateY(-6px);transition:opacity 0.15s,transform 0.15s}
@@ -81,6 +104,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .profile-dropdown-header{padding:12px 14px;border-bottom:1px solid var(--border);background:var(--cream)}
 .profile-dropdown-name{font-size:13px;font-weight:600;color:var(--ink)}
 .profile-dropdown-email{font-size:11px;color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.pd-sub-badge{display:inline-flex;align-items:center;gap:4px;margin-top:7px;font-size:10px;font-weight:700;letter-spacing:0.2px;color:var(--orange);background:var(--orange-light);border:1px solid var(--orange-border);padding:2px 8px;border-radius:100px;line-height:1.5}
 .profile-dropdown-item{display:flex;align-items:center;gap:9px;padding:10px 14px;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;transition:background 0.12s;border:none;background:none;width:100%;text-align:left}
 .profile-dropdown-item:hover{background:var(--cream);color:var(--orange)}
 .profile-dropdown-item svg{flex-shrink:0;opacity:0.6}
@@ -310,6 +334,7 @@ main{padding:1.5rem 2rem;max-width:1280px;margin:0 auto}
 .page-info{font-size:13px;color:var(--ink3);min-width:80px;text-align:center}
 .modal-overlay{position:fixed;inset:0;background:rgba(26,26,24,0.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)}
 .modal-overlay.hidden{display:none}
+.sub-modal-overlay.hidden{display:none}
 .offer-modal{background:var(--white);border:1px solid var(--border);border-radius:18px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:2rem;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.12)}
 .modal-close{position:absolute;top:1rem;right:1rem;background:var(--cream);border:1px solid var(--border);color:var(--ink3);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
 .modal-close:hover{background:var(--border2);color:var(--ink)}
@@ -561,6 +586,8 @@ footer a{color:var(--orange);text-decoration:none}
         <div class="profile-dropdown-header">
           <div class="profile-dropdown-name" id="pd-name"></div>
           <div class="profile-dropdown-email" id="pd-email"></div>
+          <div class="pd-sub-badge" id="pd-sub-status" style="display:none"></div>
+
         </div>
         <button class="profile-dropdown-item" onclick="openSavedVehicles()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -570,6 +597,11 @@ footer a{color:var(--orange);text-decoration:none}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Offer History
         </button>
+        <button class="profile-dropdown-item" id="manage-sub-btn" style="display:none;color:var(--orange)" onclick="openManageSubscription();closeProfileMenu()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Manage Subscription
+        </button>
+        <div class="profile-dropdown-divider" id="manage-sub-divider" style="display:none"></div>
         <div class="profile-dropdown-divider"></div>
         <button class="profile-dropdown-item" onclick="window.Clerk.openUserProfile();closeProfileMenu()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1007,6 +1039,15 @@ footer a{color:var(--orange);text-decoration:none}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:6px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Pay $9.99 — Submit Verified Offer
     </button>
     <p class="verify-privacy">🔒 Secured by Stripe &nbsp;·&nbsp; No subscription &nbsp;·&nbsp; One offer per purchase</p>
+    <div style="display:flex;align-items:center;gap:10px;margin:1rem 0 0.75rem">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <span style="font-size:11px;color:var(--ink3);font-weight:500">or get unlimited access</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+    <button onclick="closeModal('offer-pay-overlay');openSubscribeModal()" style="width:100%;padding:11px;background:transparent;border:1.5px solid var(--orange);border-radius:10px;font-size:13px;font-weight:600;color:var(--orange);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s" onmouseover="this.style.background='var(--orange)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='var(--orange)'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Subscribe — Unlimited Offers from $20/mo
+    </button>
   </div>
 </div>
 
@@ -1107,10 +1148,56 @@ footer a{color:var(--orange);text-decoration:none}
     </div>
   </div>
 </div>
+<!-- SUBSCRIBE MODAL -->
+<div class="sub-modal-overlay hidden" id="subscribe-overlay" onclick="if(event.target===this)closeSubscribeModal()">
+  <div class="sub-modal">
+    <button class="modal-close" onclick="closeSubscribeModal()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,0.9);border:1px solid var(--border)">×</button>
+    <div class="sub-modal-title">AutoNegotiating Pro</div>
+    <div class="sub-modal-sub">Unlimited reports, offer submissions, and negotiation tools — all in one plan</div>
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.25rem">
+      <div style="background:var(--success-light);border-bottom:1px solid rgba(29,158,117,0.2);padding:10px 14px;display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--success);text-transform:uppercase">Have a promo code?</span>
+      </div>
+      <div style="padding:12px 14px;background:var(--white)">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="sub-promo-input" placeholder="Enter promo code" class="s-input" style="flex:1;text-transform:uppercase;letter-spacing:1px;height:38px;font-size:13px" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')applySubPromoCode()">
+          <button onclick="applySubPromoCode()" id="sub-promo-btn" style="background:var(--success);color:white;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border:none;padding:0 18px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:background 0.15s">Apply</button>
+        </div>
+        <div id="sub-promo-msg" style="font-size:12px;margin-top:7px;display:none"></div>
+      </div>
+    </div>
+    <div class="sub-plans">
+      <div class="sub-plan" id="sub-plan-monthly" onclick="selectSubPlan('monthly')">
+        <div class="sub-plan-name">Monthly</div>
+        <div class="sub-plan-price">$20<span>/mo</span></div>
+        <div class="sub-plan-note">Cancel anytime</div>
+      </div>
+      <div class="sub-plan selected" id="sub-plan-annual" onclick="selectSubPlan('annual')">
+        <div class="sub-plan-badge">Best Value — Save $40</div>
+        <div class="sub-plan-name">Annual</div>
+        <div class="sub-plan-price">$200<span>/yr</span></div>
+        <div class="sub-plan-note">~$16.67/mo · billed yearly</div>
+      </div>
+    </div>
+    <ul class="sub-features">
+      <li>Unlimited Deal Intelligence Reports</li>
+      <li>Unlimited Trade Intelligence Reports</li>
+      <li>Unlimited offer submissions to dealers</li>
+      <li>Priority support</li>
+    </ul>
+    <button class="sub-start-btn" id="sub-start-btn" onclick="startSubscription()">Start Free Trial — Annual $200/yr</button>
+    <div style="text-align:center;font-size:11px;color:var(--ink3);margin-top:8px;margin-bottom:4px">30-day free trial · Card required · Cancel anytime</div>
+    <div class="sub-already">Already subscribed? <a onclick="promptCheckSubscription()">Restore access</a></div>
+  </div>
+</div>
+
 <script src="https://js.stripe.com/v3/"></script>
 <script
   async
   crossorigin="anonymous"
+  data-clerk-publishable-key="pk_live_Y2xlcmsuYXV0b25lZ290aWF0aW5nLmNvbSQ"
+  src="https://clerk.autonegotiating.com/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
   data-clerk-publishable-key="pk_test_b3B0aW1hbC11bmljb3JuLTMyLmNsZXJrLmFjY291bnRzLmRldiQ"
   src="https://optimal-unicorn-32.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
   onload="initClerk()"
@@ -1140,6 +1227,14 @@ async function initClerk() {
         const email = user.primaryEmailAddress?.emailAddress || "";
         document.getElementById("pd-name").textContent  = name || email;
         document.getElementById("pd-email").textContent = name ? email : "";
+        const subEl = document.getElementById('pd-sub-status');
+        if (subEl && !window._proSubscriptionActive) {
+          subEl.textContent = 'Free Plan';
+          subEl.style.display = 'inline-flex';
+          subEl.style.color = '#6A6A64';
+          subEl.style.background = '#F0F0EA';
+          subEl.style.border = '1px solid #D0D0C8';
+        }
         btn.style.display  = "none";
         wrap.style.display = "flex";
         avatar.onclick = () => document.getElementById("profile-dropdown").classList.toggle("open");
@@ -1147,6 +1242,7 @@ async function initClerk() {
       } else {
         btn.style.display  = "flex";
         wrap.style.display = "none";
+        btn.onclick = () => { try { openPlanModal(); } catch(e2) { try { window.Clerk.openSignIn(); } catch(e3) {} } };
         btn.onclick = () => { try { window.Clerk.openSignIn(); } catch(e) {} };
       }
     }
