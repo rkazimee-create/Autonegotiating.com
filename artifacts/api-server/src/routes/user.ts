@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db, users, buyerProfiles, savedSearches, savedListings, offerHistory } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -202,7 +202,7 @@ router.delete("/user/favorites/:vin", wrap(async (req, res) => {
 
   await db
     .delete(savedListings)
-    .where(eq(savedListings.vin, req.params.vin));
+    .where(and(eq(savedListings.clerkId, clerkId), eq(savedListings.vin, req.params.vin)));
 
   res.json({ success: true });
 }));

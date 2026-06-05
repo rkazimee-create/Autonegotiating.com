@@ -1068,6 +1068,9 @@ async function openDetail(carId) {
   // Reset modal
   document.getElementById('gallery-main').innerHTML = `<div class="no-img">${NO_IMG_LG}</div>`;
   document.getElementById('gallery-thumbs').innerHTML = '';
+  // Reset save button state
+  const saveBtn = document.getElementById('btn-detail-save');
+  if (saveBtn) { saveBtn.textContent = '♡ Save'; saveBtn.style.color = ''; saveBtn.disabled = false; }
   document.getElementById('detail-title').textContent = `${detailCar.year} ${detailCar.name}`;
   document.getElementById('detail-subtitle').textContent = [detailCar.trim, detailCar.dealer, detailCar.dealerCity].filter(Boolean).join('  ');
   document.getElementById('detail-price').textContent = detailCar.priceLabel || (detailCar.msrp ? fmt(detailCar.msrp) : '');
@@ -2890,14 +2893,33 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
   function saveFavorite(car) {
     if (!window.Clerk?.user) { requireSignIn(); return; }
-    window.Clerk.session.getToken().then(token => {
-      fetch('/api/user/favorites', {
+    return window.Clerk.session.getToken().then(token => {
+      return fetch('/api/user/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ vin: car.vin || String(car.id), listingData: car })
-      }).catch(() => {});
-    }).catch(() => {});
+      }).then(res => {
+        if (!res.ok) return res.json().then(e => { throw new Error(e.error || res.status); });
+        return res.json();
+      });
+    }).catch(err => {
+      console.error('saveFavorite failed:', err);
+      showSaveToast('⚠ Could not save — ' + (err.message || 'please try again'));
+    });
   }
+
+  window.saveFromDetail = function() {
+    if (!detailCar) return;
+    if (!window.Clerk?.user) { requireSignIn(); return; }
+    const btn = document.getElementById('btn-detail-save');
+    if (btn) { btn.textContent = '…'; btn.disabled = true; }
+    saveFavorite(detailCar).then(() => {
+      if (btn) { btn.textContent = '♥ Saved'; btn.style.color = 'var(--orange)'; }
+      showSaveToast(`✓ ${detailCar.year} ${detailCar.name} saved`);
+    }).catch(() => {
+      if (btn) { btn.textContent = '♡ Save'; btn.disabled = false; }
+    });
+  };
 
   // ── Clerk: sync user data when signed in ──────────────────────────────────
   window.addEventListener('clerk:signed-in', async (e) => {
