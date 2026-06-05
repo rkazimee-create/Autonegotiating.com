@@ -164,6 +164,23 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .zip-locate-btn.loading{animation:spin 0.8s linear infinite;pointer-events:none}
 @keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
 .sp-field.sp-radius{flex:0 0 120px}
+/* Trim multi-select widget */
+.trim-ms{background:var(--white);border:1.5px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:14px;border-radius:var(--radius-sm);min-height:42px;width:100%;cursor:pointer;position:relative;display:flex;align-items:center;padding:4px 30px 4px 8px;flex-wrap:wrap;gap:4px;transition:border-color 0.15s}
+.trim-ms:hover,.trim-ms.open{border-color:var(--orange)}
+.trim-ms[data-disabled="true"]{opacity:0.5;cursor:not-allowed;pointer-events:none}
+.trim-ms-inner{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:32px;flex:1}
+.trim-ms-placeholder{color:var(--ink3);font-size:14px;line-height:1;padding:2px 0}
+.trim-ms-chip{display:inline-flex;align-items:center;gap:3px;background:var(--orange-light);border:1px solid var(--orange-border);color:var(--orange);font-size:12px;font-weight:500;padding:2px 4px 2px 8px;border-radius:20px;white-space:nowrap;line-height:1.4}
+.trim-ms-chip-x{background:none;border:none;cursor:pointer;color:var(--orange);font-size:15px;line-height:1;padding:0 2px;display:flex;align-items:center}
+.trim-ms-chip-x:hover{color:var(--orange-dark)}
+.trim-ms-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--ink3);transition:transform 0.15s;pointer-events:none;flex-shrink:0}
+.trim-ms.open .trim-ms-arrow{transform:translateY(-50%) rotate(180deg)}
+.trim-ms-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1.5px solid var(--border2);border-radius:var(--radius-sm);box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:300;max-height:220px;overflow-y:auto}
+.trim-ms-list{padding:4px 0}
+.trim-ms-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--ink);transition:background 0.1s;user-select:none}
+.trim-ms-item:hover{background:var(--orange-light)}
+.trim-ms-item.checked{color:var(--orange);font-weight:500}
+.trim-ms-item input[type="checkbox"]{accent-color:var(--orange);width:14px;height:14px;cursor:pointer;flex-shrink:0}
 .sp-lbl{font-size:10px;font-weight:600;color:var(--ink3);letter-spacing:0.5px;text-transform:uppercase;padding-left:2px}
 .sp-input,.sp-select{background:var(--white);border:1.5px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:14px;padding:9px 12px;border-radius:var(--radius-sm);outline:none;height:42px;width:100%;transition:border-color 0.15s}
 .sp-select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238A8A84' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
@@ -660,9 +677,19 @@ footer a{color:var(--orange);text-decoration:none}
           <label class="sp-lbl">Model</label>
           <select class="sp-select" id="search-model" disabled><option value="">Select Make First</option></select>
         </div>
-        <div class="sp-field sp-trim">
+        <div class="sp-field sp-trim" style="position:relative">
           <label class="sp-lbl">Trim</label>
-          <select class="sp-select" id="search-trim" disabled><option value="">Any Trim</option></select>
+          <!-- Hidden legacy select kept for JS compatibility -->
+          <select id="search-trim" style="display:none" disabled><option value="">Any Trim</option></select>
+          <div class="trim-ms" id="trim-ms" data-disabled="true" onclick="toggleTrimDropdown(event)">
+            <div class="trim-ms-inner" id="trim-ms-inner">
+              <span class="trim-ms-placeholder" id="trim-ms-placeholder">Any Trim</span>
+            </div>
+            <svg class="trim-ms-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="trim-ms-dropdown" id="trim-ms-dropdown" style="display:none">
+            <div class="trim-ms-list" id="trim-ms-list"></div>
+          </div>
         </div>
       </div>
       <div class="search-row search-row-bottom">
@@ -1215,7 +1242,7 @@ footer a{color:var(--orange);text-decoration:none}
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
-<script src="/app.js?v=20260605c"></script>
+<script src="/app.js?v=20260605f"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────
 async function initClerk() {
