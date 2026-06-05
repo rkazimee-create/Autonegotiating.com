@@ -36,6 +36,52 @@ function typeEmoji(type) {
 }
 
 
+window.useMyLocation = function() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  const btn = document.getElementById('zip-locate-btn');
+  if (btn) btn.classList.add('loading');
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        // Nominatim reverse geocode — free, no API key needed
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        const zip = data?.address?.postcode?.split('-')[0]; // handle ZIP+4 like 97005-1234
+        if (zip && /^\d{5}$/.test(zip)) {
+          const zipInput = document.getElementById('search-zip');
+          if (zipInput) {
+            zipInput.value = zip;
+            zipInput.dispatchEvent(new Event('input'));
+          }
+        } else {
+          alert('Could not determine ZIP code for your location. Please enter it manually.');
+        }
+      } catch(e) {
+        alert('Could not look up your location. Please enter your ZIP code manually.');
+      } finally {
+        if (btn) btn.classList.remove('loading');
+      }
+    },
+    (err) => {
+      if (btn) btn.classList.remove('loading');
+      if (err.code === err.PERMISSION_DENIED) {
+        alert('Location access was denied. Please enter your ZIP code manually.');
+      } else {
+        alert('Could not get your location. Please enter your ZIP code manually.');
+      }
+    },
+    { timeout: 8000 }
+  );
+};
+
 function guessEmail(name) {
   if (!name) return 'internet@dealer.com';
   return 'internet@' + name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,20) + '.com';

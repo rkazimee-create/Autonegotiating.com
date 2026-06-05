@@ -156,7 +156,13 @@ nav{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem
 .search-row-top{padding-bottom:10px}
 .search-row-bottom{padding-top:0;padding-bottom:16px}
 .sp-field{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
-.sp-field.sp-zip{flex:0 0 90px}
+.sp-field.sp-zip{flex:0 0 106px}
+.zip-input-wrap{position:relative;display:flex;align-items:center}
+.zip-input-wrap .sp-input{padding-right:32px}
+.zip-locate-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink3);padding:2px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:color 0.15s}
+.zip-locate-btn:hover{color:var(--orange)}
+.zip-locate-btn.loading{animation:spin 0.8s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
 .sp-field.sp-radius{flex:0 0 120px}
 .sp-lbl{font-size:10px;font-weight:600;color:var(--ink3);letter-spacing:0.5px;text-transform:uppercase;padding-left:2px}
 .sp-input,.sp-select{background:var(--white);border:1.5px solid var(--border2);color:var(--ink);font-family:'Inter',sans-serif;font-size:14px;padding:9px 12px;border-radius:var(--radius-sm);outline:none;height:42px;width:100%;transition:border-color 0.15s}
@@ -662,7 +668,12 @@ footer a{color:var(--orange);text-decoration:none}
       <div class="search-row search-row-bottom">
         <div class="sp-field sp-zip">
           <label class="sp-lbl">ZIP Code</label>
-          <input type="text" class="sp-input" id="search-zip" placeholder="97005" value="97005" maxlength="5">
+          <div class="zip-input-wrap">
+            <input type="text" class="sp-input" id="search-zip" placeholder="97005" value="97005" maxlength="5">
+            <button class="zip-locate-btn" id="zip-locate-btn" onclick="useMyLocation()" title="Use my current location">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-opacity="0.3"/></svg>
+            </button>
+          </div>
         </div>
         <div class="sp-field sp-radius">
           <label class="sp-lbl">Radius</label>
@@ -1204,7 +1215,7 @@ footer a{color:var(--orange);text-decoration:none}
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
-<script src="/app.js?v=20260605b"></script>
+<script src="/app.js?v=20260605c"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────
 async function initClerk() {
