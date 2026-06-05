@@ -2857,11 +2857,24 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   };
 
   function requireSignIn() {
-    // Prompt sign-in; works whether Clerk is loaded or not
+    // Try Clerk modal first
     if (window.Clerk?.openSignIn) {
       try { window.Clerk.openSignIn(); return true; } catch(e) {}
     }
-    alert('Please sign in to save vehicles to your favorites.');
+    // Clerk not ready yet — wait up to 3s for it to load then retry
+    if (window.Clerk === undefined) {
+      const interval = setInterval(() => {
+        if (window.Clerk?.openSignIn) {
+          clearInterval(interval);
+          try { window.Clerk.openSignIn(); } catch(e) {}
+        }
+      }, 100);
+      setTimeout(() => clearInterval(interval), 3000);
+      return true;
+    }
+    // Fallback: click the nav sign-in button which triggers Clerk
+    const navBtn = document.querySelector('.nav-auth-btn');
+    if (navBtn) { navBtn.click(); return true; }
     return true;
   }
 
