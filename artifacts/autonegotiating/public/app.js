@@ -1,5 +1,21 @@
 // AutoNegotiating.com  app.js
 
+// ── Capacitor API bridge ──────────────────────────────────────────────────────
+// When running inside a Capacitor native app, window.__API_BASE__ is set to the
+// production API URL (e.g. "https://api.autonegotiating.com") by capacitor.config.ts.
+// In the browser (dev or web), it's empty and /api/* calls go to the Vite proxy.
+(function() {
+  const base = window.__API_BASE__ || '';
+  if (!base) return; // no-op in browser
+  const _fetch = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    if (typeof url === 'string' && url.startsWith('/api/')) {
+      url = base + url;
+    }
+    return _fetch(url, opts);
+  };
+})();
+
 // Shared "no image" placeholder — used everywhere a photo is unavailable
 const NO_IMG_SM  = `<span class="rp-ph-logo">Auto<em>Negotiating</em>.com</span><span class="rp-ph-sub">Image not available</span>`;
 const NO_IMG_MD  = `<span style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ink3);letter-spacing:-0.2px">Auto<em style="color:var(--orange);font-style:normal">Negotiating</em>.com</span><span style="font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:0.3px;text-transform:uppercase;opacity:0.7">Image not available</span>`;

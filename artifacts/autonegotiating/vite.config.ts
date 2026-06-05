@@ -1,17 +1,19 @@
 import { defineConfig } from "vite";
 import path from "path";
 
+// PORT is only required when running the dev server or preview — not during builds
+const isBuild = process.argv.includes("build");
 const rawPort = process.env.PORT;
 
-if (!rawPort) {
+if (!rawPort && !isBuild) {
   throw new Error(
     "PORT environment variable is required but was not provided.",
   );
 }
 
-const port = Number(rawPort);
+const port = rawPort ? Number(rawPort) : 3000;
 
-if (Number.isNaN(port) || port <= 0) {
+if (rawPort && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 

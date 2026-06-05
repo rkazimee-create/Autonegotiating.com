@@ -1242,6 +1242,8 @@ footer a{color:var(--orange);text-decoration:none}
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
+<!-- Capacitor: override to production API URL when building for native app -->
+<script>window.__API_BASE__ = '';</script>
 <script src="/app.js?v=20260605f"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────

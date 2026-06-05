@@ -52,3 +52,7 @@ Thumbs.db
 .env
 .env.local
 dev.sh
+
+# Capacitor native projects — generated, not committed
+artifacts/autonegotiating/ios/
+artifacts/autonegotiating/android/
