@@ -16,6 +16,7 @@ let currentSort = 'default';
 let currentPage = 1;
 let totalResultCount = 0;
 let isLiveData = false;
+let selectedTrims = new Set();
 const PAGE_SIZE = 12;
 
 //  HELPERS 
@@ -36,9 +37,91 @@ function typeEmoji(type) {
 }
 
 
+window.useMyLocation = function() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  const btn = document.getElementById('zip-locate-btn');
+  if (btn) btn.classList.add('loading');
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        // Nominatim reverse geocode — free, no API key needed
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        const zip = data?.address?.postcode?.split('-')[0]; // handle ZIP+4 like 97005-1234
+        if (zip && /^\d{5}$/.test(zip)) {
+          const zipInput = document.getElementById('search-zip');
+          if (zipInput) {
+            zipInput.value = zip;
+            zipInput.dispatchEvent(new Event('input'));
+          }
+        } else {
+          alert('Could not determine ZIP code for your location. Please enter it manually.');
+        }
+      } catch(e) {
+        alert('Could not look up your location. Please enter your ZIP code manually.');
+      } finally {
+        if (btn) btn.classList.remove('loading');
+      }
+    },
+    (err) => {
+      if (btn) btn.classList.remove('loading');
+      if (err.code === err.PERMISSION_DENIED) {
+        alert('Location access was denied. Please enter your ZIP code manually.');
+      } else {
+        alert('Could not get your location. Please enter your ZIP code manually.');
+      }
+    },
+    { timeout: 8000 }
+  );
+};
+
 function guessEmail(name) {
   if (!name) return 'internet@dealer.com';
   return 'internet@' + name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,20) + '.com';
+}
+
+// Known dealer group domains that use platform-specific deeplinks
+const DEALER_GROUP_PATTERNS = [
+  // Lithia / Driveway — huge group, own platform
+  { match: /lithia\.com|driveway\.com/,          url: (vin) => `https://www.lithia.com/catcher.esl?vin=${vin}&utm_source=autonegotiating&utm_medium=referral` },
+  // AutoNation
+  { match: /autonation\.com/,                     url: (vin) => `https://www.autonation.com/cars-for-sale/detail?vin=${vin}` },
+  // Penske
+  { match: /penskeautomotive\.com/,               url: (vin) => `https://www.penskeautomotive.com/vehicles/details?vin=${vin}` },
+  // Asbury
+  { match: /asburyauto\.com/,                     url: (vin) => `https://www.asburyauto.com/vehicles/details?vin=${vin}` },
+  // Sonic
+  { match: /sonicautomotive\.com/,                url: (vin) => `https://www.sonicautomotive.com/cars-for-sale?vin=${vin}` },
+  // Group 1
+  { match: /group1auto\.com/,                     url: (vin) => `https://www.group1auto.com/vehicles/details?vin=${vin}` },
+];
+
+function dealerSearchUrl(car) {
+  // 1. Use clickoffUrl (direct dealer VDP link from auto.dev API) if available
+  if (car.listingUrl) return car.listingUrl;
+  const domain = car.dealerDomain;
+  if (!domain || domain === 'dealer.com') return null;
+  const vin = car.vin;
+  if (!vin) return `https://${domain}`;
+
+  // 2. Check if dealer belongs to a known group with a predictable deeplink format
+  for (const pattern of DEALER_GROUP_PATTERNS) {
+    if (pattern.match.test(domain)) return pattern.url(vin);
+  }
+
+  // 3. Most modern dealer platforms (DealerInspire/cars.com, VinSolutions/Cox,
+  //    Tekion, DealerSocket/Solera) support /inventory?vin= for VIN search.
+  //    CDK-powered sites use /routevin.aspx?vin= — but /inventory?vin= also
+  //    works as a search on CDK sites that have an inventory search page.
+  return `https://${domain}/inventory?vin=${encodeURIComponent(vin)}`;
 }
 
 //  NORMALIZE AUTO.DEV V1 LISTING 
@@ -95,16 +178,19 @@ function normalizeListing(l, idx) {
     year,
     trim:        [trim, color].filter(Boolean).join('  ') || 'Standard',
     trimRaw:     trim, // raw trim without color for filtering
+    rawModel:    model, // original model name from API (e.g. "M5") for M-alias detection
     dealer,
     dealerEmail: guessEmail(dealer),
+    dealerDomain: guessEmail(dealer).split('@')[1],
     dealerCity,
     msrp:        displayMsrp,
     priceLabel:  msrp ? null : 'Call for Price',
     floor:       Math.round(displayMsrp * 0.91),
     incentives:  [],
     specs:       specs.slice(0, 4),
-    stock:       l.vin ? l.vin.slice(-8) : 'N/A',
+    stock:       l.trackingParams?.remoteSku || (l.vin ? l.vin.slice(-8) : 'N/A'),
     vin:         l.vin || null,
+    providerGroupId: l.providerGroupId || null,
     mileageRaw:  l.mileageUnformatted || 0,
     condition:   l.condition || 'used',
     distanceMi:  l.distanceFromOrigin ? Math.round(l.distanceFromOrigin / 1609) : null,
@@ -211,20 +297,12 @@ const MODELS_BY_MAKE = {
     "i5",
     "i7",
     "iX",
-    "M2",
-    "M3",
-    "M4",
-    "M5",
-    "M8",
     "X1",
     "X2",
     "X3",
-    "X3 M",
     "X4",
     "X5",
-    "X5 M",
     "X6",
-    "X6 M",
     "X7",
     "XM",
     "Z4"
@@ -513,6 +591,26 @@ const MODELS_BY_MAKE = {
   ]
 };;
 
+// BMW M-performance models that auto.dev stores as separate models but should
+// appear as trim options under their base model in our UI.
+// Key = base model shown in dropdown, Value = array of M-model names in auto.dev API.
+const BMW_M_ALIASES = {
+  '2 Series': ['M2'],
+  '3 Series': ['M3'],
+  '4 Series': ['M4'],
+  '5 Series': ['M5'],
+  '8 Series': ['M8'],
+  'X3':       ['X3 M'],
+  'X5':       ['X5 M'],
+  'X6':       ['X6 M'],
+};
+
+// Reverse map: M-model name → base model (for search translation)
+const BMW_M_TO_BASE = {};
+Object.entries(BMW_M_ALIASES).forEach(([base, mModels]) => {
+  mModels.forEach(m => { BMW_M_TO_BASE[m] = base; });
+});
+
 function populateModels() {
   const make = document.getElementById('search-make').value;
   const modelSel = document.getElementById('search-model');
@@ -524,6 +622,7 @@ function populateModels() {
     trimSel.innerHTML = '<option value="">Any Trim</option>';
     trimSel.disabled = true;
   }
+  resetTrimMultiSelect();
 
   if (!make || !MODELS_BY_MAKE[make]) {
     modelSel.innerHTML = '<option value="">Select Make First</option>';
@@ -545,43 +644,191 @@ function populateModels() {
   });
 }
 
-async function populateTrims() {
+// ── Trim multi-select helpers ──────────────────────────────────────────────────
+
+function resetTrimMultiSelect() {
+  selectedTrims.clear();
+  const ms = document.getElementById('trim-ms');
+  const dropdown = document.getElementById('trim-ms-dropdown');
+  const list = document.getElementById('trim-ms-list');
+  if (ms) { ms.setAttribute('data-disabled', 'true'); ms.classList.remove('open'); }
+  if (dropdown) dropdown.style.display = 'none';
+  if (list) list.innerHTML = '';
+  renderTrimChips();
+}
+
+function renderTrimChips() {
+  const inner = document.getElementById('trim-ms-inner');
+  const placeholder = document.getElementById('trim-ms-placeholder');
+  if (!inner) return;
+  // Remove existing chips (keep placeholder span)
+  inner.querySelectorAll('.trim-ms-chip').forEach(el => el.remove());
+  if (selectedTrims.size === 0) {
+    if (placeholder) placeholder.style.display = '';
+  } else {
+    if (placeholder) placeholder.style.display = 'none';
+    selectedTrims.forEach(trim => {
+      const chip = document.createElement('span');
+      chip.className = 'trim-ms-chip';
+      chip.innerHTML = escHtml(trim) + '<button type="button" class="trim-ms-chip-x" onclick="removeTrimChip(event,\'' + escHtml(trim).replace(/'/g, "\\'") + '\')">×</button>';
+      inner.appendChild(chip);
+    });
+  }
+}
+
+window.removeTrimChip = function(e, trim) {
+  e.stopPropagation();
+  selectedTrims.delete(trim);
+  renderTrimChips();
+  // Update checkbox in dropdown if open
+  const list = document.getElementById('trim-ms-list');
+  if (list) {
+    list.querySelectorAll('.trim-ms-item').forEach(item => {
+      if (item.dataset.trim === trim) {
+        item.classList.remove('checked');
+        const cb = item.querySelector('input[type="checkbox"]');
+        if (cb) cb.checked = false;
+      }
+    });
+  }
+};
+
+function _trimDropdownReposition() {
+  const ms = document.getElementById('trim-ms');
+  const dropdown = document.getElementById('trim-ms-dropdown');
+  if (!ms || !dropdown || dropdown.style.display === 'none') return;
+  const rect = ms.getBoundingClientRect();
+  dropdown.style.top    = (rect.bottom + 4 + window.scrollY) + 'px';
+  dropdown.style.left   = rect.left + 'px';
+  dropdown.style.width  = rect.width + 'px';
+}
+
+window.toggleTrimDropdown = function(e) {
+  const ms = document.getElementById('trim-ms');
+  if (!ms || ms.getAttribute('data-disabled') === 'true') return;
+  // Don't open if click was on a chip's × button
+  if (e && e.target.closest('.trim-ms-chip-x')) return;
+  let dropdown = document.getElementById('trim-ms-dropdown');
+  if (!dropdown) return;
+  const isOpen = ms.classList.contains('open');
+  if (isOpen) {
+    ms.classList.remove('open');
+    dropdown.style.display = 'none';
+  } else {
+    // Portal: move dropdown to <body> so it escapes overflow:hidden containers
+    if (dropdown.parentElement !== document.body) {
+      document.body.appendChild(dropdown);
+      // Use absolute (body-relative) positioning
+      dropdown.style.position = 'absolute';
+      dropdown.style.zIndex = '9999';
+    }
+    ms.classList.add('open');
+    dropdown.style.display = 'block';
+    _trimDropdownReposition();
+  }
+};
+
+window.toggleTrimItem = function(e, trim) {
+  e.stopPropagation();
+  const item = e.currentTarget;
+  const cb = item.querySelector('input[type="checkbox"]');
+  if (selectedTrims.has(trim)) {
+    selectedTrims.delete(trim);
+    item.classList.remove('checked');
+    if (cb) cb.checked = false;
+  } else {
+    selectedTrims.add(trim);
+    item.classList.add('checked');
+    if (cb) cb.checked = true;
+  }
+  renderTrimChips();
+};
+
+// Close dropdown when clicking outside (works whether dropdown is in-place or body portal)
+document.addEventListener('click', function(e) {
+  const ms = document.getElementById('trim-ms');
+  const dropdown = document.getElementById('trim-ms-dropdown');
+  if (!ms || !dropdown) return;
+  if (!ms.contains(e.target) && !dropdown.contains(e.target)) {
+    ms.classList.remove('open');
+    dropdown.style.display = 'none';
+  }
+});
+// Reposition on scroll/resize so the body-portal dropdown follows the trigger
+window.addEventListener('scroll', _trimDropdownReposition, true);
+window.addEventListener('resize', _trimDropdownReposition);
+
+async function populateTrims(preselectTrims) {
   const make = document.getElementById('search-make').value;
   const model = document.getElementById('search-model').value;
-  const trimSel = document.getElementById('search-trim');
-  if (!trimSel) return;
+  const ms = document.getElementById('trim-ms');
+  const list = document.getElementById('trim-ms-list');
 
-  trimSel.innerHTML = '<option value="">Any Trim</option>';
-  trimSel.disabled = true;
+  // Reset
+  resetTrimMultiSelect();
 
   if (!make || !model) return;
 
-  // Show loading state
-  const loadingOpt = document.createElement('option');
-  loadingOpt.value = '';
-  loadingOpt.textContent = 'Loading trims...';
-  loadingOpt.disabled = true;
-  trimSel.appendChild(loadingOpt);
+  // Show loading
+  if (ms) ms.setAttribute('data-disabled', 'true');
+  if (list) {
+    list.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--ink3)">Loading trims…</div>';
+    document.getElementById('trim-ms-dropdown').style.display = 'none';
+  }
 
   try {
     const res = await fetch('/api/trims?make=' + encodeURIComponent(make) + '&model=' + encodeURIComponent(model));
     const data = await res.json();
-    const trims = data.trims || [];
+    let trims = data.trims || [];
 
-    trimSel.innerHTML = '<option value="">Any Trim</option>';
-    trimSel.disabled = false;
+    // For BMW base models, prepend M-performance variants as special trim options
+    const mAliases = (make === 'BMW' && BMW_M_ALIASES[model]) ? BMW_M_ALIASES[model] : [];
+    const allTrims = [...mAliases, ...trims.filter(t => !mAliases.includes(t))];
 
-    if (trims.length > 0) {
+    if (ms) ms.setAttribute('data-disabled', allTrims.length === 0 ? 'true' : 'false');
+    if (!list) return;
+
+    list.innerHTML = '';
+
+    // Add a visual separator after M-aliases if any exist
+    allTrims.forEach((t, idx) => {
+      if (idx === mAliases.length && mAliases.length > 0 && trims.length > 0) {
+        const sep = document.createElement('div');
+        sep.style.cssText = 'border-top:1px solid var(--border);margin:4px 0';
+        list.appendChild(sep);
+      }
+      const item = document.createElement('div');
+      item.className = 'trim-ms-item';
+      item.dataset.trim = t;
+      if (idx < mAliases.length) {
+        item.style.fontWeight = '600'; // bold for M variants
+      }
+      if (preselectTrims && preselectTrims.has(t)) {
+        item.classList.add('checked');
+        selectedTrims.add(t);
+      }
+      item.innerHTML = '<input type="checkbox"' + (selectedTrims.has(t) ? ' checked' : '') + '> ' + escHtml(t);
+      item.addEventListener('click', function(e) { window.toggleTrimItem(e, t); });
+      list.appendChild(item);
+    });
+
+    trims = allTrims; // update for legacy select sync below
+
+    if (preselectTrims && preselectTrims.size > 0) renderTrimChips();
+
+    // Also keep hidden <select> in sync for legacy code paths
+    const trimSel = document.getElementById('search-trim');
+    if (trimSel) {
+      trimSel.innerHTML = '<option value="">Any Trim</option>';
       trims.forEach(t => {
         const opt = document.createElement('option');
-        opt.value = t;
-        opt.textContent = t;
+        opt.value = t; opt.textContent = t;
         trimSel.appendChild(opt);
       });
     }
   } catch(e) {
-    trimSel.innerHTML = '<option value="">Any Trim</option>';
-    trimSel.disabled = false;
+    if (ms) ms.setAttribute('data-disabled', 'false');
+    if (list) list.innerHTML = '';
   }
 }
 
@@ -618,53 +865,87 @@ async function runSearch(page = 1, forceParams = {}) {
     return;
   }
 
-  const trim       = document.getElementById('search-trim') ? document.getElementById('search-trim').value.trim() : '';
+  // Multi-trim: use selectedTrims set
+  const trimArr    = selectedTrims.size > 0 ? [...selectedTrims] : [];
+  const trim       = trimArr.join(','); // comma-separated for saveRecentSearch
   const fuel       = document.getElementById('search-fuel') ? document.getElementById('search-fuel').value : '';
   const drive      = document.getElementById('search-drive') ? document.getElementById('search-drive').value : '';
   const maxMileage = document.getElementById('search-max-mileage') ? document.getElementById('search-max-mileage').value : '';
-  const params = { zip, distance: radius };
-  if (make)      params['make']      = make;
-  if (model)     params['model']     = model;
-  if (condition) params['condition'] = condition;
-  if (trim)      params['trim']      = trim;
-  if (minPrice)  params['minPrice']  = minPrice;
-  if (maxPrice)  params['maxPrice']  = maxPrice;
-  if (bodyStyle) params['bodyStyle'] = bodyStyle;
-  if (minYear)   params['minYear']   = minYear;
-  if (maxYear)   params['maxYear']   = maxYear;
-  if (fuel)      params['fuelType']  = fuel;
-  if (drive)     params['driveType'] = drive;
 
-  saveRecentSearch(make, model, trim, condition, zip, radius, bodyStyle);
+  // Separate BMW M-alias trims (need separate model queries) from regular trims
+  const mAliasTrimArr   = trimArr.filter(t => make === 'BMW' && BMW_M_TO_BASE[t] === model);
+  const regularTrimArr  = trimArr.filter(t => !mAliasTrimArr.includes(t));
+
+  const sharedParams = { zip, distance: radius };
+  if (make)      sharedParams['make']      = make;
+  if (condition) sharedParams['condition'] = condition;
+  if (minPrice)  sharedParams['minPrice']  = minPrice;
+  if (maxPrice)  sharedParams['maxPrice']  = maxPrice;
+  if (bodyStyle) sharedParams['bodyStyle'] = bodyStyle;
+  if (minYear)   sharedParams['minYear']   = minYear;
+  if (maxYear)   sharedParams['maxYear']   = maxYear;
+  if (fuel)      sharedParams['fuelType']  = fuel;
+  if (drive)     sharedParams['driveType'] = drive;
+
+  saveRecentSearch(make, model, trim || '', condition, zip, radius, bodyStyle);
 
   setLoading(true);
 
   clearError();
 
+  // Helper: fetch new+used merged for a given params object
+  async function fetchBothConditions(p) {
+    if (condition) {
+      const d = await fetchInventory(p, page, 100).catch(() => ({}));
+      return { records: d.data || d.listings || d.records || [], total: d.totalCount || 0 };
+    }
+    const [nD, uD] = await Promise.all([
+      fetchInventory({ ...p, condition: 'new'  }, page, 100).catch(() => ({})),
+      fetchInventory({ ...p, condition: 'used' }, page, 100).catch(() => ({})),
+    ]);
+    const seen = new Set();
+    const recs = [];
+    for (const r of [...(nD.records||nD.listings||nD.data||[]), ...(uD.records||uD.listings||uD.data||[])]) {
+      const key = r.vin || (r.year+'|'+r.make+'|'+r.model+'|'+r.trim+'|'+(r.price||r.priceUnformatted));
+      if (!seen.has(key)) { seen.add(key); recs.push(r); }
+    }
+    return { records: recs, total: (nD.totalCount||0) + (uD.totalCount||0) };
+  }
+
   try {
     const fetchLimit = 100;
     let records, totalResultCount_raw;
 
-    if (!condition) {
-      // "All Cars" — auto.dev only returns one condition type per request,
-      // so fire new + used in parallel and merge by VIN.
-      const [newData, usedData] = await Promise.all([
-        fetchInventory({ ...params, condition: 'new' },  page, fetchLimit).catch(() => ({})),
-        fetchInventory({ ...params, condition: 'used' }, page, fetchLimit).catch(() => ({})),
-      ]);
-      const newRecs  = newData.records  || newData.listings  || newData.data  || [];
-      const usedRecs = usedData.records || usedData.listings || usedData.data || [];
-      const seen = new Set();
-      records = [];
-      for (const r of [...newRecs, ...usedRecs]) {
+    // Build array of parallel fetch promises:
+    // 1) Base model query (if no trims, or regular trims selected)
+    // 2) One query per M-alias trim (each M variant is its own model in auto.dev)
+    const fetchPromises = [];
+
+    const shouldFetchBase = mAliasTrimArr.length === 0 || regularTrimArr.length > 0;
+    if (shouldFetchBase) {
+      const p = { ...sharedParams, model };
+      // For API: send trim only when exactly 1 regular trim is selected
+      if (regularTrimArr.length === 1) p['trim'] = regularTrimArr[0];
+      fetchPromises.push(fetchBothConditions(p));
+    }
+
+    // Each M-alias gets its own query using its real model name
+    mAliasTrimArr.forEach(mModel => {
+      fetchPromises.push(fetchBothConditions({ ...sharedParams, model: mModel }));
+    });
+
+    const fetchResults = await Promise.all(fetchPromises);
+
+    // Merge all results, dedup by VIN
+    const seen = new Set();
+    records = [];
+    totalResultCount_raw = 0;
+    for (const fr of fetchResults) {
+      totalResultCount_raw += fr.total || 0;
+      for (const r of fr.records) {
         const key = r.vin || (r.year + '|' + r.make + '|' + r.model + '|' + r.trim + '|' + (r.price || r.priceUnformatted));
         if (!seen.has(key)) { seen.add(key); records.push(r); }
       }
-      totalResultCount_raw = (newData.totalCount || 0) + (usedData.totalCount || 0);
-    } else {
-      const data = await fetchInventory(params, page, fetchLimit);
-      records = data.data || data.listings || data.records || [];
-      totalResultCount_raw = data.totalCount || records.length;
     }
 
     totalResultCount = totalResultCount_raw || records.length;
@@ -678,19 +959,29 @@ async function runSearch(page = 1, forceParams = {}) {
     } else {
       let normalized = records.map(normalizeListing);
 
-      // Client-side trim filtering (fallback in case API doesn't filter by trim)
-      if (trim) {
-        const tl = trim.toLowerCase();
-        const tlWords = new Set(tl.split(/\s+/).filter(function(w){ return w.length > 0; }));
-        const trimMatches = normalized.filter(function(c) {
-          const rt = (c.trimRaw || '').toLowerCase();
-          if (rt === tl) return true;
-          // Result trim must contain the selected trim (not the other way around — avoids false positives)
-          if (rt.includes(tl)) return true;
-          // All words in the selected trim must appear as whole words in the result trim
-          const rtWords = new Set(rt.split(/\s+/).filter(function(w){ return w.length > 0; }));
-          return [...tlWords].every(function(w){ return rtWords.has(w); });
+      // Client-side trim filtering — supports multi-trim (OR logic)
+      // M-alias results came back as their own model query, so don't apply trim filter to them
+      if (trimArr.length > 0) {
+        const regularPatterns = regularTrimArr.map(function(t) {
+          const tl = t.toLowerCase();
+          return { tl, words: new Set(tl.split(/\s+/).filter(function(w){ return w.length > 0; })) };
         });
+        const mAliasModels = new Set(mAliasTrimArr.map(t => t.toLowerCase()));
+
+        function matchesAnyTrim(c) {
+          // M-alias result: its rawModel (e.g. "M5") matches one of the M variants we fetched
+          if (mAliasModels.has((c.rawModel || '').toLowerCase())) return true;
+          // Regular trim match
+          if (regularPatterns.length === 0) return false;
+          const rt = (c.trimRaw || '').toLowerCase();
+          return regularPatterns.some(function(p) {
+            if (rt === p.tl) return true;
+            if (rt.includes(p.tl)) return true;
+            const rtWords = new Set(rt.split(/\s+/).filter(function(w){ return w.length > 0; }));
+            return [...p.words].every(function(w){ return rtWords.has(w); });
+          });
+        }
+        const trimMatches = normalized.filter(matchesAnyTrim);
         if (trimMatches.length > 0) {
           normalized = trimMatches;
         }
@@ -1030,6 +1321,9 @@ async function openDetail(carId) {
   // Reset modal
   document.getElementById('gallery-main').innerHTML = `<div class="no-img">${NO_IMG_LG}</div>`;
   document.getElementById('gallery-thumbs').innerHTML = '';
+  // Reset save button state
+  const saveBtn = document.getElementById('btn-detail-save');
+  if (saveBtn) { saveBtn.textContent = '♡ Save'; saveBtn.style.color = ''; saveBtn.disabled = false; }
   document.getElementById('detail-title').textContent = `${detailCar.year} ${detailCar.name}`;
   document.getElementById('detail-subtitle').textContent = [detailCar.trim, detailCar.dealer, detailCar.dealerCity].filter(Boolean).join('  ');
   document.getElementById('detail-price').textContent = detailCar.priceLabel || (detailCar.msrp ? fmt(detailCar.msrp) : '');
@@ -1064,27 +1358,46 @@ async function openDetail(carId) {
   const daysOnLotStr = detailCar.daysOnLot !== null && detailCar.daysOnLot >= 0
     ? (detailCar.daysOnLot === 0 ? 'Listed today' : detailCar.daysOnLot + ' days' + (detailCar.daysOnLot >= 60 ? ' ⏰ motivated seller' : detailCar.daysOnLot >= 30 ? ' — price negotiable' : ''))
     : '';
+  const dealerSiteLink = dealerSearchUrl(detailCar);
+  const dealerDomainDisplay = detailCar.dealerDomain && detailCar.dealerDomain !== 'dealer.com' ? detailCar.dealerDomain : null;
   const dealerRows = [
     ['Dealer',   detailCar.dealer],
     ['Location', detailCar.dealerCity || ''],
     ['Distance', detailCar.distanceMi ? detailCar.distanceMi + ' miles' : ''],
+    ['Stock #',  detailCar.stock && detailCar.stock !== 'N/A' ? detailCar.stock : ''],
     ['Days on Lot', daysOnLotStr],
   ].filter(([,v]) => v).map(([l,v]) =>
     `<div class="detail-row"><span class="detail-row-label">${l}</span><span class="detail-row-val">${escHtml(String(v))}</span></div>`
   ).join('');
+
+  // Dealer website link row
+  const dealerWebRow = dealerSiteLink && dealerDomainDisplay ? `
+    <div class="detail-row">
+      <span class="detail-row-label">Website</span>
+      <span class="detail-row-val">
+        <a href="${escHtml(dealerSiteLink)}" target="_blank" rel="noopener"
+           style="color:var(--orange);text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:4px">
+          ${escHtml(dealerDomainDisplay)}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+        ${!detailCar.listingUrl && detailCar.vin ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">search by VIN</span>` : ''}
+      </span>
+    </div>` : '';
+
   const historyBtns = detailCar.vin ? `
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <a href="${escHtml(detailCar.carfaxUrl)}" target="_blank" rel="noopener" class="history-report-btn carfax-btn">
         <img src="https://static.carfax.com/global-header/imgs/logo.svg" alt="Carfax" height="14" style="display:block" onerror="this.outerHTML='Carfax Report'">
       </a>
     </div>` : '';
-  document.getElementById('detail-dealer-rows').innerHTML = dealerRows + historyBtns;
+  document.getElementById('detail-dealer-rows').innerHTML = dealerRows + dealerWebRow + historyBtns;
 
-  // View Listing button
+  // View Listing button — show whenever we have any dealer link
   const listingBtn = document.getElementById('btn-detail-listing');
   if (listingBtn) {
-    if (detailCar.listingUrl) {
-      listingBtn.href = detailCar.listingUrl;
+    if (dealerSiteLink) {
+      listingBtn.href = dealerSiteLink;
+      listingBtn.textContent = detailCar.listingUrl ? 'View Listing' : 'Find on Dealer Site';
       listingBtn.style.display = '';
     } else {
       listingBtn.style.display = 'none';
@@ -2018,10 +2331,9 @@ function applyRecentSearch(idx) {
       });
     }
     if (r.trim) {
-      // Directly await populateTrims so we know it's finished before setting the value
-      await populateTrims();
-      const trimEl = document.getElementById('search-trim');
-      if (trimEl) trimEl.value = r.trim;
+      // r.trim may be a comma-separated list (multi-trim) or a single value
+      const trimValues = new Set(r.trim.split(',').map(function(t){ return t.trim(); }).filter(Boolean));
+      await populateTrims(trimValues);
     }
     runSearch();
   }, 150);
@@ -2797,11 +3109,24 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
   };
 
   function requireSignIn() {
-    // Prompt sign-in; works whether Clerk is loaded or not
+    // Try Clerk modal first
     if (window.Clerk?.openSignIn) {
       try { window.Clerk.openSignIn(); return true; } catch(e) {}
     }
-    alert('Please sign in to save vehicles to your favorites.');
+    // Clerk not ready yet — wait up to 3s for it to load then retry
+    if (window.Clerk === undefined) {
+      const interval = setInterval(() => {
+        if (window.Clerk?.openSignIn) {
+          clearInterval(interval);
+          try { window.Clerk.openSignIn(); } catch(e) {}
+        }
+      }, 100);
+      setTimeout(() => clearInterval(interval), 3000);
+      return true;
+    }
+    // Fallback: click the nav sign-in button which triggers Clerk
+    const navBtn = document.querySelector('.nav-auth-btn');
+    if (navBtn) { navBtn.click(); return true; }
     return true;
   }
 
@@ -2833,14 +3158,33 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeEleme
 
   function saveFavorite(car) {
     if (!window.Clerk?.user) { requireSignIn(); return; }
-    window.Clerk.session.getToken().then(token => {
-      fetch('/api/user/favorites', {
+    return window.Clerk.session.getToken().then(token => {
+      return fetch('/api/user/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ vin: car.vin || String(car.id), listingData: car })
-      }).catch(() => {});
-    }).catch(() => {});
+      }).then(res => {
+        if (!res.ok) return res.json().then(e => { throw new Error(e.error || res.status); });
+        return res.json();
+      });
+    }).catch(err => {
+      console.error('saveFavorite failed:', err);
+      showSaveToast('⚠ Could not save — ' + (err.message || 'please try again'));
+    });
   }
+
+  window.saveFromDetail = function() {
+    if (!detailCar) return;
+    if (!window.Clerk?.user) { requireSignIn(); return; }
+    const btn = document.getElementById('btn-detail-save');
+    if (btn) { btn.textContent = '…'; btn.disabled = true; }
+    saveFavorite(detailCar).then(() => {
+      if (btn) { btn.textContent = '♥ Saved'; btn.style.color = 'var(--orange)'; }
+      showSaveToast(`✓ ${detailCar.year} ${detailCar.name} saved`);
+    }).catch(() => {
+      if (btn) { btn.textContent = '♡ Save'; btn.disabled = false; }
+    });
+  };
 
   // ── Clerk: sync user data when signed in ──────────────────────────────────
   window.addEventListener('clerk:signed-in', async (e) => {

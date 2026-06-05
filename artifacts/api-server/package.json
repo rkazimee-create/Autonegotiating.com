@@ -16,6 +16,7 @@
     "@workspace/db": "workspace:*",
     "@workspace/integrations-gemini-ai": "workspace:*",
     "cookie-parser": "^1.4.7",
+    "@clerk/express": "^2.1.22",
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
