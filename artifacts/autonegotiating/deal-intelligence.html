@@ -425,6 +425,29 @@ footer a{color:var(--orange);text-decoration:none}
     <div class="stream-content" id="stream-content"></div>
   </div>
 
+  <div class="comparables-section" id="comparables-section" style="display:none">
+    <div class="comparables-header">
+      <div class="comparables-title">Nationwide Comparable Listings</div>
+      <div class="market-position" id="market-position"></div>
+    </div>
+    <div class="price-bar-wrap" id="price-bar-wrap" style="display:none">
+      <div class="price-bar-track">
+        <div class="price-bar-fill" style="width:100%"></div>
+        <div class="price-bar-marker" id="price-bar-marker" style="left:50%"></div>
+      </div>
+      <div class="price-bar-labels">
+        <span id="price-bar-min"></span>
+        <span>Market Range</span>
+        <span id="price-bar-max"></span>
+      </div>
+    </div>
+    <div class="comp-loading" id="comp-loading">
+      <div class="spinner" style="width:18px;height:18px;border-width:1.5px"></div>
+      Searching nationwide comparables...
+    </div>
+    <div class="comparables-grid" id="comparables-grid" style="display:none"></div>
+  </div>
+
   <div id="results">
 
     <div class="offer-hero">
@@ -483,28 +506,6 @@ footer a{color:var(--orange);text-decoration:none}
 
   </div>
 
-  <div class="comparables-section" id="comparables-section" style="display:none">
-    <div class="comparables-header">
-      <div class="comparables-title">Nationwide Comparable Listings</div>
-      <div class="market-position" id="market-position"></div>
-    </div>
-    <div class="price-bar-wrap" id="price-bar-wrap" style="display:none">
-      <div class="price-bar-track">
-        <div class="price-bar-fill" style="width:100%"></div>
-        <div class="price-bar-marker" id="price-bar-marker" style="left:50%"></div>
-      </div>
-      <div class="price-bar-labels">
-        <span id="price-bar-min"></span>
-        <span>Market Range</span>
-        <span id="price-bar-max"></span>
-      </div>
-    </div>
-    <div class="comp-loading" id="comp-loading">
-      <div class="spinner" style="width:18px;height:18px;border-width:1.5px"></div>
-      Searching nationwide comparables...
-    </div>
-    <div class="comparables-grid" id="comparables-grid" style="display:none"></div>
-  </div>
 
 </div>
 
@@ -888,7 +889,12 @@ async function runAnalysis() {
         document.getElementById('comparables-grid').style.display = 'none';
         renderComparables(compData, price, mileage);
       }
-    } catch(_) { /* comparables are non-blocking */ }
+    } catch(compErr) {
+      console.error('Comparables error:', compErr);
+      document.getElementById('comparables-section').style.display = 'block';
+      document.getElementById('comp-loading').innerHTML = '<span style="color:var(--ink3);font-size:12px">Comparables unavailable: ' + (compErr instanceof Error ? compErr.message : String(compErr)) + '</span>';
+      document.getElementById('comp-loading').style.display = 'flex';
+    }
 
     const stepsPromise = animateSteps(12000);
 
