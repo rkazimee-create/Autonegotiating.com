@@ -12,10 +12,15 @@ if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
   );
 }
 
+const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
+
+// Replit's internal proxy uses a custom base URL with no standard API version path.
+// The real Google Gemini API uses the default versioning built into the SDK.
+const isReplitProxy = baseUrl?.includes("localhost") || baseUrl?.includes("modelfarm");
+
 export const ai = new GoogleGenAI({
   apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    apiVersion: "",
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-  },
+  httpOptions: isReplitProxy
+    ? { apiVersion: "", baseUrl }
+    : { baseUrl },
 });

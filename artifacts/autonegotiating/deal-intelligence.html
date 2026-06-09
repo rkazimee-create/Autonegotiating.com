@@ -849,6 +849,13 @@ async function runAnalysis() {
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('results').style.display = 'none';
   document.getElementById('stream-card').style.display = 'none';
+  // Reset comparables to loading state for new analysis
+  document.getElementById('comparables-section').style.display = 'none';
+  document.getElementById('comp-loading').style.display = 'flex';
+  document.getElementById('comp-loading').innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:1.5px"></div> Searching nationwide comparables...';
+  document.getElementById('comparables-grid').style.display = 'none';
+  document.getElementById('price-bar-wrap').style.display = 'none';
+  document.getElementById('market-position').innerHTML = '';
   lastVinData = null;
 
   const btn = document.getElementById('analyze-btn');
