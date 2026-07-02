@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { autodevGet } from "../lib/autodev";
+import { cache, TTL } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -52,6 +53,7 @@ router.get("/comparables", async (req, res): Promise<void> => {
   }
 
   try {
+    const condition_mapped = condition === "cpo" ? "used" : condition;
     const params: Record<string, string | number | undefined> = {
       make,
       model,
@@ -62,13 +64,30 @@ router.get("/comparables", async (req, res): Promise<void> => {
     if (year) params.year_max = year;
     if (trim) params.trim = trim;
     // AutoDev doesn't recognise "cpo" — treat it as "used" for comparable searches
-    if (condition) params.condition = condition === "cpo" ? "used" : condition;
+    if (condition_mapped) params.condition = condition_mapped;
 
-    const data = (await autodevGet("/listings", params)) as {
+    // Cache key excludes price/mileage — those only affect stats, not raw listings
+    const cacheKey = `comparables:${make}:${model}:${year ?? ""}:${trim ?? ""}:${condition_mapped ?? ""}`;
+    const data = await cache.getOrFetch<{
       records?: Record<string, unknown>[];
       data?: Record<string, unknown>[];
       listings?: Record<string, unknown>[];
-    };
+    }>(cacheKey, TTL.COMPARABLES, async () => {
+      const result = await autodevGet("/listings", params) as {
+        records?: Record<string, unknown>[];
+        data?: Record<string, unknown>[];
+        listings?: Record<string, unknown>[];
+      };
+      const raw = result.records || result.data || result.listings || [];
+      if (!raw.length) throw new Error("empty comparables response");
+      return result;
+    }).catch(async () => {
+      return await autodevGet("/listings", params) as {
+        records?: Record<string, unknown>[];
+        data?: Record<string, unknown>[];
+        listings?: Record<string, unknown>[];
+      };
+    });
 
     const raw = data.records || data.data || data.listings || [];
 
