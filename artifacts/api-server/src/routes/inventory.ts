@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { autodevGet } from "../lib/autodev";
 import { logger } from "../lib/logger";
+import { cache, TTL } from "../lib/cache";
 import { db, priceSnapshots } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
@@ -69,7 +70,21 @@ router.get("/inventory", async (req, res): Promise<void> => {
     if (bodyStyle) params.body_style = bodyStyle;
     if (trim) params.trim = trim;
 
-    const data = await autodevGet("/listings", params);
+    const cacheKey = `inventory:${JSON.stringify(params)}`;
+    const data = await cache.getOrFetch(cacheKey, TTL.INVENTORY, async () => {
+      const result = await autodevGet("/listings", params);
+      const dataObj = result as Record<string, unknown[]>;
+      const listings = dataObj.records || dataObj.listings || dataObj.data || [];
+      // Don't cache empty results — let next request retry auto.dev
+      if (!listings.length) throw new Error("empty inventory response");
+      return result;
+    }).catch(async (err) => {
+      // If cache miss threw (empty result), still try to return data
+      if ((err as Error).message === "empty inventory response") {
+        return await autodevGet("/listings", params);
+      }
+      throw err;
+    });
 
     // Fire-and-forget: record price snapshots for all returned listings
     const dataObj = data as Record<string, unknown[]>;
