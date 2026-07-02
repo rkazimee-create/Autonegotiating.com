@@ -16,15 +16,20 @@ async function initStripe() {
 
     const stripeSync = await getStripeSync();
 
+    // Only register the webhook in production — dev uses an ephemeral janeway.replit.dev
+    // domain that Stripe cannot reach, and each dev restart would overwrite the production URL.
+    const isProduction = process.env.NODE_ENV === "production";
     const domains = process.env.REPLIT_DOMAINS ?? "";
     const primaryDomain = domains.split(",")[0];
-    if (primaryDomain) {
+    if (isProduction && primaryDomain) {
       const webhookUrl = `https://${primaryDomain}/api/stripe/webhook`;
       logger.info({ webhookUrl }, "Setting up managed webhook");
       // Non-fatal — webhook setup can fail if stripe schema tables are still being created
       stripeSync.findOrCreateManagedWebhook(webhookUrl)
         .then(() => logger.info("Webhook configured"))
         .catch((err: any) => logger.warn({ err: err.message }, "Webhook setup deferred — will retry on next restart"));
+    } else if (!isProduction) {
+      logger.info("Skipping webhook registration in development — production URL not available");
     }
 
     // Run backfill in background — don't block startup
