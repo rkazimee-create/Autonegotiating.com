@@ -117,11 +117,9 @@ function dealerSearchUrl(car) {
     if (pattern.match.test(domain)) return pattern.url(vin);
   }
 
-  // 3. Most modern dealer platforms (DealerInspire/cars.com, VinSolutions/Cox,
-  //    Tekion, DealerSocket/Solera) support /inventory?vin= for VIN search.
-  //    CDK-powered sites use /routevin.aspx?vin= — but /inventory?vin= also
-  //    works as a search on CDK sites that have an inventory search page.
-  return `https://${domain}/inventory?vin=${encodeURIComponent(vin)}`;
+  // 3. No reliable VIN-search URL pattern works across all dealer platforms,
+  //    so fall back to the dealer homepage — at least it's a valid destination.
+  return `https://${domain}`;
 }
 
 //  NORMALIZE AUTO.DEV V1 LISTING 
@@ -203,7 +201,7 @@ function normalizeListing(l, idx) {
     drivetrain:  l.drivetrain || '',
     fuel:        l.fuelType || '',
     bodyStyle:   l.bodyStyle || l.bodyType || '',
-    listingUrl:     l.clickoffUrl || null,
+    listingUrl:     l.vdpUrl || l.clickoffUrl || null,
     carfaxUrl:      l.vin ? `https://www.carfax.com/VehicleHistory/p/Report.cfx?partner=DEY_0&vin=${l.vin}` : (l.carfaxUrl || null),
     history:        l.history   || null,
     recentPriceDrop: l.recentPriceDrop === true,
@@ -1380,7 +1378,7 @@ async function openDetail(carId) {
           ${escHtml(dealerDomainDisplay)}
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
-        ${!detailCar.listingUrl && detailCar.vin ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">search by VIN</span>` : ''}
+        ${!detailCar.listingUrl ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">dealer homepage</span>` : ''}
       </span>
     </div>` : '';
 
@@ -1692,20 +1690,18 @@ function renderIntelligence(data, vinData) {
   // Invoice / TMV / pricing section
   const isNew = detailCar?.condition === 'new';
 
-  // Invoice — show real VIN data only; no estimates
-  if (invoice) {
-    const aboveInvoice = carPrice && invoice ? carPrice - invoice : null;
-    const invoiceLabel = isNew ? 'Dealer Invoice' : 'Original Dealer Invoice';
-    html += `<div class="detail-row"><span class="detail-row-label">${invoiceLabel}</span><span class="detail-row-val invoice">${fmt(invoice)}</span></div>`;
-    if (aboveInvoice !== null) {
-      const aboveLabel = aboveInvoice >= 0 ? `+${fmt(aboveInvoice)} above invoice` : `${fmt(Math.abs(aboveInvoice))} below invoice`;
-      html += `<div class="detail-row"><span class="detail-row-label">Listed vs Invoice</span><span class="detail-row-val ${aboveInvoice > 0 ? '' : 'green'}">${aboveLabel}</span></div>`;
+  // Invoice — only relevant for new vehicles; skip for used/CPO
+  if (isNew) {
+    if (invoice) {
+      const aboveInvoice = carPrice && invoice ? carPrice - invoice : null;
+      html += `<div class="detail-row"><span class="detail-row-label">Dealer Invoice</span><span class="detail-row-val invoice">${fmt(invoice)}</span></div>`;
+      if (aboveInvoice !== null) {
+        const aboveLabel = aboveInvoice >= 0 ? `+${fmt(aboveInvoice)} above invoice` : `${fmt(Math.abs(aboveInvoice))} below invoice`;
+        html += `<div class="detail-row"><span class="detail-row-label">Listed vs Invoice</span><span class="detail-row-val ${aboveInvoice > 0 ? '' : 'green'}">${aboveLabel}</span></div>`;
+      }
+    } else {
+      html += `<div class="detail-row"><span class="detail-row-label">Dealer Invoice</span><span class="detail-row-val" style="color:var(--ink3)">N/A</span></div>`;
     }
-    if (!isNew) {
-      html += `<div class="invoice-note">Original factory invoice (what the dealer paid when new). A useful anchor — most used cars sell above original invoice.</div>`;
-    }
-  } else {
-    html += `<div class="detail-row"><span class="detail-row-label">${isNew ? 'Dealer Invoice' : 'Original Dealer Invoice'}</span><span class="detail-row-val" style="color:var(--ink3)">N/A</span></div>`;
   }
 
   // Used / CPO additional VIN pricing
