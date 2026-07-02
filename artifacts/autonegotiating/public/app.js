@@ -105,8 +105,10 @@ const DEALER_GROUP_PATTERNS = [
 ];
 
 function dealerSearchUrl(car) {
-  // 1. Use clickoffUrl (direct dealer VDP link from auto.dev API) if available
-  if (car.listingUrl) return car.listingUrl;
+  // 1. Use clickoffUrl/vdpUrl only if it's an absolute URL — auto.dev's vdpUrl is often
+  //    a relative path (e.g. "/toyota-camry#vin=..."), which browsers would otherwise
+  //    resolve against autonegotiating.com instead of the dealer's own site.
+  if (car.listingUrl && /^https?:\/\//i.test(car.listingUrl)) return car.listingUrl;
   const domain = car.dealerDomain;
   if (!domain || domain === 'dealer.com') return null;
   const vin = car.vin;
@@ -1357,6 +1359,7 @@ async function openDetail(carId) {
     ? (detailCar.daysOnLot === 0 ? 'Listed today' : detailCar.daysOnLot + ' days' + (detailCar.daysOnLot >= 60 ? ' ⏰ motivated seller' : detailCar.daysOnLot >= 30 ? ' — price negotiable' : ''))
     : '';
   const dealerSiteLink = dealerSearchUrl(detailCar);
+  const hasDirectListingUrl = !!(detailCar.listingUrl && /^https?:\/\//i.test(detailCar.listingUrl));
   const dealerDomainDisplay = detailCar.dealerDomain && detailCar.dealerDomain !== 'dealer.com' ? detailCar.dealerDomain : null;
   const dealerRows = [
     ['Dealer',   detailCar.dealer],
@@ -1378,7 +1381,7 @@ async function openDetail(carId) {
           ${escHtml(dealerDomainDisplay)}
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
-        ${!detailCar.listingUrl ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">dealer homepage</span>` : ''}
+        ${!hasDirectListingUrl ? `<span style="font-size:10px;color:var(--ink3);margin-left:6px">dealer homepage</span>` : ''}
       </span>
     </div>` : '';
 
@@ -1395,7 +1398,7 @@ async function openDetail(carId) {
   if (listingBtn) {
     if (dealerSiteLink) {
       listingBtn.href = dealerSiteLink;
-      listingBtn.textContent = detailCar.listingUrl ? 'View Listing' : 'Find on Dealer Site';
+      listingBtn.textContent = hasDirectListingUrl ? 'View Listing' : 'Find on Dealer Site';
       listingBtn.style.display = '';
     } else {
       listingBtn.style.display = 'none';
