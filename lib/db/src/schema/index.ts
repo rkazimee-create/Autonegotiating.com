@@ -70,6 +70,44 @@ export const offerHistory = pgTable("offer_history", {
 
 export type OfferHistory = typeof offerHistory.$inferSelect;
 
+// ── Offer threads ─────────────────────────────────────────────────────────────
+// Each buyer offer creates a thread with a unique reply-to alias. Dealer replies
+// land on that alias (via inbound email webhook) and are relayed to the buyer's
+// real email, so the buyer's real address is never exposed to the dealer.
+export const offerThreads = pgTable("offer_threads", {
+  id:          serial("id").primaryKey(),
+  clerkId:     text("clerk_id").notNull(),
+  vin:         text("vin"),
+  dealerName:  text("dealer_name"),
+  dealerEmail: text("dealer_email").notNull(),
+  buyerEmail:  text("buyer_email").notNull(),
+  buyerName:   text("buyer_name"),
+  anonymous:   boolean("anonymous").default(false).notNull(),
+  replyAlias:  text("reply_alias").notNull().unique(),
+  createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("offer_threads_clerk_id_idx").on(t.clerkId),
+  index("offer_threads_reply_alias_idx").on(t.replyAlias),
+]);
+
+export type OfferThread = typeof offerThreads.$inferSelect;
+
+// ── Offer messages ────────────────────────────────────────────────────────────
+// Log of every message in a thread, in both directions, for the buyer's record
+// and for debugging delivery issues.
+export const offerMessages = pgTable("offer_messages", {
+  id:         serial("id").primaryKey(),
+  threadId:   integer("thread_id").notNull().references(() => offerThreads.id, { onDelete: "cascade" }),
+  direction:  text("direction").notNull(), // "outbound" (buyer→dealer) | "inbound" (dealer→buyer)
+  fromEmail:  text("from_email").notNull(),
+  toEmail:    text("to_email").notNull(),
+  subject:    text("subject"),
+  body:       text("body").notNull(),
+  createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index("offer_messages_thread_id_idx").on(t.threadId)]);
+
+export type OfferMessage = typeof offerMessages.$inferSelect;
+
 // ── Price snapshots ──────────────────────────────────────────────────────────
 export const priceSnapshots = pgTable(
   "price_snapshots",
