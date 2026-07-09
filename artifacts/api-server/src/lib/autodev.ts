@@ -1,4 +1,4 @@
-import { Client } from "undici";
+import { Pool } from "undici";
 
 const BASE_ORIGIN = "https://auto.dev";
 const BASE_PATH = "/api";
@@ -9,11 +9,19 @@ function getKey(): string {
   return key;
 }
 
-// Reuse a single client with maxHeaderSize increased to 64 KB (default is 16 KB).
-// Some auto.dev responses (e.g. BMW 5 Series) carry unusually large Cloudflare
-// response headers that exceed undici's default limit and throw HeadersOverflowError.
-const client = new Client(BASE_ORIGIN, {
+// Use a connection pool (not a single-socket Client) so concurrent requests
+// (trims, inventory, comparables, vin) don't serialize behind one another.
+// maxHeaderSize increased to 64 KB (default is 16 KB) because some auto.dev
+// responses (e.g. BMW 5 Series) carry unusually large Cloudflare response
+// headers that exceed undici's default limit and throw HeadersOverflowError.
+// Explicit timeouts ensure one hung upstream request can't stall the pool
+// (and therefore other unrelated requests) for minutes.
+const pool = new Pool(BASE_ORIGIN, {
   maxHeaderSize: 65536,
+  connections: 10,
+  headersTimeout: 15_000,
+  bodyTimeout: 15_000,
+  connectTimeout: 10_000,
 });
 
 export async function autodevGet(
@@ -29,7 +37,7 @@ export async function autodevGet(
   }
 
   const reqPath = `${BASE_PATH}${path}?${qs.toString()}`;
-  const { statusCode, body } = await client.request({
+  const { statusCode, body } = await pool.request({
     method: "GET",
     path: reqPath,
   });
