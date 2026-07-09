@@ -2,9 +2,11 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
+import { Webhook } from "svix";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
+import { handleInboundEmail } from "./routes/inbound-email";
 
 const app: Express = express();
 
@@ -27,6 +29,46 @@ app.post(
       logger.error({ err }, "Webhook error");
       res.status(400).json({ error: "Webhook processing error" });
     }
+  },
+);
+
+// Register Resend inbound webhook BEFORE express.json() — Svix signature
+// verification needs the raw request body, not the parsed JSON.
+app.post(
+  "/api/webhooks/resend-inbound",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const secret = process.env.RESEND_WEBHOOK_SECRET;
+    if (!secret) {
+      logger.error("RESEND_WEBHOOK_SECRET is not configured; rejecting inbound webhook");
+      res.status(500).json({ error: "Webhook not configured" });
+      return;
+    }
+
+    const svixId = req.headers["svix-id"];
+    const svixTimestamp = req.headers["svix-timestamp"];
+    const svixSignature = req.headers["svix-signature"];
+
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      res.status(400).json({ error: "Missing svix signature headers" });
+      return;
+    }
+
+    let payload: unknown;
+    try {
+      const wh = new Webhook(secret);
+      payload = wh.verify(req.body as Buffer, {
+        "svix-id": svixId as string,
+        "svix-timestamp": svixTimestamp as string,
+        "svix-signature": svixSignature as string,
+      });
+    } catch (err) {
+      logger.warn({ err }, "Inbound webhook signature verification failed");
+      res.status(401).json({ error: "Invalid signature" });
+      return;
+    }
+
+    await handleInboundEmail(payload, res);
   },
 );
 
