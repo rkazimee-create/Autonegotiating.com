@@ -2638,6 +2638,8 @@ offers@autonegotiating.com | (503) 893-9408`;
   const sendLabel = document.getElementById('email-send-label');
   if (sendLabel) sendLabel.textContent = 'Send Offer';
   document.getElementById('email-send-btn').disabled = false;
+  const anonCheckReset = document.getElementById('email-anon-check');
+  if (anonCheckReset) anonCheckReset.checked = false;
   document.getElementById('email-overlay').classList.remove('hidden');
   document.body.style.overflow='hidden';
 }
@@ -2650,13 +2652,22 @@ async function sendOfferEmail() {
   const subject = document.getElementById('email-subject').textContent;
   const body = document.getElementById('email-body').textContent || document.getElementById('email-body').innerText;
   const profile = getBuyerProfile();
+  const anonCheck = document.getElementById('email-anon-check');
+  const anonymous = !!(anonCheck && anonCheck.checked);
 
   if (!to || !subject || !body) { showToast('Missing email details'); return; }
+
+  const buyerEmail = profile?.email || window.Clerk?.user?.primaryEmailAddress?.emailAddress || null;
+  if (!buyerEmail) {
+    showToast('Please sign in and add your email before sending an offer.');
+    return;
+  }
 
   btn.disabled = true;
   label.textContent = 'Sending...';
 
   try {
+    const car = JSON.parse(sessionStorage.getItem('offerCar') || 'null');
     const res = await fetch('/api/send-offer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2665,9 +2676,11 @@ async function sendOfferEmail() {
         dealerName,
         subject,
         body,
-        buyerEmail: profile?.email || null,
+        vin: car?.vin || null,
+        buyerEmail,
         buyerName:  profile?.name  || null,
         buyerPhone: profile?.phone || null,
+        anonymous,
       }),
     });
     const data = await res.json();
