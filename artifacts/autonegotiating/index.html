@@ -1129,6 +1129,10 @@ footer a{color:var(--orange);text-decoration:none}
     <div class="e-field"><div class="e-lbl">To — Internet Sales Division</div><div class="e-val" id="email-to">—</div></div>
     <div class="e-field"><div class="e-lbl">Subject</div><div class="e-val" id="email-subject">—</div></div>
     <div class="e-body" id="email-body" contenteditable="true"></div>
+    <label style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-size:13px;color:var(--ink2);cursor:pointer">
+      <input type="checkbox" id="email-anon-check" style="width:16px;height:16px;cursor:pointer">
+      Keep my name anonymous to the dealer (your email is always kept private)
+    </label>
     <div class="e-actions">
       <button class="btn-copy" onclick="copyEmail()">📋 Copy</button>
       <button class="btn-mail" id="email-send-btn" onclick="sendOfferEmail()">
@@ -1247,7 +1251,7 @@ footer a{color:var(--orange);text-decoration:none}
   onload="initClerk()"
   onerror="document.getElementById('auth-btn').style.display='flex'"
 ></script>
-<script src="/app.js?v=20260702a"></script>
+<script src="/app.js?v=20260709a"></script>
 <script>
 // ── Clerk Auth Init ──────────────────────────────────────────────────────────
 async function initClerk() {
