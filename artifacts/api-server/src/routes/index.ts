@@ -10,7 +10,6 @@ import priceHistoryRouter from "./price-history";
 import promoRouter from "./promo";
 import stripeRouter from "./stripe";
 import sendOfferRouter from "./send-offer";
-import inboundEmailRouter from "./inbound-email";
 import vehicleFeaturesRouter from "./vehicle-features";
 import userRouter from "./user";
 
@@ -27,7 +26,6 @@ router.use(priceHistoryRouter);
 router.use(promoRouter);
 router.use(stripeRouter);
 router.use(sendOfferRouter);
-router.use(inboundEmailRouter);
 router.use(vehicleFeaturesRouter);
 router.use(userRouter);
 
