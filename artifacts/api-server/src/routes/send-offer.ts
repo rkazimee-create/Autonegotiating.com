@@ -11,7 +11,7 @@ const router: IRouter = Router();
 // Requires REPLY_DOMAIN's MX records to point at Resend's inbound service
 // and inbound routing configured in the Resend dashboard for that domain.
 const REPLY_DOMAIN = process.env.OFFER_REPLY_DOMAIN || "reply.autonegotiating.com";
-const SEND_FROM = process.env.OFFER_SEND_FROM || "AutoNegotiating.com <offers@autonegotiating.com>";
+const SEND_FROM = process.env.OFFER_SEND_FROM || `AutoNegotiating.com <offers@${REPLY_DOMAIN}>`;
 
 router.post("/send-offer", async (req, res) => {
   const { to, dealerName, subject, body, buyerEmail, buyerName, buyerPhone, vin, anonymous } =
