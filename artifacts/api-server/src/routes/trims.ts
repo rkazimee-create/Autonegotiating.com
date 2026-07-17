@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { autodevGet } from "../lib/autodev";
 import { cache, TTL } from "../lib/cache";
+import { getStaticTrims } from "../lib/static-trims";
 
 const router: IRouter = Router();
 
@@ -12,17 +13,24 @@ router.get("/trims", async (req, res): Promise<void> => {
     return;
   }
 
+  // Serve from the static curated list first — zero API calls, instant.
+  // Falls through to auto.dev only for makes/models not in the static list.
+  const staticTrims = getStaticTrims(make, model);
+  if (staticTrims) {
+    res.json({ trims: staticTrims });
+    return;
+  }
+
   const cacheKey = `trims:${make.toLowerCase()}:${model.toLowerCase()}`;
 
   try {
     const trimNames = await cache.getOrFetch<string[]>(cacheKey, TTL.TRIMS, async () => {
-      // Use a central US zip with max radius to cast the widest net nationwide
       const data = (await autodevGet("/listings", {
         make,
         model,
         zip: "66101",
         distance: 5000,
-        limit: 50,
+        limit: 10,
       })) as { records?: { trim?: string }[] };
 
       const records = data.records || [];
@@ -34,14 +42,13 @@ router.get("/trims", async (req, res): Promise<void> => {
         ),
       ].sort();
 
-      // If first pass returned nothing, retry from the West Coast
       if (names.length === 0) {
         const data2 = (await autodevGet("/listings", {
           make,
           model,
           zip: "90210",
           distance: 5000,
-          limit: 50,
+          limit: 10,
         })) as { records?: { trim?: string }[] };
         const records2 = data2.records || [];
         names = [
@@ -53,7 +60,6 @@ router.get("/trims", async (req, res): Promise<void> => {
         ].sort();
       }
 
-      // Don't cache empty results — let next request retry auto.dev
       if (names.length === 0) throw new Error("no trims returned");
 
       return names;
