@@ -20,7 +20,7 @@ export class StripeStorage {
     const result = await db.execute(
       sql`
         WITH paginated_products AS (
-          SELECT id, name, description, metadata, active
+          SELECT id, name, description, metadata, active, created
           FROM stripe.products
           WHERE active = ${active}
           ORDER BY created DESC

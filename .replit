@@ -14,7 +14,7 @@ runButton = "Project"
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
-integrations = ["github:1.0.0", "stripe:1.0.0"]
+integrations = ["github:1.0.0", "stripe:1.0.0", "resend:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -29,6 +29,10 @@ localPort = 8081
 externalPort = 80
 
 [[ports]]
+localPort = 8082
+externalPort = 3002
+
+[[ports]]
 localPort = 21910
 externalPort = 3000
 
@@ -38,4 +42,4 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-PROMO_CODES = "GETADEAL"
+PROMO_CODES = "GETADEAL,FRIENDSFAMILY"

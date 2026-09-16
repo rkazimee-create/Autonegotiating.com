@@ -3,6 +3,40 @@ import { ai } from "@workspace/integrations-gemini-ai";
 
 const router: IRouter = Router();
 
+/**
+ * Best-effort repair of truncated JSON by counting open braces/brackets
+ * and closing any that were never closed.
+ */
+function repairTruncatedJson(raw: string): string {
+  // Truncate at the last complete value boundary we can find
+  // Strategy: walk backwards from the end, find a position where we can close cleanly
+  const stack: string[] = [];
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+
+  // Close any open string first (truncation mid-string)
+  let repaired = raw;
+  if (inString) repaired += '"';
+
+  // Close any trailing comma before we seal the object
+  repaired = repaired.replace(/,\s*$/, "");
+
+  // Close all open containers in reverse order
+  repaired += stack.reverse().join("");
+  return repaired;
+}
+
 router.post("/trade-intelligence", async (req, res): Promise<void> => {
   const {
     year, make, model, trim, condition,
@@ -204,11 +238,15 @@ CRITICAL PRICING CALIBRATION — follow these rules exactly or the report will b
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { maxOutputTokens: 8192, temperature: 0.2 },
+      // 32k tokens — the response JSON is large; 8192 was causing truncation
+      config: { maxOutputTokens: 32768, temperature: 0.2 },
     });
 
     const text = response.text ?? "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+
+    // Strip markdown code fences if present
+    const stripped = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+    const jsonMatch = stripped.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       req.log.error({ text }, "Gemini response missing JSON for trade-intelligence");
       res.status(502).json({ error: "Invalid AI response format" });
@@ -216,12 +254,21 @@ CRITICAL PRICING CALIBRATION — follow these rules exactly or the report will b
     }
 
     let parsed: Record<string, unknown>;
+    let raw = jsonMatch[0];
+
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = JSON.parse(raw);
     } catch (parseErr) {
-      req.log.error({ text, parseErr }, "Gemini JSON parse failed for trade-intelligence");
-      res.status(502).json({ error: "Could not parse AI response" });
-      return;
+      // Response was truncated — attempt to close open JSON so we can salvage it
+      req.log.warn({ len: raw.length }, "Gemini JSON truncated, attempting repair");
+      raw = repairTruncatedJson(raw);
+      try {
+        parsed = JSON.parse(raw);
+      } catch (repairErr) {
+        req.log.error({ text: text.slice(-500), repairErr }, "Gemini JSON unrecoverable for trade-intelligence");
+        res.status(502).json({ error: "Could not parse AI response" });
+        return;
+      }
     }
 
     res.json({ raw: text, parsed });
