@@ -7,6 +7,8 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
 import { handleInboundEmail } from "./routes/inbound-email";
+import vehiclePageRouter from "./routes/vehicle-page";
+import seoRouter from "./routes/seo";
 
 const app: Express = express();
 
@@ -90,6 +92,10 @@ app.use(
   }),
 );
 app.use(cors());
+// Vehicle detail pages are public SEO documents and must remain accessible to
+// crawlers without a Clerk session.
+app.use(vehiclePageRouter);
+app.use(seoRouter);
 app.use(clerkMiddleware());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

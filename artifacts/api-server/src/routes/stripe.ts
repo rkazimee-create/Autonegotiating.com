@@ -360,17 +360,19 @@ router.get("/stripe/subscription-status", async (req, res) => {
       const subs = await stripe.subscriptions.list({ customer: customer.id, status: "active", limit: 1 });
       if (subs.data.length > 0) {
         const sub = subs.data[0];
+        const subscriptionItem = sub.items.data[0];
         active = true; status = "active";
-        planInterval = sub.items.data[0]?.plan?.interval ?? null;
-        currentPeriodEnd = sub.current_period_end;
+        planInterval = subscriptionItem?.plan?.interval ?? null;
+        currentPeriodEnd = subscriptionItem?.current_period_end ?? null;
         break;
       }
       const trialing = await stripe.subscriptions.list({ customer: customer.id, status: "trialing", limit: 1 });
       if (trialing.data.length > 0) {
         const sub = trialing.data[0];
+        const subscriptionItem = sub.items.data[0];
         active = true; status = "trialing";
-        planInterval = sub.items.data[0]?.plan?.interval ?? null;
-        currentPeriodEnd = sub.current_period_end;
+        planInterval = subscriptionItem?.plan?.interval ?? null;
+        currentPeriodEnd = subscriptionItem?.current_period_end ?? null;
         trialEnd = sub.trial_end;
         break;
       }

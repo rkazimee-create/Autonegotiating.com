@@ -199,10 +199,12 @@ router.post("/user/favorites", wrap(async (req, res) => {
 router.delete("/user/favorites/:vin", wrap(async (req, res) => {
   const clerkId = requireAuth(req, res);
   if (!clerkId) return;
+  const vinParam = req.params.vin;
+  const vin = typeof vinParam === "string" ? vinParam : vinParam[0];
 
   await db
     .delete(savedListings)
-    .where(and(eq(savedListings.clerkId, clerkId), eq(savedListings.vin, req.params.vin)));
+    .where(and(eq(savedListings.clerkId, clerkId), eq(savedListings.vin, vin)));
 
   res.json({ success: true });
 }));

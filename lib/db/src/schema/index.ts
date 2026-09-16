@@ -126,3 +126,35 @@ export const priceSnapshots = pgTable(
 
 export type PriceSnapshot = typeof priceSnapshots.$inferSelect;
 export type InsertPriceSnapshot = typeof priceSnapshots.$inferInsert;
+
+// ── Active inventory index ───────────────────────────────────────────────────
+// This is a historical index of VINs observed in successful Auto.dev searches.
+// lastSeen is upstream observation time; updatedAt is local persistence time.
+export const activeInventory = pgTable(
+  "active_inventory",
+  {
+    vin: text("vin").primaryKey(),
+    year: integer("year"),
+    make: text("make"),
+    model: text("model"),
+    trim: text("trim"),
+    condition: text("condition"),
+    price: integer("price"),
+    mileage: integer("mileage"),
+    dealerName: text("dealer_name"),
+    dealerCity: text("dealer_city"),
+    dealerState: text("dealer_state"),
+    sourceUrl: text("source_url"),
+    firstSeen: timestamp("first_seen", { withTimezone: true }).defaultNow().notNull(),
+    lastSeen: timestamp("last_seen", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    active: boolean("active").default(true).notNull(),
+  },
+  (table) => [
+    index("active_inventory_active_last_seen_idx").on(table.active, table.lastSeen),
+    index("active_inventory_make_model_idx").on(table.make, table.model),
+  ],
+);
+
+export type ActiveInventory = typeof activeInventory.$inferSelect;
+export type InsertActiveInventory = typeof activeInventory.$inferInsert;

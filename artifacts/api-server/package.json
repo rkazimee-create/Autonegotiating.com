@@ -23,7 +23,7 @@
     "express": "^5",
     "pino": "^9",
     "pino-http": "^10",
-    "stripe": "^22.1.1",
+    "stripe": "18.5.0",
     "stripe-replit-sync": "^1.0.0",
     "svix": "^1.96.1",
     "undici": "^8.2.0"

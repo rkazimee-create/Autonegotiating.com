@@ -4,6 +4,7 @@ import { logger } from "../lib/logger";
 import { cache, TTL } from "../lib/cache";
 import { db, priceSnapshots } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { indexInventoryListings } from "../lib/inventory-index";
 
 const router: IRouter = Router();
 
@@ -138,7 +139,10 @@ router.get("/inventory", async (req, res): Promise<void> => {
         };
       });
 
-      if (listings.length) recordPriceSnapshots(listings);
+      if (listings.length) {
+        recordPriceSnapshots(listings);
+        indexInventoryListings(listings);
+      }
       res.json({ records: listings, totalCount: result.total || listings.length });
       return;
     }
@@ -166,16 +170,23 @@ router.get("/inventory", async (req, res): Promise<void> => {
       const listings = dataObj.records || dataObj.listings || dataObj.data || [];
       // Don't cache empty results — let next request retry auto.dev
       if (!listings.length) throw new Error("empty inventory response");
+      // This callback runs only for a fresh successful upstream response.
+      indexInventoryListings(listings as Array<Record<string, unknown>>);
       return result;
     }).catch(async (err) => {
       // If cache miss threw (empty result), still try to return data
       if ((err as Error).message === "empty inventory response") {
-        return await autodevGet("/listings", params);
+        const result = await autodevGet("/listings", params);
+        const resultObj = result as Record<string, unknown[]>;
+        const listings = resultObj.records || resultObj.listings || resultObj.data || [];
+        indexInventoryListings(listings as Array<Record<string, unknown>>);
+        return result;
       }
       throw err;
     });
 
-    // Fire-and-forget: record price snapshots for all returned listings
+    // Price snapshots retain the existing response/cache behavior. Inventory
+    // indexing above is intentionally limited to fresh upstream responses.
     const dataObj = data as Record<string, unknown[]>;
     const listings = dataObj.records || dataObj.listings || dataObj.data || [];
     if (listings.length) {
