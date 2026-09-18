@@ -83,9 +83,10 @@ const STATIC_TRIMS: Record<string, Record<string, string[]>> = {
     "trax": ["LS","LT","ACTIV","RS","Premier"],
   },
   chrysler: {
-    "300": ["Touring","Touring L","S","C","C Platinum","300C"],
-    "pacifica": ["Touring","Touring L","Touring Plus","Pinnacle","Limited","Limited S","Hybrid Touring Plus","Hybrid Pinnacle"],
-    "voyager": ["LX","Limited"],
+    "300": ["Touring","Touring L","S","C","C Platinum","300C","Platinum"],
+    "pacifica": ["Touring","Touring L","Touring Plus","Limited","Limited S","Pinnacle","45th Anniversary","Hybrid Touring Plus","Hybrid Pinnacle"],
+    "pacifica hybrid": ["Touring L","Touring Plus","Limited","Pinnacle","Plug-In Hybrid Limited","Plug-In Hybrid Pinnacle"],
+    "voyager": ["LX","LXI","Limited"],
   },
   dodge: {
     "challenger": ["SXT","GT","R/T","R/T Scat Pack","R/T Scat Pack Widebody","SRT Hellcat","SRT Hellcat Redeye","SRT Hellcat Redeye Widebody","SRT Super Stock","SRT Demon","Last Call"],
@@ -329,12 +330,6 @@ const STATIC_TRIMS: Record<string, Record<string, string[]>> = {
     "giulia": ["Standard","Sprint","Ti","Veloce","Quadrifoglio"],
     "stelvio": ["Standard","Sprint","Ti","Veloce","Quadrifoglio"],
     "tonale": ["Sprint","Ti","Veloce","Plug-In Hybrid Ti","Plug-In Hybrid Veloce"],
-  },
-  chrysler: {
-    "300": ["Touring","Touring L","S","300C","C","Platinum"],
-    "pacifica": ["Touring","Touring L","Touring Plus","Limited","Pinnacle","45th Anniversary"],
-    "pacifica hybrid": ["Touring L","Touring Plus","Limited","Pinnacle","Plug-In Hybrid Limited","Plug-In Hybrid Pinnacle"],
-    "voyager": ["LX","LXI"],
   },
   fiat: {
     "500": ["Pop","Sport","Lounge","Abarth"],

@@ -41,6 +41,10 @@ export default defineConfig({
         target: `http://localhost:${process.env.API_PORT}`,
         changeOrigin: true,
       },
+      "/vehicle": {
+        target: `http://localhost:${process.env.API_PORT}`,
+        changeOrigin: true,
+      },
     } : undefined,
   },
   preview: {
