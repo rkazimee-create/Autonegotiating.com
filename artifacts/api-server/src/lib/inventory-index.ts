@@ -1,7 +1,9 @@
-import { and, eq, lt, gte, sql } from "drizzle-orm";
+import { and, eq, lt, gte, sql, inArray } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db, activeInventory, type InsertActiveInventory, type ActiveInventory } from "@workspace/db";
 import { logger } from "./logger";
+import { queueIndexNow, INDEXNOW_ORIGIN } from "./indexnow";
+import { sluggedInventoryGroups } from "./cars-slugs";
 
 const DEFAULT_FRESHNESS_DAYS = 30;
 const MIN_FRESHNESS_DAYS = 1;
@@ -44,6 +46,54 @@ function absoluteUrl(value: unknown): string | null {
 function valueFrom(listing: Record<string, unknown>, keys: string[]): unknown {
   for (const key of keys) if (listing[key] != null) return listing[key];
   return undefined;
+}
+
+const MATERIAL_FIELDS = ["year", "make", "model", "trim", "condition", "price", "mileage",
+  "dealerName", "dealerCity", "dealerState", "sourceUrl"] as const;
+
+export type InventoryChangeKind = "new" | "material" | "reactivated";
+
+export function hasMaterialInventoryChange(previous: Partial<ActiveInventory> | undefined,
+  next: Partial<InsertActiveInventory>): boolean {
+  if (!previous) return true;
+  return MATERIAL_FIELDS.some((field) => (previous[field] ?? null) !== (next[field] ?? null));
+}
+
+export function inventoryChangeKind(
+  previous: Partial<ActiveInventory> | undefined,
+  next: Partial<InsertActiveInventory>,
+): InventoryChangeKind | null {
+  if (!previous) return "new";
+  if (previous.active === false) return "reactivated";
+  return hasMaterialInventoryChange(previous, next) ? "material" : null;
+}
+
+export function inventoryRowsRequiringNotification(
+  rows: InsertActiveInventory[],
+  previousByVin: Map<string, Partial<ActiveInventory>>,
+): InsertActiveInventory[] {
+  return rows.filter((row) => inventoryChangeKind(previousByVin.get(row.vin), row));
+}
+type InventoryGroupName = { make: string; model: string };
+
+function groupKey(group: InventoryGroupName): string {
+  return `${group.make}\0${group.model}`;
+}
+
+export function inventoryUrls(
+  vins: string[],
+  affectedGroups: InventoryGroupName[],
+  canonicalGroups: InventoryGroupName[] = affectedGroups,
+): string[] {
+  const urls = vins.map((vin) => `${INDEXNOW_ORIGIN}/vehicle/${encodeURIComponent(vin)}`);
+  const affectedKeys = new Set(affectedGroups.map(groupKey));
+  const combined = [...new Map(
+    [...canonicalGroups, ...affectedGroups].map((group) => [groupKey(group), group]),
+  ).values()];
+  const slugged = sluggedInventoryGroups(combined.map((group) => ({ ...group, count: 1 })));
+  return urls.concat(slugged
+    .filter((group) => affectedKeys.has(groupKey(group)))
+    .map((group) => `${INDEXNOW_ORIGIN}/cars/${group.makeSlug}/${group.modelSlug}`));
 }
 
 export function normalizeInventoryListing(listing: Record<string, unknown>): InsertActiveInventory | null {
@@ -97,9 +147,12 @@ export function indexInventoryListings(listings: Array<Record<string, unknown>>)
 
   // De-duplicate a response before the single batch insert.
   const unique = [...new Map(records.map((record) => [record.vin, record])).values()];
-  db.insert(activeInventory)
-    .values(unique)
-    .onConflictDoUpdate({
+  (async () => {
+    const preUpsertGroups = await qualifiedInventoryGroups();
+    const existing = await db.select().from(activeInventory)
+      .where(inArray(activeInventory.vin, unique.map((row) => row.vin)));
+    const oldByVin = new Map(existing.map((row) => [row.vin, row]));
+    await db.insert(activeInventory).values(unique).onConflictDoUpdate({
       target: activeInventory.vin,
       set: {
         year: sql`excluded.year`,
@@ -117,8 +170,23 @@ export function indexInventoryListings(listings: Array<Record<string, unknown>>)
         updatedAt: sql`excluded.updated_at`,
         active: sql`true`,
       },
-    })
-    .catch((err) => logger.warn({ err }, "active inventory upsert failed"));
+    });
+    const changed = inventoryRowsRequiringNotification(unique, oldByVin);
+    if (changed.length) {
+      const postUpsertGroups = await qualifiedInventoryGroups();
+      const oldAffectedGroups = changed.flatMap((row) => {
+        const old = oldByVin.get(row.vin);
+        return old?.active && old.make && old.model ? [{ make: old.make, model: old.model }] : [];
+      });
+      const newAffectedGroups = changed
+        .filter((row): row is InsertActiveInventory & InventoryGroupName => Boolean(row.make && row.model))
+        .map((row) => ({ make: row.make, model: row.model }));
+      queueIndexNow([
+        ...inventoryUrls([], oldAffectedGroups, preUpsertGroups),
+        ...inventoryUrls(changed.map((row) => row.vin), newAffectedGroups, postUpsertGroups),
+      ]);
+    }
+  })().catch((err) => logger.warn({ err }, "active inventory upsert failed"));
 }
 
 export async function refreshStaleInventory(): Promise<void> {
@@ -127,9 +195,21 @@ export async function refreshStaleInventory(): Promise<void> {
   lastStaleRefresh = now;
   const cutoff = new Date(now - INVENTORY_FRESHNESS_DAYS * 24 * 60 * 60 * 1000);
   try {
-    await db.update(activeInventory)
+    const preDeactivationGroups = await qualifiedInventoryGroups();
+    const deactivated = await db.update(activeInventory)
       .set({ active: false, updatedAt: new Date() })
-      .where(and(eq(activeInventory.active, true), lt(activeInventory.lastSeen, cutoff)));
+      .where(and(eq(activeInventory.active, true), lt(activeInventory.lastSeen, cutoff)))
+      .returning({ vin: activeInventory.vin, make: activeInventory.make, model: activeInventory.model });
+    if (deactivated.length) {
+      const affectedGroups = deactivated
+        .filter((row): row is { vin: string; make: string; model: string } => Boolean(row.make && row.model))
+        .map(({ make, model }) => ({ make, model }));
+      queueIndexNow(inventoryUrls(
+        deactivated.map((row) => row.vin),
+        affectedGroups,
+        preDeactivationGroups,
+      ));
+    }
   } catch (err) {
     logger.warn({ err }, "active inventory stale refresh failed");
   }

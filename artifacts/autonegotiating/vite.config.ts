@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import path from "path";
+import type { Plugin } from "vite";
 
 const rawPort = process.env.PORT;
 
@@ -15,9 +16,32 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+function indexNowVerificationPlugin(): Plugin {
+  const key = process.env.INDEXNOW_KEY;
+  const valid = key && /^[A-Za-z0-9_-]{8,200}$/.test(key) ? key : undefined;
+  return {
+    name: "indexnow-verification",
+    configureServer(server) {
+      if (!valid) return;
+      server.middlewares.use((req, res, next) => {
+        if (req.url !== `/${valid}.txt`) return next();
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/plain");
+        res.end(valid);
+      });
+    },
+    generateBundle() {
+      if (valid) this.emitFile({ type: "asset", fileName: `${valid}.txt`, source: valid });
+    },
+  };
+}
+
 export default defineConfig({
   base: "/",
-  plugins: [],
+  // The IndexNow verification filename contains the configured key. Suppress
+  // Vite's per-asset info table so build logs never print that filename.
+  logLevel: "warn",
+  plugins: [indexNowVerificationPlugin()],
   root: path.resolve(import.meta.dirname),
   publicDir: path.resolve(import.meta.dirname, "public"),
   build: {

@@ -5,6 +5,7 @@ import {
   qualifiedInventoryPage,
   qualifiedVehicleShard,
 } from "../lib/inventory-index";
+import { directorySlug, sluggedInventoryGroups } from "../lib/cars-slugs";
 
 const router: IRouter = Router();
 const ORIGIN = "https://www.autonegotiating.com";
@@ -12,13 +13,6 @@ const SHARD_SIZE = 49_000;
 const CARS_PAGE_SIZE = 100;
 const MAX_PAGE = 10_000;
 
-type InventoryGroup = Awaited<ReturnType<typeof qualifiedInventoryGroups>>[number];
-type SluggedInventoryGroup = InventoryGroup & {
-  makeSlug: string;
-  modelSlug: string;
-  baseMakeSlug: string;
-  baseModelSlug: string;
-};
 
 function escapeXml(value: unknown): string {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -102,50 +96,6 @@ function pageNumber(value: unknown): number | null {
   if (raw == null || raw === "") return 1;
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_PAGE ? parsed : null;
-}
-
-function directorySlug(value: string): string {
-  return value.normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/&/g, " and ")
-    .replace(/\+/g, " plus ")
-    .replace(/['’]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function stableSlugSuffix(value: string): string {
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-function sluggedInventoryGroups(groups: InventoryGroup[]): SluggedInventoryGroup[] {
-  const prepared = groups.map((group) => ({
-    ...group,
-    baseMakeSlug: directorySlug(group.make),
-    baseModelSlug: directorySlug(group.model),
-  }));
-  const pathCounts = new Map<string, number>();
-  for (const group of prepared) {
-    const key = `${group.baseMakeSlug}/${group.baseModelSlug}`;
-    pathCounts.set(key, (pathCounts.get(key) ?? 0) + 1);
-  }
-  return prepared.map((group) => {
-    const key = `${group.baseMakeSlug}/${group.baseModelSlug}`;
-    const suffix = pathCounts.get(key) === 1
-      ? ""
-      : `-${stableSlugSuffix(`${group.make}\0${group.model}`)}`;
-    return {
-      ...group,
-      makeSlug: group.baseMakeSlug,
-      modelSlug: `${group.baseModelSlug}${suffix}`,
-    };
-  });
 }
 
 function shell(title: string, description: string, canonical: string, body: string): string {
