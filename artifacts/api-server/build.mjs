@@ -20,6 +20,7 @@ async function buildAll() {
       path.resolve(artifactDir, "src/indexnow-bootstrap.ts"),
       path.resolve(artifactDir, "src/indexnow.test.ts"),
       path.resolve(artifactDir, "src/phase3a.test.ts"),
+      path.resolve(artifactDir, "src/phase3b-year.test.ts"),
     ],
     platform: "node",
     bundle: true,

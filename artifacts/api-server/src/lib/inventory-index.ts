@@ -9,7 +9,15 @@ import {
   qualifiedPhase3aStaleEntityMappings,
   qualifiedPhase3aEntityStates,
   phase3aNotificationPlan,
+  phase3aEntityUrl,
 } from "./phase3a";
+import {
+  phase3bYearCandidatesForRows,
+  phase3bYearNotificationUrls,
+  phase3bYearUrl,
+  qualifiedPhase3bStaleYearMappings,
+  qualifiedPhase3bYearStates,
+} from "./phase3b-year";
 import {
   INVENTORY_FRESHNESS_DAYS,
   isValidInventoryVin,
@@ -56,9 +64,12 @@ export function hasMaterialInventoryChange(previous: Partial<ActiveInventory> | 
 export function inventoryChangeKind(
   previous: Partial<ActiveInventory> | undefined,
   next: Partial<InsertActiveInventory>,
+  now = Date.now(),
 ): InventoryChangeKind | null {
   if (!previous) return "new";
-  if (previous.active === false) return "reactivated";
+  if (previous.active === false ||
+    (previous.lastSeen instanceof Date &&
+      previous.lastSeen.getTime() < now - INVENTORY_FRESHNESS_DAYS * 24 * 60 * 60 * 1000)) return "reactivated";
   return hasMaterialInventoryChange(previous, next) ? "material" : null;
 }
 
@@ -152,10 +163,16 @@ export function indexInventoryListings(listings: Array<Record<string, unknown>>)
       .where(inArray(activeInventory.vin, unique.map((row) => row.vin)));
     const oldByVin = new Map(existing.map((row) => [row.vin, row]));
     let beforePhase3: Map<string, boolean> | undefined;
+    let beforePhase3bYears: Map<string, boolean> | undefined;
     try {
       beforePhase3 = await qualifiedPhase3aEntityStates();
     } catch (err) {
       logger.warn({ err }, "pre-upsert Phase 3A bookkeeping failed");
+    }
+    try {
+      beforePhase3bYears = await qualifiedPhase3bYearStates();
+    } catch (err) {
+      logger.warn({ err }, "pre-upsert Phase 3B year bookkeeping failed");
     }
     await db.insert(activeInventory).values(unique).onConflictDoUpdate({
       target: activeInventory.vin,
@@ -201,15 +218,26 @@ export function indexInventoryListings(listings: Array<Record<string, unknown>>)
         return entity ? [entity] : [];
       }))];
       let afterPhase3: Map<string, boolean> | undefined;
+      let afterPhase3bYears: Map<string, boolean> | undefined;
       try {
         afterPhase3 = await qualifiedPhase3aEntityStates();
       } catch (err) {
         logger.warn({ err }, "post-upsert Phase 3A bookkeeping failed");
       }
+      try {
+        afterPhase3bYears = await qualifiedPhase3bYearStates();
+      } catch (err) {
+        logger.warn({ err }, "post-upsert Phase 3B year bookkeeping failed");
+      }
+      const oldPhase3bYears = phase3bYearCandidatesForRows(changed.map((row) => oldByVin.get(row.vin) ?? {}));
+      const newPhase3bYears = phase3bYearCandidatesForRows(changed);
       queueIndexNow([
         ...inventoryUrls([], oldAffectedGroups, preUpsertGroups),
         ...inventoryUrls(changed.map((row) => row.vin), newAffectedGroups, postUpsertGroups),
         ...phase3aNotificationPlan(beforePhase3, afterPhase3, [...oldPhase3Entities, ...newPhase3Entities]),
+        ...(beforePhase3bYears && afterPhase3bYears
+          ? phase3bYearNotificationUrls(beforePhase3bYears, afterPhase3bYears, [...oldPhase3bYears, ...newPhase3bYears])
+          : []),
       ]);
     }
   })().catch((err) => logger.warn({ err }, "active inventory upsert failed"));
@@ -228,10 +256,16 @@ export async function refreshStaleInventory(): Promise<void> {
       logger.warn({ err }, "pre-deactivation inventory bookkeeping failed");
     }
     let affectedEntities = [] as Awaited<ReturnType<typeof qualifiedPhase3aStaleEntityMappings>>;
+    let affectedYearEntities = [] as Awaited<ReturnType<typeof qualifiedPhase3bStaleYearMappings>>;
     try {
       affectedEntities = await qualifiedPhase3aStaleEntityMappings(cutoff);
     } catch (err) {
       logger.warn({ err }, "pre-deactivation Phase 3A bookkeeping failed");
+    }
+    try {
+      affectedYearEntities = await qualifiedPhase3bStaleYearMappings(cutoff);
+    } catch (err) {
+      logger.warn({ err }, "pre-deactivation Phase 3B year bookkeeping failed");
     }
     const deactivated = await db.update(activeInventory)
       .set({ active: false, updatedAt: new Date() })
@@ -250,6 +284,10 @@ export async function refreshStaleInventory(): Promise<void> {
       // Always notify its approved entity so a previously indexable page can
       // be removed from the index even when both sampled states are false.
       queueIndexNow(phase3aAffectedEntityUrls(affectedEntities));
+      queueIndexNow(affectedYearEntities.flatMap((candidate) => [
+        phase3bYearUrl(candidate.entity, candidate.year),
+        phase3aEntityUrl(candidate.entity),
+      ]));
     }
   } catch (err) {
     logger.warn({ err }, "active inventory stale refresh failed");
