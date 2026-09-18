@@ -1,26 +1,22 @@
-import { and, eq, lt, gte, sql } from "drizzle-orm";
-import type { SQL } from "drizzle-orm";
+import { and, eq, lt, sql, inArray } from "drizzle-orm";
 import { db, activeInventory, type InsertActiveInventory, type ActiveInventory } from "@workspace/db";
 import { logger } from "./logger";
-
-const DEFAULT_FRESHNESS_DAYS = 30;
-const MIN_FRESHNESS_DAYS = 1;
-const MAX_FRESHNESS_DAYS = 365;
-const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/i;
+import { queueIndexNow, INDEXNOW_ORIGIN } from "./indexnow";
+import { sluggedInventoryGroups } from "./cars-slugs";
+import {
+  phase3aEntityForInventory,
+  phase3aAffectedEntityUrls,
+  qualifiedPhase3aStaleEntityMappings,
+  qualifiedPhase3aEntityStates,
+  phase3aNotificationPlan,
+} from "./phase3a";
+import {
+  INVENTORY_FRESHNESS_DAYS,
+  isValidInventoryVin,
+  qualifiedInventoryWhere,
+} from "./inventory-qualification";
 const STALE_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
-
-export const INVENTORY_FRESHNESS_DAYS = readFreshnessDays();
 let lastStaleRefresh = 0;
-
-function readFreshnessDays(): number {
-  const parsed = Number(process.env.INVENTORY_FRESHNESS_DAYS);
-  if (!Number.isFinite(parsed)) return DEFAULT_FRESHNESS_DAYS;
-  return Math.min(MAX_FRESHNESS_DAYS, Math.max(MIN_FRESHNESS_DAYS, Math.floor(parsed)));
-}
-
-export function isValidInventoryVin(value: unknown): value is string {
-  return typeof value === "string" && VIN_PATTERN.test(value.trim());
-}
 
 function numberValue(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
@@ -44,6 +40,54 @@ function absoluteUrl(value: unknown): string | null {
 function valueFrom(listing: Record<string, unknown>, keys: string[]): unknown {
   for (const key of keys) if (listing[key] != null) return listing[key];
   return undefined;
+}
+
+const MATERIAL_FIELDS = ["year", "make", "model", "trim", "condition", "price", "mileage",
+  "dealerName", "dealerCity", "dealerState", "sourceUrl"] as const;
+
+export type InventoryChangeKind = "new" | "material" | "reactivated";
+
+export function hasMaterialInventoryChange(previous: Partial<ActiveInventory> | undefined,
+  next: Partial<InsertActiveInventory>): boolean {
+  if (!previous) return true;
+  return MATERIAL_FIELDS.some((field) => (previous[field] ?? null) !== (next[field] ?? null));
+}
+
+export function inventoryChangeKind(
+  previous: Partial<ActiveInventory> | undefined,
+  next: Partial<InsertActiveInventory>,
+): InventoryChangeKind | null {
+  if (!previous) return "new";
+  if (previous.active === false) return "reactivated";
+  return hasMaterialInventoryChange(previous, next) ? "material" : null;
+}
+
+export function inventoryRowsRequiringNotification(
+  rows: InsertActiveInventory[],
+  previousByVin: Map<string, Partial<ActiveInventory>>,
+): InsertActiveInventory[] {
+  return rows.filter((row) => inventoryChangeKind(previousByVin.get(row.vin), row));
+}
+type InventoryGroupName = { make: string; model: string };
+
+function groupKey(group: InventoryGroupName): string {
+  return `${group.make}\0${group.model}`;
+}
+
+export function inventoryUrls(
+  vins: string[],
+  affectedGroups: InventoryGroupName[],
+  canonicalGroups: InventoryGroupName[] = affectedGroups,
+): string[] {
+  const urls = vins.map((vin) => `${INDEXNOW_ORIGIN}/vehicle/${encodeURIComponent(vin)}`);
+  const affectedKeys = new Set(affectedGroups.map(groupKey));
+  const combined = [...new Map(
+    [...canonicalGroups, ...affectedGroups].map((group) => [groupKey(group), group]),
+  ).values()];
+  const slugged = sluggedInventoryGroups(combined.map((group) => ({ ...group, count: 1 })));
+  return urls.concat(slugged
+    .filter((group) => affectedKeys.has(groupKey(group)))
+    .map((group) => `${INDEXNOW_ORIGIN}/cars/${group.makeSlug}/${group.modelSlug}`));
 }
 
 export function normalizeInventoryListing(listing: Record<string, unknown>): InsertActiveInventory | null {
@@ -97,9 +141,23 @@ export function indexInventoryListings(listings: Array<Record<string, unknown>>)
 
   // De-duplicate a response before the single batch insert.
   const unique = [...new Map(records.map((record) => [record.vin, record])).values()];
-  db.insert(activeInventory)
-    .values(unique)
-    .onConflictDoUpdate({
+  (async () => {
+    let preUpsertGroups: Array<{ make: string; model: string; count: number }> = [];
+    try {
+      preUpsertGroups = await qualifiedInventoryGroups();
+    } catch (err) {
+      logger.warn({ err }, "pre-upsert inventory bookkeeping failed");
+    }
+    const existing = await db.select().from(activeInventory)
+      .where(inArray(activeInventory.vin, unique.map((row) => row.vin)));
+    const oldByVin = new Map(existing.map((row) => [row.vin, row]));
+    let beforePhase3: Map<string, boolean> | undefined;
+    try {
+      beforePhase3 = await qualifiedPhase3aEntityStates();
+    } catch (err) {
+      logger.warn({ err }, "pre-upsert Phase 3A bookkeeping failed");
+    }
+    await db.insert(activeInventory).values(unique).onConflictDoUpdate({
       target: activeInventory.vin,
       set: {
         year: sql`excluded.year`,
@@ -117,8 +175,44 @@ export function indexInventoryListings(listings: Array<Record<string, unknown>>)
         updatedAt: sql`excluded.updated_at`,
         active: sql`true`,
       },
-    })
-    .catch((err) => logger.warn({ err }, "active inventory upsert failed"));
+    });
+    const changed = inventoryRowsRequiringNotification(unique, oldByVin);
+    if (changed.length) {
+      let postUpsertGroups: Array<{ make: string; model: string; count: number }> = [];
+      try {
+        postUpsertGroups = await qualifiedInventoryGroups();
+      } catch (err) {
+        logger.warn({ err }, "post-upsert inventory bookkeeping failed");
+      }
+      const oldAffectedGroups = changed.flatMap((row) => {
+        const old = oldByVin.get(row.vin);
+        return old?.active && old.make && old.model ? [{ make: old.make, model: old.model }] : [];
+      });
+      const newAffectedGroups = changed
+        .filter((row): row is InsertActiveInventory & InventoryGroupName => Boolean(row.make && row.model))
+        .map((row) => ({ make: row.make, model: row.model }));
+      const oldPhase3Entities = [...new Set(changed.flatMap((row) => {
+        const old = oldByVin.get(row.vin);
+        const entity = old ? phase3aEntityForInventory(old) : undefined;
+        return entity ? [entity] : [];
+      }))];
+      const newPhase3Entities = [...new Set(changed.flatMap((row) => {
+        const entity = phase3aEntityForInventory(row);
+        return entity ? [entity] : [];
+      }))];
+      let afterPhase3: Map<string, boolean> | undefined;
+      try {
+        afterPhase3 = await qualifiedPhase3aEntityStates();
+      } catch (err) {
+        logger.warn({ err }, "post-upsert Phase 3A bookkeeping failed");
+      }
+      queueIndexNow([
+        ...inventoryUrls([], oldAffectedGroups, preUpsertGroups),
+        ...inventoryUrls(changed.map((row) => row.vin), newAffectedGroups, postUpsertGroups),
+        ...phase3aNotificationPlan(beforePhase3, afterPhase3, [...oldPhase3Entities, ...newPhase3Entities]),
+      ]);
+    }
+  })().catch((err) => logger.warn({ err }, "active inventory upsert failed"));
 }
 
 export async function refreshStaleInventory(): Promise<void> {
@@ -127,22 +221,39 @@ export async function refreshStaleInventory(): Promise<void> {
   lastStaleRefresh = now;
   const cutoff = new Date(now - INVENTORY_FRESHNESS_DAYS * 24 * 60 * 60 * 1000);
   try {
-    await db.update(activeInventory)
+    let preDeactivationGroups: Array<{ make: string; model: string; count: number }> = [];
+    try {
+      preDeactivationGroups = await qualifiedInventoryGroups();
+    } catch (err) {
+      logger.warn({ err }, "pre-deactivation inventory bookkeeping failed");
+    }
+    let affectedEntities = [] as Awaited<ReturnType<typeof qualifiedPhase3aStaleEntityMappings>>;
+    try {
+      affectedEntities = await qualifiedPhase3aStaleEntityMappings(cutoff);
+    } catch (err) {
+      logger.warn({ err }, "pre-deactivation Phase 3A bookkeeping failed");
+    }
+    const deactivated = await db.update(activeInventory)
       .set({ active: false, updatedAt: new Date() })
-      .where(and(eq(activeInventory.active, true), lt(activeInventory.lastSeen, cutoff)));
+      .where(and(eq(activeInventory.active, true), lt(activeInventory.lastSeen, cutoff)))
+      .returning({ vin: activeInventory.vin, make: activeInventory.make, model: activeInventory.model });
+    if (deactivated.length) {
+      const affectedGroups = deactivated
+        .filter((row): row is { vin: string; make: string; model: string } => Boolean(row.make && row.model))
+        .map(({ make, model }) => ({ make, model }));
+      queueIndexNow(inventoryUrls(
+        deactivated.map((row) => row.vin),
+        affectedGroups,
+        preDeactivationGroups,
+      ));
+      // A stale row is excluded from the qualified "before" count by design.
+      // Always notify its approved entity so a previously indexable page can
+      // be removed from the index even when both sampled states are false.
+      queueIndexNow(phase3aAffectedEntityUrls(affectedEntities));
+    }
   } catch (err) {
     logger.warn({ err }, "active inventory stale refresh failed");
   }
-}
-
-function qualifiedPredicate(cutoff: Date): SQL {
-  return and(
-    eq(activeInventory.active, true),
-    gte(activeInventory.lastSeen, cutoff),
-    sql`${activeInventory.vin} ~* '^[A-HJ-NPR-Z0-9]{17}$'`,
-    sql`length(trim(${activeInventory.make})) > 0`,
-    sql`length(trim(${activeInventory.model})) > 0`,
-  )!;
 }
 
 async function qualifiedCutoff(): Promise<Date> {
@@ -154,7 +265,7 @@ export async function qualifiedInventoryCount(): Promise<number> {
   const cutoff = await qualifiedCutoff();
   const [result] = await db.select({ count: sql<number>`count(*)` })
     .from(activeInventory)
-    .where(qualifiedPredicate(cutoff));
+    .where(qualifiedInventoryWhere(cutoff));
   return Number(result?.count || 0);
 }
 
@@ -164,7 +275,7 @@ export async function qualifiedVehicleShard(offset: number, limit: number): Prom
   const cutoff = await qualifiedCutoff();
   return db.select({ vin: activeInventory.vin, updatedAt: activeInventory.updatedAt })
     .from(activeInventory)
-    .where(qualifiedPredicate(cutoff))
+    .where(qualifiedInventoryWhere(cutoff))
     .orderBy(activeInventory.vin)
     .limit(limit)
     .offset(offset);
@@ -177,7 +288,7 @@ export async function qualifiedInventoryGroups(): Promise<Array<{ make: string; 
     model: activeInventory.model,
     count: sql<number>`count(*)`,
   }).from(activeInventory)
-    .where(qualifiedPredicate(cutoff))
+    .where(qualifiedInventoryWhere(cutoff))
     .groupBy(activeInventory.make, activeInventory.model)
     .orderBy(activeInventory.make, activeInventory.model);
   return rows.map((row) => ({
@@ -202,7 +313,11 @@ export async function qualifiedInventoryPage(
     trim: activeInventory.trim,
     dealerName: activeInventory.dealerName,
   }).from(activeInventory)
-    .where(and(qualifiedPredicate(cutoff), eq(activeInventory.make, make), eq(activeInventory.model, model)))
+    .where(and(
+      qualifiedInventoryWhere(cutoff),
+      sql`lower(trim(${activeInventory.make})) = ${make.trim().toLocaleLowerCase("en-US")}`,
+      sql`lower(trim(${activeInventory.model})) = ${model.trim().toLocaleLowerCase("en-US")}`,
+    ))
     .orderBy(activeInventory.vin)
     .limit(limit)
     .offset(offset);
