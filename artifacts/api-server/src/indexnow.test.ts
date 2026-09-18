@@ -18,6 +18,7 @@ import {
   inventoryRowsRequiringNotification,
   inventoryUrls,
 } from "./lib/inventory-index";
+import { INVENTORY_FRESHNESS_DAYS } from "./lib/inventory-qualification";
 
 const baseListing: Partial<InsertActiveInventory> = {
   vin: "1C4HJXDN6LW114178",
@@ -39,8 +40,8 @@ test("material inventory classification ignores observation timestamps", () => {
     ...baseListing,
     active: true,
     firstSeen: new Date("2026-01-01"),
-    lastSeen: new Date("2026-01-01"),
-    updatedAt: new Date("2026-01-01"),
+    lastSeen: new Date(),
+    updatedAt: new Date(),
   } as ActiveInventory;
   assert.equal(hasMaterialInventoryChange(undefined, baseListing), true);
   assert.equal(hasMaterialInventoryChange(previous, {
@@ -53,6 +54,21 @@ test("material inventory classification ignores observation timestamps", () => {
   assert.equal(inventoryChangeKind(previous, baseListing), null);
   assert.equal(inventoryChangeKind(previous, { ...baseListing, price: 29_500 }), "material");
   assert.equal(inventoryChangeKind({ ...previous, active: false }, baseListing), "reactivated");
+});
+
+test("a previously active but stale row is classified as reactivated with deterministic now", () => {
+  const now = Date.parse("2026-07-01T00:00:00Z");
+  const previous = {
+    ...baseListing,
+    active: true,
+    lastSeen: new Date(now - (INVENTORY_FRESHNESS_DAYS + 1) * 86_400_000),
+    updatedAt: new Date(now - 86_400_000),
+  } as ActiveInventory;
+  assert.equal(inventoryChangeKind(previous, { ...baseListing, active: true }, now), "reactivated");
+  assert.equal(inventoryChangeKind({
+    ...previous,
+    lastSeen: new Date(now - (INVENTORY_FRESHNESS_DAYS - 1) * 86_400_000),
+  }, { ...baseListing, active: true }, now), null);
 });
 
 test("notification selection includes new, material, and reactivated rows only", () => {
