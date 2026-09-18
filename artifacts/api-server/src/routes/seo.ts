@@ -5,6 +5,24 @@ import {
   qualifiedInventoryPage,
   qualifiedVehicleShard,
 } from "../lib/inventory-index";
+import {
+  directorySlug,
+  modelFamilySitemapUrls,
+  resolveInventoryGroup,
+  sluggedInventoryGroups,
+} from "../lib/cars-slugs";
+import {
+  findPhase3aEntity,
+  phase3aEntityUrl,
+  phase3aEntityPageDecision,
+  PHASE3A_PAGE_SIZE,
+  qualifiedPhase3aEntitySummary,
+  phase3aSitemapUrls,
+  qualifiedPhase3aEntityRows,
+  qualifyingPhase3aEntities,
+  renderPhase3aPage,
+  suppressPhase3aModelCollisions,
+} from "../lib/phase3a";
 
 const router: IRouter = Router();
 const ORIGIN = "https://www.autonegotiating.com";
@@ -12,13 +30,6 @@ const SHARD_SIZE = 49_000;
 const CARS_PAGE_SIZE = 100;
 const MAX_PAGE = 10_000;
 
-type InventoryGroup = Awaited<ReturnType<typeof qualifiedInventoryGroups>>[number];
-type SluggedInventoryGroup = InventoryGroup & {
-  makeSlug: string;
-  modelSlug: string;
-  baseMakeSlug: string;
-  baseModelSlug: string;
-};
 
 function escapeXml(value: unknown): string {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -48,8 +59,21 @@ function renderStaticSitemap(): string {
   return xmlDocument(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`);
 }
 
-router.get("/sitemap-static.xml", (_req, res) => {
-  res.type("application/xml").send(renderStaticSitemap());
+router.get("/sitemap-static.xml", async (req, res): Promise<void> => {
+  try {
+    const groups = await qualifiedInventoryGroups();
+    const entities = await qualifyingPhase3aEntities(groups);
+    const urls = [
+      ...modelFamilySitemapUrls(groups, ORIGIN),
+      ...phase3aSitemapUrls(entities, new Map(entities.map((entity) =>
+        [`${entity.make.toLowerCase()}\0${entity.slug}`, true])), groups),
+    ]
+      .map((url) => `<url><loc>${escapeXml(url)}</loc></url>`).join("");
+    res.type("application/xml").send(renderStaticSitemap().replace("</urlset>", `${urls}</urlset>`));
+  } catch (err) {
+    req.log.error({ err }, "static sitemap generation failed");
+    res.status(503).type("text").send("Sitemap temporarily unavailable");
+  }
 });
 
 router.get("/sitemap.xml", async (req, res): Promise<void> => {
@@ -104,50 +128,6 @@ function pageNumber(value: unknown): number | null {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_PAGE ? parsed : null;
 }
 
-function directorySlug(value: string): string {
-  return value.normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/&/g, " and ")
-    .replace(/\+/g, " plus ")
-    .replace(/['’]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function stableSlugSuffix(value: string): string {
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-function sluggedInventoryGroups(groups: InventoryGroup[]): SluggedInventoryGroup[] {
-  const prepared = groups.map((group) => ({
-    ...group,
-    baseMakeSlug: directorySlug(group.make),
-    baseModelSlug: directorySlug(group.model),
-  }));
-  const pathCounts = new Map<string, number>();
-  for (const group of prepared) {
-    const key = `${group.baseMakeSlug}/${group.baseModelSlug}`;
-    pathCounts.set(key, (pathCounts.get(key) ?? 0) + 1);
-  }
-  return prepared.map((group) => {
-    const key = `${group.baseMakeSlug}/${group.baseModelSlug}`;
-    const suffix = pathCounts.get(key) === 1
-      ? ""
-      : `-${stableSlugSuffix(`${group.make}\0${group.model}`)}`;
-    return {
-      ...group,
-      makeSlug: group.baseMakeSlug,
-      modelSlug: `${group.baseModelSlug}${suffix}`,
-    };
-  });
-}
-
 function shell(title: string, description: string, canonical: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(description)}">
@@ -163,6 +143,7 @@ ul{padding-left:20px}a{color:#a34a12}li{margin:6px 0}small{color:#777}
 router.get("/cars", async (req, res): Promise<void> => {
   try {
     const groups = sluggedInventoryGroups(await qualifiedInventoryGroups());
+    const phase3Entities = await qualifyingPhase3aEntities(groups);
     const content = groups.map((group) => {
       const href = `/cars/${group.makeSlug}/${group.modelSlug}`;
       return `<li><a href="${escapeHtml(href)}">${escapeHtml(`${group.make} ${group.model}`)}</a> ` +
@@ -172,7 +153,9 @@ router.get("/cars", async (req, res): Promise<void> => {
       "Browse active vehicle listings by make and model.",
       `${ORIGIN}/cars`,
       `<nav><a href="${ORIGIN}/">Home</a></nav><h1>Active cars for sale</h1>` +
-      `<p>Browse currently indexed vehicle listings by make and model.</p><ul>${content || "<li>No active vehicle listings are currently indexed.</li>"}</ul>`));
+      `<p>Browse currently indexed vehicle listings by make and model.</p><ul>${content || "<li>No active vehicle listings are currently indexed.</li>"}</ul>` +
+      (phase3Entities.length ? `<section><h2>Popular available models</h2><ul>${phase3Entities.map((entity) =>
+        `<li><a href="${escapeHtml(phase3aEntityUrl(entity))}">${escapeHtml(entity.name)}</a></li>`).join("")}</ul></section>` : "")));
   } catch (err) {
     req.log.error({ err }, "cars directory generation failed");
     res.status(503).type("text").send("Inventory directory temporarily unavailable");
@@ -195,19 +178,36 @@ router.get("/cars/:make/:model", async (req, res): Promise<void> => {
     const groups = sluggedInventoryGroups(await qualifiedInventoryGroups());
     const requestedMakeSlug = directorySlug(requestedMake);
     const requestedModelSlug = directorySlug(requestedModel);
-    const directMatch = groups.find((group) =>
-      group.makeSlug === requestedMakeSlug && group.modelSlug === requestedModelSlug
-    );
-    const legacyMatches = groups.filter((group) =>
-      group.baseMakeSlug === requestedMakeSlug && group.baseModelSlug === requestedModelSlug
-    );
-    const group = directMatch ?? (legacyMatches.length === 1 ? legacyMatches[0] : undefined);
+    const resolved = resolveInventoryGroup(groups, requestedMakeSlug, requestedModelSlug);
+    const group = resolved?.group;
     if (!group) {
+      const entity = suppressPhase3aModelCollisions(
+        findPhase3aEntity(requestedMake, requestedModel) ? [findPhase3aEntity(requestedMake, requestedModel)!] : [],
+        groups.filter((candidate) => candidate.makeSlug === requestedMakeSlug),
+      )[0];
+      if (entity) {
+        const summary = await qualifiedPhase3aEntitySummary(entity);
+        const totalCount = summary.totalCount;
+        const decision = phase3aEntityPageDecision(req.path, entity, totalCount, page);
+        if (decision.kind === "redirect") {
+          res.redirect(308, decision.location);
+          return;
+        }
+        if (decision.kind === "render") {
+          const rows = await qualifiedPhase3aEntityRows(entity, decision.offset, PHASE3A_PAGE_SIZE);
+          res.type("html").send(renderPhase3aPage(entity, rows, totalCount, page, summary));
+          return;
+        }
+        if (decision.kind === "not-found") {
+            res.status(404).type("text").send("Inventory directory page not found");
+            return;
+        }
+      }
       res.status(404).type("text").send("Inventory directory page not found");
       return;
     }
     const base = `/cars/${group.makeSlug}/${group.modelSlug}`;
-    if (req.path !== base) {
+    if (resolved.redirect || req.path !== base) {
       res.redirect(308, `${base}${page > 1 ? `?page=${page}` : ""}`);
       return;
     }
@@ -224,11 +224,15 @@ router.get("/cars/:make/:model", async (req, res): Promise<void> => {
       page > 1 ? `<a href="${escapeHtml(`${base}?page=${page - 1}`)}">Previous</a>` : "",
       vehicles.length === CARS_PAGE_SIZE ? ` <a href="${escapeHtml(`${base}?page=${page + 1}`)}">Next</a>` : "",
     ].filter(Boolean).join(" · ");
+    const relatedEntities = (await qualifyingPhase3aEntities(groups))
+      .filter((entity) => directorySlug(entity.make) === group.makeSlug && directorySlug(entity.model) === group.modelSlug);
     res.type("html").send(shell(`${group.make} ${group.model} for Sale | AutoNegotiating.com`,
       `Active ${group.make} ${group.model} vehicle listings.`,
       `${ORIGIN}${base}${page > 1 ? `?page=${page}` : ""}`,
       `<nav><a href="${ORIGIN}/cars">All active cars</a></nav><h1>${escapeHtml(`${group.make} ${group.model}`)}</h1>` +
       `<p>Active vehicle listings${page > 1 ? ` · page ${page}` : ""}</p><ul>${links || "<li>No active vehicle listings found.</li>"}</ul>` +
+      (relatedEntities.length ? `<section><h2>Available ${escapeHtml(`${group.make} ${group.model}`)} models</h2><ul>${relatedEntities.map((entity) =>
+        `<li><a href="${escapeHtml(phase3aEntityUrl(entity))}">${escapeHtml(entity.name)}</a></li>`).join("")}</ul></section>` : "") +
       (pagination ? `<nav aria-label="Pagination">${pagination}</nav>` : "")));
   } catch (err) {
     req.log.error({ err, requestedMake, requestedModel, page }, "vehicle directory page generation failed");
