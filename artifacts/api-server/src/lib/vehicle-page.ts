@@ -25,7 +25,7 @@ function toNumber(value: unknown): number | null {
 
 function formatCurrency(value: number | null): string {
   return value == null || value <= 0
-    ? "Call for price"
+    ? "Price not provided"
     : new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
@@ -61,7 +61,16 @@ function sourceListingUrl(listing: Listing): { url: string | null; label: string
     "listingUrl",
     "vdpUrl",
   ]);
-  if (dealerUrl) return { url: dealerUrl, label: "View original dealer listing" };
+  if (dealerUrl) {
+    let host = "";
+    try { host = new URL(dealerUrl).hostname.toLowerCase(); } catch { /* invalid URL is excluded above */ }
+    return {
+      url: dealerUrl,
+      label: host === "auto.dev" || host.endsWith(".auto.dev")
+        ? "View source listing"
+        : "View original dealer listing",
+    };
+  }
 
   // auto.dev sometimes returns its VDP as a relative path while omitting
   // clickoffUrl. Keep a useful source link rather than inventing a dealer URL.
@@ -104,7 +113,7 @@ function vehicleName(listing: Listing): string {
   return [year, make, model, trim].filter(Boolean).join(" ");
 }
 
-function getCondition(listing: Listing): { label: string; schema: string } {
+function getCondition(listing: Listing): { label: string; schema?: string } {
   const raw = text(listing.condition).toLowerCase();
   if (raw === "new") {
     return { label: "New", schema: "https://schema.org/NewCondition" };
@@ -112,7 +121,10 @@ function getCondition(listing: Listing): { label: string; schema: string } {
   if (raw === "certified" || raw === "cpo") {
     return { label: "Certified pre-owned", schema: "https://schema.org/UsedCondition" };
   }
-  return { label: "Used", schema: "https://schema.org/UsedCondition" };
+  if (raw === "used") {
+    return { label: "Used", schema: "https://schema.org/UsedCondition" };
+  }
+  return { label: "Not provided" };
 }
 
 function jsonLdForVehicle(
@@ -122,7 +134,7 @@ function jsonLdForVehicle(
   name: string,
   price: number | null,
   mileage: number | null,
-  condition: { schema: string },
+  condition: { schema?: string },
   availability: string,
   imageUrl: string | null,
   dealer: string,
@@ -139,20 +151,21 @@ function jsonLdForVehicle(
         }
       : undefined;
 
-  const seller = {
+  const seller = dealer || address
+    ? {
     "@type": "AutoDealer",
-    name: dealer || "Dealer",
+    ...(dealer ? { name: dealer } : {}),
     ...(address ? { address } : {}),
-  };
+    }
+    : undefined;
 
   const offer = {
     "@type": "Offer",
     url: canonicalUrl,
-    ...(price != null && price > 0 ? { price: String(Math.round(price)) } : {}),
-    priceCurrency: "USD",
+    ...(price != null && price > 0 ? { price: String(Math.round(price)), priceCurrency: "USD" } : {}),
     availability,
-    itemCondition: condition.schema,
-    seller,
+    ...(condition.schema ? { itemCondition: condition.schema } : {}),
+    ...(seller ? { seller } : {}),
   };
 
   const vehicle = {
@@ -172,7 +185,7 @@ function jsonLdForVehicle(
         unitCode: "SMI",
       },
     } : {}),
-    itemCondition: condition.schema,
+    ...(condition.schema ? { itemCondition: condition.schema } : {}),
     ...(imageUrl ? { image: imageUrl } : {}),
     offers: offer,
   };
@@ -270,13 +283,14 @@ export function renderVehiclePage(listing: Listing, vin: string): string {
   const price = toNumber(listing.priceUnformatted) ?? toNumber(listing.price);
   const mileage = toNumber(listing.mileageUnformatted) ?? toNumber(listing.mileage);
   const condition = getCondition(listing);
-  const dealer = text(listing.dealerName) || text(listing.dealer) || "Dealer";
+  const dealer = text(listing.dealerName) || text(listing.dealer);
   const location = getLocation(listing);
   const imageUrl = getPhotoUrl(listing);
   const source = sourceListingUrl(listing);
   const canonicalUrl = `${SITE_ORIGIN}/vehicle/${encodeURIComponent(vin)}`;
   const availability = "https://schema.org/InStock";
-  const description = `${name} listed at ${formatCurrency(price)} with ${formatMileage(mileage)} in ${[location.city, location.state].filter(Boolean).join(", ") || "the United States"}. VIN ${vin}.`;
+  const place = [location.city, location.state].filter(Boolean).join(", ");
+  const description = `Vehicle listing for ${name}${price != null && price > 0 ? ` at ${formatCurrency(price)}` : ""}${mileage != null && mileage >= 0 ? ` with ${formatMileage(mileage)}` : ""}${place ? ` in ${place}` : ""}. VIN ${vin}.`;
   const searchUrl = `/?${new URLSearchParams({ ...(make ? { make } : {}), ...(model ? { model } : {}) }).toString()}`;
   const jsonLd = jsonLdForVehicle(
     listing,
@@ -316,14 +330,14 @@ export function renderVehiclePage(listing: Listing, vin: string): string {
           <div class="field"><dt>Year</dt><dd>${escapeHtml(year || "Not provided")}</dd></div>
           <div class="field"><dt>Make</dt><dd>${escapeHtml(make || "Not provided")}</dd></div>
           <div class="field"><dt>Model</dt><dd>${escapeHtml(model || "Not provided")}</dd></div>
-          <div class="field"><dt>Trim</dt><dd>${escapeHtml(trim || "Standard")}</dd></div>
+          <div class="field"><dt>Trim</dt><dd>${escapeHtml(trim || "Not provided")}</dd></div>
           <div class="field"><dt>Mileage</dt><dd>${escapeHtml(formatMileage(mileage))}</dd></div>
           <div class="field"><dt>Condition</dt><dd>${escapeHtml(condition.label)}</dd></div>
           <div class="field"><dt>Availability</dt><dd>In stock</dd></div>
         </dl>
         <div class="dealer">
           <h2>Dealer</h2>
-          <p>${escapeHtml(dealer)}</p>
+          <p>${escapeHtml(dealer || "Dealer name not provided")}</p>
           <p>${escapeHtml([location.city, location.state].filter(Boolean).join(", ") || "Location not provided")}</p>
         </div>
         ${
@@ -335,7 +349,7 @@ export function renderVehiclePage(listing: Listing, vin: string): string {
     </div>
     <section class="summary">
       <h2>Vehicle details</h2>
-      <p>${escapeHtml(name)} is currently listed as ${escapeHtml(condition.label.toLowerCase())} with ${escapeHtml(formatMileage(mileage).toLowerCase())} at ${escapeHtml(dealer)} in ${escapeHtml([location.city, location.state].filter(Boolean).join(", ") || "the United States")}.</p>
+      <p>${escapeHtml(name)} is currently listed${price != null && price > 0 ? ` at ${escapeHtml(formatCurrency(price))}` : ""}${mileage != null && mileage >= 0 ? ` with ${escapeHtml(formatMileage(mileage).toLowerCase())}` : ""}${condition.schema ? ` in ${escapeHtml(condition.label.toLowerCase())} condition` : ""}${dealer ? ` at ${escapeHtml(dealer)}` : ""}${place ? ` in ${escapeHtml(place)}` : ""}.</p>
     </section>
   </article>
 </main>`;
