@@ -165,7 +165,7 @@ function cutoff(): Date {
   return new Date(Date.now() - INVENTORY_FRESHNESS_DAYS * 24 * 60 * 60 * 1000);
 }
 
-function entityWhere(entity: Phase3Entity, date = cutoff()) {
+export function phase3aEntityWhere(entity: Phase3Entity, date = cutoff()) {
   return and(
     qualifiedInventoryWhere(date),
     sql`lower(trim(${activeInventory.make})) = ${key(entity.make)}`,
@@ -176,7 +176,7 @@ function entityWhere(entity: Phase3Entity, date = cutoff()) {
 
 export async function qualifiedPhase3aEntityCount(entity: Phase3Entity): Promise<number> {
   const [result] = await db.select({ count: sql<number>`count(*)` })
-    .from(activeInventory).where(entityWhere(entity));
+    .from(activeInventory).where(phase3aEntityWhere(entity));
   return Number(result?.count ?? 0);
 }
 
@@ -188,7 +188,7 @@ export async function qualifiedPhase3aEntitySummary(entity: Phase3Entity): Promi
       filter (where ${activeInventory.year} between ${MIN_VEHICLE_YEAR} and ${currentYear + 2}), '{}')`,
     usedCount: sql<number>`count(*) filter (where lower(trim(coalesce(${activeInventory.condition}, ''))) = 'used')`,
     newCount: sql<number>`count(*) filter (where lower(trim(coalesce(${activeInventory.condition}, ''))) = 'new')`,
-  }).from(activeInventory).where(entityWhere(entity));
+  }).from(activeInventory).where(phase3aEntityWhere(entity));
   const years = Array.isArray(result?.years)
     ? result.years.map(Number).filter((year) => Number.isInteger(year))
     : [];
@@ -206,7 +206,7 @@ export async function qualifiedPhase3aEntityRows(
   offset = 0,
   limit = PHASE3A_PAGE_SIZE,
 ): Promise<ActiveInventory[]> {
-  return db.select().from(activeInventory).where(entityWhere(entity))
+  return db.select().from(activeInventory).where(phase3aEntityWhere(entity))
     .orderBy(activeInventory.vin).limit(Math.min(PHASE3A_PAGE_SIZE, Math.max(0, limit)))
     .offset(Math.max(0, offset));
 }
@@ -301,6 +301,7 @@ export function renderPhase3aPage(
   totalCount = rows.length,
   page = 1,
   summary?: Phase3aEntitySummary,
+  yearLinks = "",
 ): string {
   const path = phase3aCanonicalPath(entity);
   const canonical = `${PHASE3A_ORIGIN}${path}${page > 1 ? `?page=${page}` : ""}`;
@@ -350,7 +351,7 @@ export function renderPhase3aPage(
     `<link rel="canonical" href="${html(canonical)}"><script type="application/ld+json">${jsonLdText}</script>` +
     `<style>body{font-family:system-ui,sans-serif;line-height:1.5;color:#1a1a18;background:#fafaf7;margin:0}header{background:#fff;border-bottom:1px solid #e8e8e2;padding:18px 24px}header a{color:#1a1a18;text-decoration:none;font-weight:700;font-size:22px}main{max-width:1000px;margin:auto;padding:32px 24px 60px}h1,h2{font-family:Georgia,serif}h1{font-size:40px}section{background:#fff;border:1px solid #e8e8e2;border-radius:10px;padding:16px 20px;margin:16px 0}a{color:#a34a12}li{margin:14px 0}</style></head><body><header><a href="${PHASE3A_ORIGIN}/">AutoNegotiating.com</a></header><main>` +
     `<nav><a href="${PHASE3A_ORIGIN}/cars">Cars</a> · <a href="${html(`${PHASE3A_ORIGIN}/cars/${directorySlug(entity.make)}/${directorySlug(entity.model)}`)}">${html(`${entity.make} ${entity.model}`)}</a></nav>` +
-     `<h1>${html(`${entity.name} for Sale`)}</h1><p>${html(description)}</p><p>${totalCount} qualifying vehicles${years.length ? ` · Model years: ${years.join(", ")}` : ""}</p><section><h2>Current ${html(entity.name)} listings</h2><ul>${vehicleItems}</ul></section>` +
+      `<h1>${html(`${entity.name} for Sale`)}</h1><p>${html(description)}</p><p>${totalCount} qualifying vehicles${years.length ? ` · Model years: ${years.join(", ")}` : ""}</p>${yearLinks ? `<section><h2>Available model years</h2><ul>${yearLinks}</ul></section>` : ""}<section><h2>Current ${html(entity.name)} listings</h2><ul>${vehicleItems}</ul></section>` +
      `<nav aria-label="Pagination">${page > 1 ? `<a href="${html(`${path}?page=${page - 1}`)}">Previous</a>` : ""}${page > 1 && page * PHASE3A_PAGE_SIZE < totalCount ? " · " : ""}${page * PHASE3A_PAGE_SIZE < totalCount ? `<a href="${html(`${path}?page=${page + 1}`)}">Next</a>` : ""}</nav>` +
     `</main></body></html>`;
 }

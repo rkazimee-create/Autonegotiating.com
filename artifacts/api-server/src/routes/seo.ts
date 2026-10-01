@@ -23,6 +23,18 @@ import {
   renderPhase3aPage,
   suppressPhase3aModelCollisions,
 } from "../lib/phase3a";
+import {
+  phase3bYearEntity,
+  phase3bYearPageDecision,
+  phase3bYearPath,
+  qualifiedPhase3bYearCount,
+  qualifyingPhase3bYearEntities,
+  qualifiedPhase3bYearEntitiesForNational,
+  qualifiedPhase3bYearRows,
+  qualifiedPhase3bYearSummary,
+  renderPhase3bYearPage,
+  phase3bYearSitemapUrls,
+} from "../lib/phase3b-year";
 
 const router: IRouter = Router();
 const ORIGIN = "https://www.autonegotiating.com";
@@ -67,6 +79,7 @@ router.get("/sitemap-static.xml", async (req, res): Promise<void> => {
       ...modelFamilySitemapUrls(groups, ORIGIN),
       ...phase3aSitemapUrls(entities, new Map(entities.map((entity) =>
         [`${entity.make.toLowerCase()}\0${entity.slug}`, true])), groups),
+      ...phase3bYearSitemapUrls(await qualifyingPhase3bYearEntities()),
     ]
       .map((url) => `<url><loc>${escapeXml(url)}</loc></url>`).join("");
     res.type("application/xml").send(renderStaticSitemap().replace("</urlset>", `${urls}</urlset>`));
@@ -162,6 +175,41 @@ router.get("/cars", async (req, res): Promise<void> => {
   }
 });
 
+router.get("/cars/:make/:shopperEntity/:dimension", async (req, res): Promise<void> => {
+  const page = pageNumber(req.query.page);
+  if (!page) {
+    res.status(400).type("text").send("Invalid page");
+    return;
+  }
+  const candidate = phase3bYearEntity(
+    String(req.params.make || "").trim(),
+    String(req.params.shopperEntity || "").trim(),
+    String(req.params.dimension || ""),
+  );
+  if (!candidate) {
+    res.status(404).type("text").send("Inventory year page not found");
+    return;
+  }
+  try {
+    const totalCount = await qualifiedPhase3bYearCount(candidate);
+    const decision = phase3bYearPageDecision(req.path, candidate, totalCount, page);
+    if (decision.kind === "not-found") {
+      res.status(404).type("text").send("Inventory year page not found");
+      return;
+    }
+    if (decision.kind === "redirect") {
+      res.redirect(308, `${decision.location}`);
+      return;
+    }
+    const rows = await qualifiedPhase3bYearRows(candidate, decision.offset, 100);
+    const summary = await qualifiedPhase3bYearSummary(candidate);
+    res.type("html").send(renderPhase3bYearPage(candidate, rows, totalCount, page, summary));
+  } catch (err) {
+    req.log.error({ err, candidate, page }, "year inventory page generation failed");
+    res.status(503).type("text").send("Inventory directory temporarily unavailable");
+  }
+});
+
 router.get("/cars/:make/:model", async (req, res): Promise<void> => {
   const page = pageNumber(req.query.page);
   if (!page) {
@@ -195,7 +243,10 @@ router.get("/cars/:make/:model", async (req, res): Promise<void> => {
         }
         if (decision.kind === "render") {
           const rows = await qualifiedPhase3aEntityRows(entity, decision.offset, PHASE3A_PAGE_SIZE);
-          res.type("html").send(renderPhase3aPage(entity, rows, totalCount, page, summary));
+          const yearCandidates = (await qualifiedPhase3bYearEntitiesForNational(entity))
+            .map((candidate) => `<li><a href="${escapeHtml(phase3bYearPath(candidate.entity, candidate.year))}">${escapeHtml(`${candidate.year} ${entity.name}`)}</a></li>`)
+            .join("");
+          res.type("html").send(renderPhase3aPage(entity, rows, totalCount, page, summary, yearCandidates));
           return;
         }
         if (decision.kind === "not-found") {

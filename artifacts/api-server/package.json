@@ -10,6 +10,7 @@
     "indexnow:bootstrap": "node --enable-source-maps ./dist/indexnow-bootstrap.mjs",
     "test:indexnow": "pnpm run build && node --test ./dist/indexnow.test.mjs",
     "test:phase3a": "pnpm run build && node --test ./dist/phase3a.test.mjs",
+    "test:phase3b": "pnpm run build && node --test ./dist/phase3b-year.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
