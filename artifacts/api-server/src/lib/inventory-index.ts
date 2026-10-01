@@ -153,6 +153,10 @@ export function indexInventoryListings(listings: Array<Record<string, unknown>>)
   // De-duplicate a response before the single batch insert.
   const unique = [...new Map(records.map((record) => [record.vin, record])).values()];
   (async () => {
+    // Maintenance belongs to successful upstream inventory ingestion, never
+    // to sitemap/directory reads. Qualification still excludes stale rows
+    // immediately, even between ingestion runs.
+    await refreshStaleInventory();
     let preUpsertGroups: Array<{ make: string; model: string; count: number }> = [];
     try {
       preUpsertGroups = await qualifiedInventoryGroups();
@@ -295,7 +299,6 @@ export async function refreshStaleInventory(): Promise<void> {
 }
 
 async function qualifiedCutoff(): Promise<Date> {
-  await refreshStaleInventory();
   return new Date(Date.now() - INVENTORY_FRESHNESS_DAYS * 24 * 60 * 60 * 1000);
 }
 

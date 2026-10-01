@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
 import inventoryRouter from "./inventory";
 import trimsRouter from "./trims";
 import comparablesRouter from "./comparables";
@@ -15,7 +14,6 @@ import userRouter from "./user";
 
 const router: IRouter = Router();
 
-router.use(healthRouter);
 router.use(inventoryRouter);
 router.use(trimsRouter);
 router.use(comparablesRouter);

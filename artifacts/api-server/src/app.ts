@@ -9,6 +9,7 @@ import { WebhookHandlers } from "./lib/webhookHandlers";
 import { handleInboundEmail } from "./routes/inbound-email";
 import vehiclePageRouter from "./routes/vehicle-page";
 import seoRouter from "./routes/seo";
+import healthRouter from "./routes/health";
 
 const app: Express = express();
 
@@ -96,6 +97,8 @@ app.use(cors());
 // crawlers without a Clerk session.
 app.use(vehiclePageRouter);
 app.use(seoRouter);
+// Public health/build attestation must not enter authentication handshakes.
+app.use("/api", healthRouter);
 app.use(clerkMiddleware());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

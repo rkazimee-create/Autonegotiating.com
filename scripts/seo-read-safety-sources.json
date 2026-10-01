@@ -1,0 +1,17 @@
+{
+  "files": [
+    "scripts/seo-read-safety-sources.json",
+    "artifacts/api-server/build.mjs",
+    "artifacts/api-server/package.json",
+    "lib/db/package.json",
+    "lib/api-zod/package.json",
+    "lib/integrations-gemini-ai/package.json",
+    "pnpm-lock.yaml"
+  ],
+  "runtimeTrees": [
+    "artifacts/api-server/src",
+    "lib/db/src",
+    "lib/api-zod/src",
+    "lib/integrations-gemini-ai/src"
+  ]
+}

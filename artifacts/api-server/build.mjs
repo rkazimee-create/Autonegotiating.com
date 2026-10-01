@@ -4,11 +4,27 @@ import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
+import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(artifactDir, "../..");
+const safetyManifest = JSON.parse(readFileSync(path.join(repoRoot, "scripts/seo-read-safety-sources.json"), "utf8"));
+// Include transitive local runtime/startup sources and lockfile, not just the
+// direct SEO helpers. New runtime modules automatically invalidate approval.
+const safetySources = [...new Set([
+  ...safetyManifest.files,
+  ...safetyManifest.runtimeTrees.flatMap((directory) =>
+    readdirSync(path.join(repoRoot, directory), { recursive: true })
+      .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+      .map((file) => `${directory}/${file}`)),
+])].sort();
+const safetyDigest = createHash("sha256").update(
+  safetySources.map((source) => `${source}\0${readFileSync(path.join(repoRoot, source), "utf8")}\0`).join(""),
+).digest("hex");
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
@@ -21,6 +37,8 @@ async function buildAll() {
       path.resolve(artifactDir, "src/indexnow.test.ts"),
       path.resolve(artifactDir, "src/phase3a.test.ts"),
       path.resolve(artifactDir, "src/phase3b-year.test.ts"),
+      path.resolve(artifactDir, "src/persisted-vehicle-page.test.ts"),
+      path.resolve(artifactDir, "src/seo-read-safety.test.ts"),
     ],
     platform: "node",
     bundle: true,
@@ -109,6 +127,7 @@ async function buildAll() {
       "electron",
     ],
     sourcemap: "linked",
+    define: { __SEO_READ_SAFETY_DIGEST__: JSON.stringify(safetyDigest) },
     plugins: [
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
       esbuildPluginPino({ transports: ["pino-pretty"] })
